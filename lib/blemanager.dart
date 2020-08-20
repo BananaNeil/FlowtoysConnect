@@ -45,7 +45,7 @@ class BLEManager {
 
 
   void initBLE() async {
-    FlutterBlue.isAvailable.then((value) {
+    FlutterBlue.instance.isAvailable.then((value) {
       if (!value) {
         print("Bluetooth device not available on this device");
         return;

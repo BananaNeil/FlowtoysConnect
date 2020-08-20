@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>392534221797-semq59qg2nbgbd6083bpvdk7re308nrc.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.392534221797-semq59qg2nbgbd6083bpvdk7re308nrc</string>
+	<key>API_KEY</key>
+	<string>AIzaSyChK80qZEi1D6LVrbUcXU1UstzmllbmI5Y</string>
+	<key>GCM_SENDER_ID</key>
+	<string>392534221797</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.flowtoys.connect</string>
+	<key>PROJECT_ID</key>
+	<string>flowtoys-connect</string>
+	<key>STORAGE_BUCKET</key>
+	<string>flowtoys-connect.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:392534221797:ios:20bbe744069c4cf565c50c</string>
+	<key>DATABASE_URL</key>
+	<string>https://flowtoys-connect.firebaseio.com</string>
+</dict>
+</plist>
