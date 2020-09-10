@@ -75,7 +75,7 @@ class _NewListPageState extends State<NewListPage> {
         ),
         body: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: <Widget>[
               Container(
                 padding: EdgeInsets.only(top: 20, left: 20, right: 20, bottom: 10),
@@ -108,19 +108,24 @@ class _NewListPageState extends State<NewListPage> {
                   ),
                 ),
               ),
-              Container(
-                margin: EdgeInsets.only(top: 50),
-                child: Text("Add to an existing List",
-                  style: TextStyle(
-                    fontSize: 22,
+              Visibility(
+                visible: listErrorMessage == null && modeLists.length > 0,
+                child: Container(
+                  margin: EdgeInsets.only(top: 50),
+                  child: Text("Add to an existing List",
+                    style: TextStyle(
+                      fontSize: 22,
+                    )
                   )
-                )
-              ),
-              Expanded(
-                child: ListView(
-                  // padding: EdgeInsets.zero,
-                  children: _ExistingLists()
                 ),
+              ),
+              Visibility(
+                visible: listErrorMessage == null && modeLists.length > 0,
+                child: Expanded(
+                  child: ListView(
+                    children: _ExistingLists()
+                  ),
+                )
               ),
             ],
           ),

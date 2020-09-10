@@ -8,6 +8,7 @@ import 'package:app/routes/research.dart';
 import 'package:app/authentication.dart';
 import 'package:app/routes/login.dart';
 import 'package:app/routes/modes.dart';
+import 'package:app/routes/lists.dart';
 
 class FluroRouter {
   static Router router = Router();
@@ -28,32 +29,37 @@ class FluroRouter {
     router.define(
       '/signup',
       handler: newHandler(() => CreateAccount()),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.inFromRight,
     );
     router.define(
       '/reset-password',
       handler: newHandler(() => ResetPassword()),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.inFromRight,
     );
     router.define(
       '/modes',
       handler: newHandler(() => Modes()),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.fadeIn,
     );
     router.define(
       '/lists/new',
       handler: newHandler(() => NewList()),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/lists',
+      handler: newHandler(() => Lists()),
+      transitionType: TransitionType.fadeIn,
     );
     router.define(
       '/research',
       handler: newHandler(() => Research()),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.inFromRight,
     );
     router.define(
       '/lists/:id',
       handler: newHandler((id) => Modes(id: id), 'id'),
-      transitionType: TransitionType.inFromBottom,
+      transitionType: TransitionType.inFromRight,
     );
   }
 }

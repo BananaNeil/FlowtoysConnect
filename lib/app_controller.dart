@@ -33,15 +33,19 @@ class AppController extends StatefulWidget {
             ),
           ),
           ListTile(
-            title: Text('My Props'),
-            onTap: () { },
-          ),
-          ListTile(
             title: Text('Modes'),
-            onTap: () { },
+            onTap: () {
+              Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/modes', (Route<dynamic> route) => false);
+            },
           ),
           ListTile(
             title: Text('My Lists'),
+            onTap: () {
+              Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/lists', (Route<dynamic> route) => false);
+            },
+          ),
+          ListTile(
+            title: Text('My Props'),
             onTap: () { },
           ),
         ],
@@ -90,6 +94,9 @@ class AppController extends StatefulWidget {
     red,
   ].toList();
 
+  static Map<dynamic, dynamic> getParams(BuildContext context) {
+    return (ModalRoute.of(context).settings.arguments as Map) ?? {};
+  }
 
   static void closeKeyboard() {
     FocusScopeNode currentFocus = FocusScope.of(getCurrentContext());

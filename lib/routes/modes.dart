@@ -31,11 +31,11 @@ class _ModesPageState extends State<ModesPage> {
 
   final String id;
 
+  bool isSelecting;
   String errorMessage;
   List<Mode> modes = [];
   bool isEditing = false;
-  bool isSelecting = false;
-  List<ModeList> modeLists = [];
+  List<ModeList> modeLists;
   List<Mode> selectedModes = [];
   bool awaitingResponse = false;
   bool showExpandedActionButtons = false;
@@ -59,8 +59,8 @@ class _ModesPageState extends State<ModesPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (modeLists == [])
-      modeLists = [(ModalRoute.of(context).settings.arguments as Map)['modeList']];
+    modeLists = modeLists ?? [AppController.getParams(context)['modeList']] ?? null;
+    isSelecting = isSelecting ?? AppController.getParams(context)['isSelecting'] ?? false;
 
     return Scaffold(
       floatingActionButton: _FloatingActionButton(),
