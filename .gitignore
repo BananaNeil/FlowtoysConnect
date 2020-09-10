@@ -30,6 +30,10 @@
 .pub/
 /build/
 
+/ios/Flutter/.last_build_id
+
+/ios/build/XCBuildData
+
 # Web related
 lib/generated_plugin_registrant.dart
 
