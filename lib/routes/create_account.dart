@@ -74,7 +74,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   void _loadNextPage() {
     Client.authenticate(email.text, password.text).then((response) {
       if (response['success'])
-        AppController.closeUntilPath('/research');
+        AppController.closeUntilPath('/modes');
       else
         setState(() { _errorMessage = response['message']; });
     });

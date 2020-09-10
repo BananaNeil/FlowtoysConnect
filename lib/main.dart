@@ -38,7 +38,7 @@ class FlowtoysConnect extends StatelessWidget {
       SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
       return MaterialApp(
-        initialRoute: isAuthenticated ? '/research' : '/login',
+        initialRoute: isAuthenticated ? '/modes' : '/login',
         onGenerateRoute: FluroRouter.router.generator,
         navigatorKey: AppController.globalKey,
         title: 'Flowtoys Connect',

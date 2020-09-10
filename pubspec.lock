@@ -167,6 +167,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.7.2"
+  flutter_reorderable_list:
+    dependency: "direct main"
+    description:
+      name: flutter_reorderable_list
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.1.4"
   flutter_secure_storage:
     dependency: "direct main"
     description:
@@ -240,6 +247,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "3.0.1"
+  json_api:
+    dependency: "direct main"
+    description:
+      name: json_api
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "4.3.0"
   logging:
     dependency: transitive
     description:

@@ -21,6 +21,34 @@ class AppController extends StatefulWidget {
     config = jsonDecode(contents);
   }
 
+  static Widget drawer() {
+      return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          DrawerHeader(
+            // child: Text('Drawer Header'),
+            decoration: BoxDecoration(
+              // color: Colors.blue,
+            ),
+          ),
+          ListTile(
+            title: Text('My Props'),
+            onTap: () { },
+          ),
+          ListTile(
+            title: Text('Modes'),
+            onTap: () { },
+          ),
+          ListTile(
+            title: Text('My Lists'),
+            onTap: () { },
+          ),
+        ],
+      ),
+    );
+  }
+
   static String logoImagePath() {
     return 'assets/images/logo.png';
   }

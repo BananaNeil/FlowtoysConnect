@@ -2,6 +2,7 @@ import 'package:basic_utils/basic_utils.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:app/models/account.dart';
+import 'package:app/models/mode_list.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:io';
@@ -57,6 +58,83 @@ class Client {
         'email': email.trim(),
       },
     );
+  }
+
+  static Future<Map<dynamic, dynamic>> getModes() async {
+    var response = await makeRequest('get', path: '/modes');
+
+    if (response['success']) {
+      response['modeList'] = ModeList.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> getModeLists({type}) async {
+    var params = type == null ? "" : "?type=${type}";
+    var response = await makeRequest('get', path: '/mode_lists${params}');
+
+    if (response['success']) {
+      response['modeLists'] = ModeList.fromList(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> getModeList(id) async {
+    if (id == 'default') return getModeLists(type: 'default');
+
+    var response = await makeRequest('get', path: "/mode_lists/${id}");
+
+    if (response['success']) {
+      response['modeList'] = ModeList.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> createNewList(name, modes) async {
+    var modeIds = modes.map((mode) => mode.id).toList();
+    var response = await makeRequest('post',
+      path: '/mode_lists',
+      body: {
+        'name': name,
+        'mode_ids': modeIds,
+      },
+    );
+
+    if (response['success']) {
+      response['modeList'] = ModeList.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateMode(mode) async {
+    var response = await makeRequest('put',
+      path: "/modes/${mode.id}",
+      body: {
+        'mode': mode.toMap(),
+      },
+    );
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateList(id, {append}) async {
+    var modeIds = append.map((mode) => mode.id).toList();
+    var response = await makeRequest('put',
+      path: "/mode_lists/${id}",
+      body: {
+        'append': modeIds,
+      },
+    );
+
+    if (response['success']) {
+      response['modeList'] = ModeList.fromMap(response['body']);
+    }
+
+    return response;
   }
 
   static Future<Map<dynamic, dynamic>> authenticate(email, password) async {

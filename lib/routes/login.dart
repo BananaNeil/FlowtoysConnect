@@ -68,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
       Client.authenticate(email.text, password.text).then((response) {
         _submitting = false;
         if (response['success'])
-          AppController.closeUntilPath('/research');
+          AppController.closeUntilPath('/modes');
         else setState(() {
           _errorMessage = response['message'];
         });

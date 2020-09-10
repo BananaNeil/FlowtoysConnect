@@ -22,6 +22,7 @@ dependencies:
     sdk: flutter
   osc:
     git: https://github.com/pq/osc
+  flutter_reorderable_list: ^0.1.4
   flutter_secure_storage: ^3.3.3
   firebase_messaging: ^6.0.16
   firebase_analytics: ^5.0.16
@@ -34,6 +35,7 @@ dependencies:
   fluttertoast: ^7.0.2
   validators: ^2.0.1
   event_bus: ^1.1.1
+  json_api: ^4.3.0
   fluro: ^1.6.3
 
   # The following adds the Cupertino Icons font to your application.
