@@ -110,6 +110,14 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> removeMode(mode) async {
+    var response = await makeRequest('delete',
+      path: "/modes/${mode.id}"
+    );
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> updateMode(mode) async {
     var response = await makeRequest('put',
       path: "/modes/${mode.id}",

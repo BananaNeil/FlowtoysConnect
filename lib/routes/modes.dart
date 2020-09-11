@@ -280,18 +280,51 @@ class _ModesPageState extends State<ModesPage> {
               )
             ),
           )),
-          trailing: isEditing ? Icon(Icons.delete_forever, color: AppController.red) : isSelecting ? null : Icon(Icons.arrow_forward),
+          trailing: _TrailingIcon(mode),
           title: Text(mode.name),
         ),
       )
     );
   }
 
+  Widget _TrailingIcon(mode) {
+    if (isEditing)
+      return GestureDetector(
+        onTap: () {
+          AppController.openDialog("Are you sure?", "This will remove \"${mode.name}\" from this list along with any customizations made to it.",
+            buttonText: 'Cancel',
+            buttons: [{
+              'text': 'Delete',
+              'color': Colors.red,
+              'onPressed': () {
+                removeMode(mode);
+              },
+            }]
+          );
+        },
+        child: Icon(Icons.delete_forever, color: AppController.red),
+      );
+    else if (isSelecting)
+      return null;
+    else return Icon(Icons.arrow_forward);
+  }
+
+  Future<void> removeMode(mode) {
+    Client.removeMode(mode).then((response) {
+      var list = modeLists[0];
+      setState(() {
+        if (!response['success'])
+          errorMessage = response['message'];
+        else list.modes.remove(mode);
+      });
+    });
+  }
+
   String _getTitle() {
     if (isSelecting)
       return "${selectedModes.length} item selected";
     else if (modeLists.length != 0 && !isShowingMultipleLists())
-      return modeLists[0].name;
+      return modeLists[0]?.name ?? 'Modes';
     else return "Modes";
   }
 

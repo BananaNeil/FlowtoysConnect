@@ -134,6 +134,7 @@ class AppController extends StatefulWidget {
           ...buttons.map((button) {
             return FlatButton(
               child: Text(button['text']),
+              textColor: button['color'] ?? white,
               onPressed: () {
                 dialogIsOpen = false;
                 Navigator.of(context).pop();
