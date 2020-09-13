@@ -3,6 +3,7 @@ import 'package:fluro/fluro.dart';
 
 import 'package:app/routes/reset_password.dart';
 import 'package:app/routes/create_account.dart';
+import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
 import 'package:app/routes/research.dart';
 import 'package:app/authentication.dart';
@@ -40,6 +41,11 @@ class FluroRouter {
       '/modes',
       handler: newHandler(() => Modes()),
       transitionType: TransitionType.fadeIn,
+    );
+    router.define(
+      '/modes/:id',
+      handler: newHandler((id) => EditMode(id: id), 'id'),
+      transitionType: TransitionType.inFromRight,
     );
     router.define(
       '/lists/new',

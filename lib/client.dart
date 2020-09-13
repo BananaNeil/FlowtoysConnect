@@ -1,9 +1,10 @@
 import 'package:basic_utils/basic_utils.dart';
+import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:app/models/account.dart';
-import 'package:app/models/mode_list.dart';
 import 'package:http/http.dart' as http;
+import 'package:app/models/mode.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -110,6 +111,19 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> getMode(modeId) async {
+    var response = await makeRequest('get',
+      path: "/modes/${modeId}"
+    );
+
+    if (response['success']) {
+      response['mode'] = Mode.fromMap(response['body']['data']['attributes']);
+    }
+    print('MODE CAME BACK: ${response['mode'].name}');
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> removeMode(mode) async {
     var response = await makeRequest('delete',
       path: "/modes/${mode.id}"
@@ -169,23 +183,33 @@ class Client {
       final domain = AppController.config['domain'];
       final host = "$protocol://$domain";
 
+      print("Request: $host$path");
       http.Request request = http.Request(method, uri ?? Uri.parse('$host$path'));
       if (genericErrorCodes == null) genericErrorCodes = [500];
 
       request.headers['Content-Type'] = 'application/json; charset=UTF-8';
 
 
-      request.body = jsonEncode(body ?? {});
+      request.body = jsonEncode(body ?? {}, toEncodable: (object) {
+        var json = {};
+        Map<int, Object>.from(object).forEach((key, value) {
+          json[key.toString()] = value;
+        });
+        return json;
+      });
+      print("encodeed: ${request.body}");
       (headers ?? {}).forEach((key, value) {
         request.headers[key] = value;
       });
 
+      print("Is authed: ${Authentication.isAuthenticated()}");
       if (Authentication.isAuthenticated())
         Authentication.token.forEach((key, value) {
           request.headers[key] = value;
         });
+      print("SENDING REQUEST");
 
-      print(">>>>>>>>>>:\nTYPE: ${method}\nURL: $host$path\nHEADERS: ${request.headers}\nBODY: ${jsonEncode(body ?? {})}\n=======");
+      print(">>>>>>>>>>:\nTYPE: ${method}\nURL: $host$path\nHEADERS: ${request.headers}\nBODY: ${request.body}\n=======");
       http.StreamedResponse streamedResponse = await http.Client().send(request);
       http.Response response = await http.Response.fromStream(streamedResponse);
 
@@ -235,12 +259,12 @@ class Client {
         'success': false,
         'body': { },
       };
-    } catch (e) {
-      return {
-        'message': "${e}",
-        'success': false,
-        'body': { },
-      };
-    }
+    }// } catch (e) {
+    //   return {
+    //     'message': "${e}",
+    //     'success': false,
+    //     'body': { },
+    //   };
+    // }
   }
 }

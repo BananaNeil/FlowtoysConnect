@@ -1,6 +1,8 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/models/group.dart';
+import 'package:app/models/prop.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
@@ -22,7 +24,7 @@ class AppController extends StatefulWidget {
   }
 
   static Widget drawer() {
-      return Drawer(
+    return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: <Widget>[
@@ -192,3 +194,13 @@ class AppControllerState extends State<AppController> {
 }
 
 
+
+Iterable<E> mapWithIndex<E, T>(
+    Iterable<T> items, E Function(int index, T item) f) sync* {
+  var index = 0;
+
+  for (final item in items) {
+    yield f(index, item);
+    index = index + 1;
+  }
+}

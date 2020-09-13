@@ -246,44 +246,46 @@ class _ModesPageState extends State<ModesPage> {
   Widget _ModeItem(mode) {
     var index = selectedModes.indexOf(mode) + 1;
     var isSelected = index > 0;
-    return GestureDetector(
+    return Card(
       key: Key(mode.id.toString()),
-      behavior: HitTestBehavior.translucent,
-      onTap: () {
-        setState(() {
-          if (selectedModes.contains(mode))
-            selectedModes.removeWhere((item) => item == mode);
-          else selectedModes.add(mode);
-        });
-      },
-      child: Card(
-        elevation: 8.0,
-        margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-        child: ListTile(
-          contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-          leading: isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!isSelecting ? null : Container(
-            width: 22,
-            padding: EdgeInsets.symmetric(vertical: 5),
-            decoration: BoxDecoration(
-              color: isSelected ? Color(0xFF4f8adb) : null,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: 2,
-              ),
+      elevation: 8.0,
+      margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
+      child: ListTile(
+        onTap: () {
+          if (isSelecting)
+            setState(() {
+              if (selectedModes.contains(mode))
+                selectedModes.removeWhere((item) => item == mode);
+              else selectedModes.add(mode);
+            });
+          else
+            Navigator.pushNamed(context, '/modes/${mode.id}', arguments: {
+              'mode': mode,
+            }).then((_) => _fetchModes());
+        },
+        contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
+        leading: isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!isSelecting ? null : Container(
+          width: 22,
+          padding: EdgeInsets.symmetric(vertical: 5),
+          decoration: BoxDecoration(
+            color: isSelected ? Color(0xFF4f8adb) : null,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: 2,
             ),
-            child: Text(
-              isSelected ? index.toString() : "",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-              )
-            ),
-          )),
-          trailing: _TrailingIcon(mode),
-          title: Text(mode.name),
-        ),
-      )
+          ),
+          child: Text(
+            isSelected ? index.toString() : "",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+            )
+          ),
+        )),
+        trailing: _TrailingIcon(mode),
+        title: Text(mode.name),
+      ),
     );
   }
 
@@ -291,16 +293,16 @@ class _ModesPageState extends State<ModesPage> {
     if (isEditing)
       return GestureDetector(
         onTap: () {
-          AppController.openDialog("Are you sure?", "This will remove \"${mode.name}\" from this list along with any customizations made to it.",
-            buttonText: 'Cancel',
-            buttons: [{
-              'text': 'Delete',
+					AppController.openDialog("Are you sure?", "This will remove \"${mode.name}\" from this list along with any customizations made to it.",
+              buttonText: 'Cancel',
+						buttons: [{
+							'text': 'Delete',
               'color': Colors.red,
-              'onPressed': () {
+							'onPressed': () {
                 removeMode(mode);
-              },
-            }]
-          );
+							},
+						}]
+					);
         },
         child: Icon(Icons.delete_forever, color: AppController.red),
       );

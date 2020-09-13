@@ -1,21 +1,27 @@
+import 'package:app/models/mode_param.dart';
+import 'package:app/app_controller.dart';
+import 'package:app/models/group.dart';
 import 'dart:convert';
 
 class Mode {
+  dynamic multigroup;
   bool isAdjusting;
-  num saturation;
-  num brightness;
   num modeListId;
   num position;
-  num density;
   String name;
   num number;
-  num speed;
   num page;
-  num hue;
   num id;
+
+  ModeParam saturation;
+  ModeParam brightness;
+  ModeParam density;
+  ModeParam speed;
+  ModeParam hue;
 
   Mode({
     this.isAdjusting,
+    this.multigroup,
     this.saturation,
     this.brightness,
     this.modeListId,
@@ -29,36 +35,62 @@ class Mode {
     this.id,
   });
 
+  Map<String, ModeParam> get modeParams {
+    return {
+      'saturation': saturation,
+      'brightness': brightness,
+      'density': density,
+      'speed': speed,
+      'hue': hue,
+    };
+  }
+
+  num getValue(param, {groupIndex, propIndex}) {
+    return getParam(param).getValue(indexes: [groupIndex, propIndex]);
+  }
+
+  ModeParam getParam(param, {groupIndex, propIndex}) {
+    var modeParam = modeParams[param];
+    if (groupIndex != null) {
+      modeParam = modeParam.childParamAt(groupIndex);
+    }
+    if (propIndex != null) modeParam = modeParam.childParamAt(propIndex);
+    return modeParam;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'is_adjusting': isAdjusting,
       'mode_list_id': modeListId,
-      'saturation': saturation,
-      'brightness': brightness,
+      'multigroup': multigroup,
       'position': position,
-      'density': density,
       'number': number,
-      'speed': speed,
       'page': page,
       'name': name,
-      'hue': hue,
+
+      'saturation': saturation.toMap(),
+      'brightness': brightness.toMap(),
+      'density': density.toMap(),
+      'speed': speed.toMap(),
+      'hue': hue.toMap(),
     } as Map;
   }
 
   factory Mode.fromMap(Map<String, dynamic> body) {
     var json = body;
     return Mode(
+      saturation: ModeParam.fromMap(json['saturation'], childType: 'group'),
+      brightness: ModeParam.fromMap(json['brightness'], childType: 'group'),
+      density: ModeParam.fromMap(json['density'], childType: 'group'),
+      speed: ModeParam.fromMap(json['speed'], childType: 'group'),
+      hue: ModeParam.fromMap(json['hue'], childType: 'group'),
+
       isAdjusting: json['is_adjusting'],
       modeListId: json['mode_list_id'],
-      saturation: json['saturation'],
-      brightness: json['brightness'],
       position: json['position'],
-      density: json['density'],
       number: json['number'],
-      speed: json['speed'],
       page: json['page'],
       name: json['name'],
-      hue: json['hue'],
       id: json['id'],
     );
   }

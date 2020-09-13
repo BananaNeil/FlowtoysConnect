@@ -23,6 +23,7 @@ class _ListsPageState extends State<ListsPage> {
 
   bool awaitingResponse = false;
   List<ModeList> lists = [];
+  bool isTopLevelRoute;
   String errorMessage;
 
   Future<void> fetchLists() {
