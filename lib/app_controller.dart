@@ -31,40 +31,64 @@ class AppController extends StatefulWidget {
   }
 
   static Widget drawer() {
-    return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          DrawerHeader(
-            // child: Text('Drawer Header'),
-            decoration: BoxDecoration(
-              // color: Colors.blue,
+    return Container(
+      width: 220,
+      child: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: <Widget>[
+            Container(
+              height: 140,
+              child: DrawerHeader(
+                child: Image(
+                  image: AssetImage(AppController.logoImagePath())
+                ),
+                decoration: BoxDecoration(
+                ),
+              ),
             ),
-          ),
-          ListTile(
-            title: Text('Modes'),
-            onTap: () {
-              Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/modes', (Route<dynamic> route) => false);
-            },
-          ),
-          ListTile(
-            title: Text('My Lists'),
-            onTap: () {
-              Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/lists', (Route<dynamic> route) => false);
-            },
-          ),
-          ListTile(
-            title: Text('My Props'),
-            onTap: () { },
-          ),
-          ListTile(
-            title: Text('Logout', style: TextStyle(color: Colors.red)),
-            onTap: () {
-              Authentication.logout();
-            },
-          ),
-        ],
-      ),
+            ListTile(
+              title: Text('Modes',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/modes', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
+              title: Text('My Lists',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/lists', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
+              title: Text('My Props',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () { },
+            ),
+            ListTile(
+              title: Text('Logout',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.red
+                )
+              ),
+              onTap: () {
+                Authentication.logout();
+              },
+            ),
+          ],
+        ),
+      )
     );
   }
 
