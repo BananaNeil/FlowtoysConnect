@@ -27,7 +27,10 @@ class _ListsPageState extends State<ListsPage> {
   String errorMessage;
 
   Future<void> fetchLists() {
-    setState(() { awaitingResponse = true; });
+    setState(() {
+      errorMessage = null;
+      awaitingResponse = true;
+    });
     return Client.getModeLists(type: 'custom').then((response) {
       setState(() {
         awaitingResponse = false;
@@ -58,10 +61,6 @@ class _ListsPageState extends State<ListsPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Visibility(
-                visible: errorMessage != null,
-                child: Text(errorMessage ?? "", textAlign: TextAlign.center, style: TextStyle(color: AppController.red)),
-              ),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: fetchLists,
@@ -87,14 +86,18 @@ class _ListsPageState extends State<ListsPage> {
           margin: EdgeInsets.only(top: 20, bottom: 20),
           child: awaitingResponse ?
             SpinKitCircle(color: AppController.blue) :
-            Text("You have not created any lists yet!", textAlign: TextAlign.center),
+            Column(
+              children: [
+                Text("You have not created any lists yet!", textAlign: TextAlign.center),
+                GestureDetector(
+                  child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
+                  onTap: () {
+                    Navigator.pushReplacementNamed(context, '/modes', arguments: {'isSelecting': true});
+                  }
+                ),
+              ]
+            )
         ),
-        GestureDetector(
-          child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
-          onTap: () {
-            Navigator.pushReplacementNamed(context, '/modes', arguments: {'isSelecting': true});
-          }
-        )
       ];
     else return lists.map((list) {
       return Card(

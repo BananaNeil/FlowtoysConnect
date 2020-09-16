@@ -1,4 +1,5 @@
 import 'package:basic_utils/basic_utils.dart';
+import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
@@ -61,6 +62,16 @@ class Client {
     );
   }
 
+  static Future<Map<dynamic, dynamic>> getBaseModes() async {
+    var response = await makeRequest('get', path: '/base_modes');
+
+    if (response['success']) {
+      response['baseModes'] = BaseMode.fromList(response['body']);
+    }
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> getModes() async {
     var response = await makeRequest('get', path: '/modes');
 
@@ -119,7 +130,6 @@ class Client {
     if (response['success']) {
       response['mode'] = Mode.fromMap(response['body']['data']['attributes']);
     }
-    print('MODE CAME BACK: ${response['mode'].name}');
 
     return response;
   }

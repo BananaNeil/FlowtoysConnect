@@ -2,6 +2,7 @@ import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/preloader.dart';
 import 'package:app/router.dart';
 
 import 'package:app/native_storage.dart'
@@ -10,7 +11,9 @@ import 'package:app/native_storage.dart'
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  AppController.setEnv(env);
+  AppController.setEnv(env).then((_) {
+    Preloader.downloadData();
+  });
   Authentication.checkForAuth().then((isAuthenticated) {
     FluroRouter.setupRouter();
     runApp(FlowtoysConnect(isAuthenticated));

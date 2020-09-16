@@ -1,3 +1,4 @@
+import 'package:app/models/base_mode.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,12 +16,17 @@ class AppController extends StatefulWidget {
 
   static final globalKey = new GlobalKey<NavigatorState>();
   static Map<String, dynamic> config = {};
+  static List<BaseMode> baseModes = [];
   static bool dialogIsOpen = false;
   static String openedPath;
 
   static Future<void> setEnv(String env) async {
     final contents = await rootBundle.loadString('assets/config/${env ?? 'dev'}.json');
     config = jsonDecode(contents);
+  }
+
+  static BaseMode getBaseMode(id) {
+    return baseModes.firstWhere((baseMode) => baseMode.id == id);
   }
 
   static Widget drawer() {

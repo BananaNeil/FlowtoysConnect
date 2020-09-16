@@ -1,6 +1,7 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/models/mode_param.dart';
+import 'package:app/models/base_mode.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
@@ -166,6 +167,7 @@ class _EditModePageState extends State<EditModePage> {
         if (response['success']) {
           awaitingResponse = false;
           mode = response['mode'];
+          errorMessage = null;
         } else errorMessage = response['message'];
       });
     });
@@ -177,6 +179,7 @@ class _EditModePageState extends State<EditModePage> {
       setState(() {
         if (response['success']) {
           awaitingResponse = false;
+          errorMessage = null;
         } else errorMessage = response['message'];
       });
     });
@@ -221,26 +224,12 @@ class _EditModePageState extends State<EditModePage> {
                   child: Container(
                     decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
                     child: ListView(
-                      padding: EdgeInsets.all(10),
+                      padding: EdgeInsets.all(20),
                       children: [
-                        [Container(
-                          padding: EdgeInsets.only(left: 10, right: 10, bottom: 30),
-                          child: TextFormField(
-                            initialValue: mode.name,
-                            decoration: InputDecoration(
-                              labelText: 'Choose custom name',
-                            ),
-                            onChanged: (text) {
-                              setState(() {
-                                updateModeTimer?.cancel();
-                                mode.name = text;
-                                updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-                              });
-                            }
-                          )
-                        )],
-                        _Sliders(),
-                      ].expand((i) => i).toList(),
+                        _RenameField(),
+                        _ChooseBaseMode(),
+                        ..._Sliders(),
+                      ],
                     ),
                   )
                 ),
@@ -248,6 +237,61 @@ class _EditModePageState extends State<EditModePage> {
             ],
           ),
         ),
+      )
+    );
+  }
+
+  Widget _ChooseBaseMode() {
+    if (mode.accessLevel == 'frozen') return Container();
+    return Stack(
+      children: [
+        Text("Choose Base Mode",
+          style: TextStyle(
+            color: Color(0xFF999999),
+            fontSize: 12,
+          ),
+        ),
+        Container(
+          width: 250,
+          margin: EdgeInsets.only(bottom: 20),
+          child: DropdownButton(
+            isExpanded: true,
+            value: mode.baseModeId.toString(),
+            items: AppController.baseModes.map((BaseMode baseMode) {
+              return DropdownMenuItem<String>(
+                  value: baseMode.id.toString(),
+                  child: new Text(baseMode.name),
+              );
+            }).toList(),
+            onChanged: (value) {
+              setState(() {
+                mode.updateBaseModeId(int.parse(value));
+              });
+              _updateMode();
+            },
+          ),
+        )
+      ]
+    );
+  }
+
+  Widget _RenameField() {
+    if (mode.accessLevel == 'frozen') return Container();
+    return Container(
+      width: 250,
+      padding: EdgeInsets.only(bottom: 30),
+      child: TextFormField(
+        initialValue: mode.name,
+        decoration: InputDecoration(
+          labelText: 'Choose custom name',
+        ),
+        onChanged: (text) {
+          setState(() {
+            updateModeTimer?.cancel();
+            mode.name = text;
+            updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+          });
+        }
       )
     );
   }
@@ -262,131 +306,134 @@ class _EditModePageState extends State<EditModePage> {
       "density",
     ].map((paramName) {
       ModeParam param = mode.getParam(paramName);
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                param.toggleMultiValue();
-                _updateMode();
-              });
-            },
-            child: Row(
-               children: [
-                 Text(toBeginningOfSentenceCase(paramName), style: TextStyle(
-                   fontSize: 16//, fontWeight: FontWeight.bold
-                 )),
-                 param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-               ]
-           )
-          ),
-          SliderPicker(
-            min: 0,
-            max: 1,
-            value: param.getValue(),
-            colorRows: colorRowsForSlider(paramName, includeMiddleValue: param.multiValueActive),
-            gradientStops: paramName != 'hue' && param.multiValueActive ? [0.0, param.getValue(), 1.0] : null,
-            thumbColor: showMultiRow(paramName) ? (paramName == 'hue' ? Colors.white : Colors.transparent) : thumbColorFor(paramName,
-              hue: mode.getValue('hue'),
-              brightness: mode.getValue('brightness'),
-              saturation: mode.getValue('saturation')
+      return Container(
+        margin: EdgeInsets.only(bottom: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              onTap: () {
+                setState(() {
+                  param.toggleMultiValue();
+                  _updateMode();
+                });
+              },
+              child: Row(
+                 children: [
+                   Text(toBeginningOfSentenceCase(paramName), style: TextStyle(
+                     fontSize: 16//, fontWeight: FontWeight.bold
+                   )),
+                   param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                 ]
+             )
             ),
-            onChanged: (value){
-              updateModeTimer?.cancel();
-              setState(() => param.setValue(value));
-              updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-            },
-            child: speedLines
-          ),
-          Visibility(
-            visible: param.multiValueEnabled,
-            child: Padding(
-              padding: EdgeInsets.only(left: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: !param.multiValueEnabled ? [] : 
-                mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
-                  Group group = Group.currentGroups[groupIndex];
-                  bool isMultiProp = childParam.multiValueEnabled;
-                  return [
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          childParam.toggleMultiValue();
-                          _updateMode();
-                        });
-                      },
-                      child: Row(
-                        children: [
-                          Text(group.name),
-                          Text(" (${group.props.length})"),
-                          isMultiProp ?  Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                        ]
-                      )
-                    ),
-                    SliderPicker(
-                      min: 0,
-                      max: 1,
-                      value: childParam.getValue(),
-                      colorRows: colorRowsForSlider(paramName, groupIndex: groupIndex, includeMiddleValue: isMultiProp),
-                      gradientStops: (paramName == 'hue' || !isMultiProp) ? null : [0.0, childParam.getValue(), 1.0],
-                      thumbColor: (paramName == 'hue' && childParam.multiValueActive) ? Colors.white : showMultiRow(paramName, groupIndex: groupIndex) ? Colors.transparent : thumbColorFor(paramName,
-                        hue: mode.getValue('hue', groupIndex: groupIndex),
-                        brightness: mode.getValue('brightness', groupIndex: groupIndex),
-                        saturation: mode.getValue('saturation', groupIndex: groupIndex),
+            SliderPicker(
+              min: 0,
+              max: 1,
+              value: param.getValue(),
+              colorRows: colorRowsForSlider(paramName, includeMiddleValue: param.multiValueActive),
+              gradientStops: paramName != 'hue' && param.multiValueActive ? [0.0, param.getValue(), 1.0] : null,
+              thumbColor: showMultiRow(paramName) ? (paramName == 'hue' ? Colors.white : Colors.transparent) : thumbColorFor(paramName,
+                hue: mode.getValue('hue'),
+                brightness: mode.getValue('brightness'),
+                saturation: mode.getValue('saturation')
+              ),
+              onChanged: (value){
+                updateModeTimer?.cancel();
+                setState(() => param.setValue(value));
+                updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+              },
+              child: speedLines
+            ),
+            Visibility(
+              visible: param.multiValueEnabled,
+              child: Padding(
+                padding: EdgeInsets.only(left: 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: !param.multiValueEnabled ? [] : 
+                  mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
+                    Group group = Group.currentGroups[groupIndex];
+                    bool isMultiProp = childParam.multiValueEnabled;
+                    return [
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            childParam.toggleMultiValue();
+                            _updateMode();
+                          });
+                        },
+                        child: Row(
+                          children: [
+                            Text(group.name),
+                            Text(" (${group.props.length})"),
+                            isMultiProp ?  Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                          ]
+                        )
                       ),
-                      onChanged: (value){
-                        updateModeTimer?.cancel();
-                        setState(() => childParam.setValue(value));
-                        updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-                      },
-                      child: speedLines
-                    ),
-                    Visibility(
-                      visible: isMultiProp,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: 50),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: !isMultiProp ? [] : 
-                          mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
-                            num propValue = propParam.getValue();
-                            bool isMultiProp = propParam.multiValueEnabled;
-                            return [
-                              Text("Prop #${propIndex + 1}"),
-                              SliderPicker(
-                                min: 0,
-                                max: 1,
-                                value: propValue,
-                                colors: colorsForSlider(paramName,
-                                  hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
-                                  brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
-                                  saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
+                      SliderPicker(
+                        min: 0,
+                        max: 1,
+                        value: childParam.getValue(),
+                        colorRows: colorRowsForSlider(paramName, groupIndex: groupIndex, includeMiddleValue: isMultiProp),
+                        gradientStops: (paramName == 'hue' || !isMultiProp) ? null : [0.0, childParam.getValue(), 1.0],
+                        thumbColor: (paramName == 'hue' && childParam.multiValueActive) ? Colors.white : showMultiRow(paramName, groupIndex: groupIndex) ? Colors.transparent : thumbColorFor(paramName,
+                          hue: mode.getValue('hue', groupIndex: groupIndex),
+                          brightness: mode.getValue('brightness', groupIndex: groupIndex),
+                          saturation: mode.getValue('saturation', groupIndex: groupIndex),
+                        ),
+                        onChanged: (value){
+                          updateModeTimer?.cancel();
+                          setState(() => childParam.setValue(value));
+                          updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+                        },
+                        child: speedLines
+                      ),
+                      Visibility(
+                        visible: isMultiProp,
+                        child: Padding(
+                          padding: EdgeInsets.only(left: 50),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: !isMultiProp ? [] : 
+                            mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
+                              num propValue = propParam.getValue();
+                              bool isMultiProp = propParam.multiValueEnabled;
+                              return [
+                                Text("Prop #${propIndex + 1}"),
+                                SliderPicker(
+                                  min: 0,
+                                  max: 1,
+                                  value: propValue,
+                                  colors: colorsForSlider(paramName,
+                                    hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
+                                    brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
+                                    saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
+                                  ),
+                                  thumbColor: thumbColorFor(paramName,
+                                    hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
+                                    brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
+                                    saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
+                                  ),
+                                  onChanged: (value){
+                                    updateModeTimer?.cancel();
+                                    setState(() => propParam.setValue(value));
+                                    updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+                                  },
+                                  child: speedLines
                                 ),
-                                thumbColor: thumbColorFor(paramName,
-                                  hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
-                                  brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
-                                  saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
-                                ),
-                                onChanged: (value){
-                                  updateModeTimer?.cancel();
-                                  setState(() => propParam.setValue(value));
-                                  updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-                                },
-                                child: speedLines
-                              ),
-                            ];
-                          }).expand((a) => a).toList()
+                              ];
+                            }).expand((a) => a).toList()
+                          )
                         )
                       )
-                    )
-                  ];
-                }).expand((a) => a).toList()
+                    ];
+                  }).expand((a) => a).toList()
+                )
               )
             )
-          )
-        ]
+          ]
+        )
       );
     }).toList();
   }

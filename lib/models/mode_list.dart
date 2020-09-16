@@ -4,6 +4,7 @@ import 'package:app/models/mode.dart';
 import 'dart:convert';
 
 class ModeList {
+  String accessLevel;
   List<Mode> modes;
   String name;
   num id;
@@ -12,6 +13,7 @@ class ModeList {
     this.id,
     this.name,
     this.modes,
+    this.accessLevel,
   });
 
   static List<ModeList> fromList(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class ModeList {
       modes: modes,
       id: resource.attributes['id'],
       name: resource.attributes['name'],
+      accessLevel: resource.attributes['access_level'],
     );
   }
 

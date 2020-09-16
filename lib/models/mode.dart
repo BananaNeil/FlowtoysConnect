@@ -4,9 +4,10 @@ import 'package:app/models/group.dart';
 import 'dart:convert';
 
 class Mode {
-  dynamic multigroup;
+  String accessLevel;
   bool isAdjusting;
   num modeListId;
+  num baseModeId;
   num position;
   String name;
   num number;
@@ -20,11 +21,12 @@ class Mode {
   ModeParam hue;
 
   Mode({
+    this.accessLevel,
     this.isAdjusting,
-    this.multigroup,
     this.saturation,
     this.brightness,
     this.modeListId,
+    this.baseModeId,
     this.position,
     this.density,
     this.number,
@@ -58,11 +60,22 @@ class Mode {
     return modeParam;
   }
 
+  void updateBaseModeId(id) {
+    var currentBaseMode = AppController.getBaseMode(baseModeId);
+    var baseMode = AppController.getBaseMode(id);
+
+    if (name == currentBaseMode.name) name = baseMode.name;
+    number = baseMode.number;
+    page = baseMode.page;
+    baseModeId = id;
+  }
+
   Map<String, dynamic> toMap() {
     return {
+      'access_level': accessLevel,
       'is_adjusting': isAdjusting,
       'mode_list_id': modeListId,
-      'multigroup': multigroup,
+      'base_mode_id': baseModeId,
       'position': position,
       'number': number,
       'page': page,
@@ -85,8 +98,10 @@ class Mode {
       speed: ModeParam.fromMap(json['speed'], childType: 'group'),
       hue: ModeParam.fromMap(json['hue'], childType: 'group'),
 
+      accessLevel: json['access_level'],
       isAdjusting: json['is_adjusting'],
       modeListId: json['mode_list_id'],
+      baseModeId: json['base_mode_id'],
       position: json['position'],
       number: json['number'],
       page: json['page'],
