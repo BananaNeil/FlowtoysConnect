@@ -2,6 +2,7 @@ import 'package:app/models/base_mode.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:app/authentication.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'dart:convert';
@@ -55,6 +56,12 @@ class AppController extends StatefulWidget {
           ListTile(
             title: Text('My Props'),
             onTap: () { },
+          ),
+          ListTile(
+            title: Text('Logout', style: TextStyle(color: Colors.red)),
+            onTap: () {
+              Authentication.logout();
+            },
           ),
         ],
       ),
