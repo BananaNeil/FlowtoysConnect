@@ -42,6 +42,7 @@ class _ListsPageState extends State<ListsPage> {
   }
 
   @override initState() {
+    isTopLevelRoute = !Navigator.canPop(context);
     super.initState();
     fetchLists();
   }
@@ -52,7 +53,7 @@ class _ListsPageState extends State<ListsPage> {
       onTap: AppController.closeKeyboard,
       child: Scaffold(
         backgroundColor: AppController.darkGrey,
-        drawer: Navigator.canPop(context) ? null : AppController.drawer(),
+        drawer: isTopLevelRoute ? AppController.drawer() : null,
         appBar: AppBar(
           title: Text("My Lists"),
           backgroundColor: Color(0xff222222),

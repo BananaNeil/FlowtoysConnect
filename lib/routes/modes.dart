@@ -33,6 +33,7 @@ class _ModesPageState extends State<ModesPage> {
 
   bool isSelecting;
   String errorMessage;
+  bool isTopLevelRoute;
   List<Mode> modes = [];
   bool isEditing = false;
   List<ModeList> modeLists;
@@ -46,26 +47,30 @@ class _ModesPageState extends State<ModesPage> {
       setState(() {
         if (response['success']) {
           awaitingResponse = false;
-          modeLists = response['modeLists'] ?? [response['modeList']];
+          var list = response['modeList'];
+          if (list != null) modeLists = [list];
+          else modeLists = response['modeLists'] ?? [];
         } else errorMessage = response['message'];
       });
     });
   }
 
   @override initState() {
+    isTopLevelRoute = !Navigator.canPop(context);
     super.initState();
     _fetchModes();
   }
 
   @override
   Widget build(BuildContext context) {
-    modeLists = modeLists ?? [AppController.getParams(context)['modeList']] ?? null;
+    // _fetchModes();
+    modeLists = modeLists ?? [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
     isSelecting = isSelecting ?? AppController.getParams(context)['isSelecting'] ?? false;
 
     return Scaffold(
       floatingActionButton: _FloatingActionButton(),
       backgroundColor: AppController.darkGrey,
-      drawer: Navigator.canPop(context) ? null : AppController.drawer(),
+      drawer: isTopLevelRoute ? AppController.drawer() : null,
       appBar: AppBar(
         title: Text(_getTitle()), backgroundColor: Color(0xff222222),
         actions: <Widget>[
@@ -88,7 +93,7 @@ class _ModesPageState extends State<ModesPage> {
                     allowReordering: isEditing,
                     children: _ListItems(),
                     onReorder: (int start, int current) {
-                      if (isShowingMultipleLists()) return;
+                      if (isShowingMultipleLists) return;
                       var list = modeLists[0];
                       var mode = list.modes[start];
                       list.modes.remove(mode);
@@ -109,7 +114,7 @@ class _ModesPageState extends State<ModesPage> {
   List<Widget> _ListItems() {
     return modeLists.map((list) {
       var items = list.modes.map(_ModeItem).toList();
-      if (isShowingMultipleLists())
+      if (isShowingMultipleLists)
         items.insert(0, _ListTitle(list));
       return items;
     }).expand((i) => i).toList();
@@ -140,7 +145,7 @@ class _ModesPageState extends State<ModesPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          isShowingMultipleLists() ? Container() : FloatingActionButton.extended(
+          isShowingMultipleLists ? Container() : FloatingActionButton.extended(
             backgroundColor: AppController.green,
             label: Text("Edit Modes"),
             heroTag: "save_list",
@@ -209,7 +214,7 @@ class _ModesPageState extends State<ModesPage> {
           onPressed: () {
             Navigator.pushNamed(context, '/lists/new', arguments: {
               'selectedModes': selectedModes,
-            });
+            }).then((_) => _fetchModes());
           },
         ),
         Container(
@@ -325,14 +330,12 @@ class _ModesPageState extends State<ModesPage> {
   String _getTitle() {
     if (isSelecting)
       return "${selectedModes.length} item selected";
-    else if (modeLists.length != 0 && !isShowingMultipleLists())
+    else if (modeLists.length != 0 && !isShowingMultipleLists)
       return modeLists[0]?.name ?? 'Modes';
     else return "Modes";
   }
 
-  bool isShowingMultipleLists() {
-    return modeLists.length > 1;
-  }
+  bool get isShowingMultipleLists => modeLists.length > 1;
 
 }
 
