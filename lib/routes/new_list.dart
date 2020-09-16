@@ -30,6 +30,8 @@ class _NewListPageState extends State<NewListPage> {
   String listErrorMessage;
   String errorMessage;
 
+  List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
+
   void fetchLists() {
     setState(() { awaitingResponse = true; });
     Client.getModeLists(type: 'custom').then((response) {
@@ -60,7 +62,7 @@ class _NewListPageState extends State<NewListPage> {
   }
 
   Future<void> _updateList(list) {
-    return Client.updateList(list.id, append: selectedModes);
+    return Client.updateList(list.id, {'append': selectedModesIds});
   }
 
   @override
@@ -150,7 +152,7 @@ class _NewListPageState extends State<NewListPage> {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () {
-          Client.updateList(modeList.id, append: selectedModes).then((response) {
+          Client.updateList(modeList.id, {'append': selectedModesIds}).then((response) {
             if (!response['success'])
               setState(() => listErrorMessage = response['message'] );
             else Navigator.pushReplacementNamed(context, "/lists/${modeList.id}", arguments: {

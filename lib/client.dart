@@ -153,13 +153,10 @@ class Client {
     return response;
   }
 
-  static Future<Map<dynamic, dynamic>> updateList(id, {append}) async {
-    var modeIds = append.map((mode) => mode.id).toList();
+  static Future<Map<dynamic, dynamic>> updateList(id, options) async {
     var response = await makeRequest('put',
       path: "/mode_lists/${id}",
-      body: {
-        'append': modeIds,
-      },
+      body: options,
     );
 
     if (response['success']) {

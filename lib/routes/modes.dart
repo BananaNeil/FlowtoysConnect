@@ -41,6 +41,8 @@ class _ModesPageState extends State<ModesPage> {
   bool awaitingResponse = false;
   bool showExpandedActionButtons = false;
 
+  List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
+
   Future<void> _fetchModes() {
     setState(() { awaitingResponse = true; });
     return Client.getModeList(id ?? 'default').then((response) {
@@ -145,93 +147,104 @@ class _ModesPageState extends State<ModesPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          isShowingMultipleLists ? Container() : FloatingActionButton.extended(
-            backgroundColor: AppController.green,
-            label: Text("Edit Modes"),
-            heroTag: "save_list",
+          _ActionButton(
+            visible: !isShowingMultipleLists,
+            text: "Edit Modes",
             onPressed: () {
               setState(() { isEditing = true; });
             },
           ),
-          SizedBox(height: 10),
-          FloatingActionButton.extended(
-            backgroundColor: AppController.green,
-            label: Text("Select Modes"),
-            heroTag: "save_list",
+          _ActionButton(
+            visible: isShowingMultipleLists,
+            text: "Select Modes",
             onPressed: () {
               setState(() { isSelecting = true; });
             },
           ),
-          SizedBox(height: 10),
-          Container(
-            height: 40,
-            width: 40,
-            decoration: BoxDecoration(
-              border: Border.all(color: Colors.white, width: 3),
-              shape: BoxShape.circle,
+          _ActionButton(
+            // visible: !isShowingMultipleLists,
+            child: Icon(
+              Icons.expand_more,
+              color: Colors.white,
             ),
-            child: FloatingActionButton(
-              onPressed: () {
-                setState(() { showExpandedActionButtons = false; });
-              },
-              child: Icon(
-                Icons.expand_more,
-                color: Colors.white,
-              ),
-              backgroundColor: AppController.darkGrey,
-            ),
-          )
+            onPressed: () {
+              setState(() { showExpandedActionButtons = false; });
+            },
+          ),
         ]
       );
-    else return Container(
-      height: 40,
-      width: 40,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.white, width: 3),
-        shape: BoxShape.circle,
+    else return _ActionButton(
+      // visible: !isShowingMultipleLists,
+      child: Icon(
+        Icons.more_horiz,
+        color: Colors.white,
       ),
-      child: FloatingActionButton(
-        onPressed: () {
-          setState(() { showExpandedActionButtons = true; });
-        },
-        child: Icon(
-          Icons.more_horiz,
-          color: Color(0xffFFFFFF)
-        ),
-        backgroundColor: AppController.darkGrey,
-      ),
+      onPressed: () {
+        setState(() { showExpandedActionButtons = true; });
+      },
     );
   }
 
   Widget _SelectionButtons() {
-    return Row(
+    return Column(
       mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        FloatingActionButton.extended(
-          backgroundColor: AppController.green,
-          label: Text("Save (${selectedModes.length}) to list"),
-          heroTag: "save_list",
+        _ActionButton(
+          visible: !isShowingMultipleLists && selectedModes.length > 0,
+          text: "Duplicate",
+          rightMargin: 25.0,
+          onPressed: _duplicateSelected,
+        ),
+        _ActionButton(
+          visible: selectedModes.length < modeLists[0].modes.length,
+          text: "Select All",
+          rightMargin: 25.0,
           onPressed: () {
-            Navigator.pushNamed(context, '/lists/new', arguments: {
-              'selectedModes': selectedModes,
-            }).then((_) => _fetchModes());
+            setState(() => selectedModes = modeLists[0].modes);
+          },
+        ),
+        _ActionButton(
+          visible: selectedModes.length > 0,
+          text: "Deselect All",
+          rightMargin: 25.0,
+          onPressed: () {
+            setState(() => selectedModes = []);
           },
         ),
         Container(
-          height: 20,
-          width: 20,
-          child: FloatingActionButton.extended(
-            backgroundColor: AppController.red,
-            label: Text("X"),
-            heroTag: "cancel",
-            onPressed: () {
-              setState(() {
-                isSelecting = false;
-                selectedModes = [];
-              });
-            },
+          margin: EdgeInsets.only(top: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              _ActionButton(
+                margin: EdgeInsets.only(bottom: 0),
+                text: "Save (${selectedModes.length}) to list",
+                onPressed: () {
+                  if (selectedModes.length > 0)
+                    Navigator.pushNamed(context, '/lists/new', arguments: {
+                      'selectedModes': selectedModes,
+                    }).then((_) => _fetchModes());
+                },
+              ),
+              Container(
+                height: 20,
+                width: 20,
+                child: FloatingActionButton.extended(
+                  backgroundColor: AppController.red,
+                  label: Text("X"),
+                  heroTag: "cancel",
+                  onPressed: () {
+                    setState(() {
+                      isSelecting = false;
+                      selectedModes = [];
+                    });
+                  },
+                )
+              )
+            ]
           )
-        )
+          )
       ]
     );
   }
@@ -304,7 +317,7 @@ class _ModesPageState extends State<ModesPage> {
 							'text': 'Delete',
               'color': Colors.red,
 							'onPressed': () {
-                removeMode(mode);
+                _removeMode(mode);
 							},
 						}]
 					);
@@ -316,7 +329,20 @@ class _ModesPageState extends State<ModesPage> {
     else return Icon(Icons.arrow_forward);
   }
 
-  Future<void> removeMode(mode) {
+  Future<void> _duplicateSelected() {
+    Client.updateList(modeLists[0].id, {'append': selectedModesIds}).then((response) {
+      var list = modeLists[0];
+      setState(() {
+        if (!response['success'])
+          errorMessage = response['message'];
+        else modeLists[0] = response['modeList'];
+        showExpandedActionButtons = false;
+        isSelecting = false;
+      });
+    });
+  }
+
+  Future<void> _removeMode(mode) {
     Client.removeMode(mode).then((response) {
       var list = modeLists[0];
       setState(() {
@@ -336,6 +362,32 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   bool get isShowingMultipleLists => modeLists.length > 1;
+
+  Widget _ActionButton({text, child, onPressed, visible, margin, rightMargin}) {
+    return Visibility(
+      visible: visible ?? true,
+      child: Container(
+        height: 40,
+        width: child != null ? 40 : null,
+        margin: margin ?? EdgeInsets.only(top: 10, right: rightMargin ?? 0),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white, width: 2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: child != null ? FloatingActionButton(
+          backgroundColor: AppController.darkGrey,
+          onPressed: onPressed,
+          heroTag: "icon child",
+          child: child,
+        ) : FloatingActionButton.extended(
+          backgroundColor: AppController.darkGrey,
+          label: Text(text, style: TextStyle(color: Colors.white)),
+          heroTag: text,
+          onPressed: onPressed,
+        ),
+      )
+    );
+  }
 
 }
 
