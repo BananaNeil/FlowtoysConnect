@@ -1,5 +1,6 @@
 import 'package:app/models/mode_param.dart';
 import 'package:app/app_controller.dart';
+import 'package:json_api/document.dart';
 import 'package:app/models/group.dart';
 import 'dart:convert';
 
@@ -80,6 +81,7 @@ class Mode {
       'number': number,
       'page': page,
       'name': name,
+      'id': id,
 
       'saturation': saturation.toMap(),
       'brightness': brightness.toMap(),
@@ -87,6 +89,10 @@ class Mode {
       'speed': speed.toMap(),
       'hue': hue.toMap(),
     } as Map;
+  }
+
+  ResourceObject toResource() {
+    return ResourceObject('mode', id.toString(), attributes: toMap());
   }
 
   factory Mode.fromMap(Map<String, dynamic> body) {

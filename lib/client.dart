@@ -77,29 +77,30 @@ class Client {
 
     if (response['success']) {
       response['modeList'] = ModeList.fromMap(response['body']);
+      Preloader.cacheLists([response['modeList']]);
     }
 
     return response;
   }
 
-  static Future<Map<dynamic, dynamic>> getModeLists({type}) async {
-    var params = type == null ? "" : "?type=${type}";
+  static Future<Map<dynamic, dynamic>> getModeLists({creationType}) async {
+    var params = creationType == null ? "" : "?creation_type=${creationType}";
     var response = await makeRequest('get', path: '/mode_lists${params}');
 
     if (response['success']) {
       response['modeLists'] = ModeList.fromList(response['body']);
+      Preloader.cacheLists(response['modeLists']);
     }
 
     return response;
   }
 
   static Future<Map<dynamic, dynamic>> getModeList(id) async {
-    if (id == 'default') return getModeLists(type: 'default');
-
     var response = await makeRequest('get', path: "/mode_lists/${id}");
 
     if (response['success']) {
       response['modeList'] = ModeList.fromMap(response['body']);
+      Preloader.cacheLists([response['modeList']]);
     }
 
     return response;
@@ -117,6 +118,7 @@ class Client {
 
     if (response['success']) {
       response['modeList'] = ModeList.fromMap(response['body']);
+      Preloader.cacheLists([response['modeList']]);
     }
 
     return response;
@@ -150,6 +152,11 @@ class Client {
       },
     );
 
+    if (response['success']) {
+      // This should bust the cached mode list
+      getModeList(mode.modeListId);
+    }
+
     return response;
   }
 
@@ -161,6 +168,7 @@ class Client {
 
     if (response['success']) {
       response['modeList'] = ModeList.fromMap(response['body']);
+      Preloader.cacheLists([response['modeList']]);
     }
 
     return response;
@@ -247,6 +255,7 @@ class Client {
         return {
           'message': 'Unauthorized',
           'success': false,
+          'code':  401,
           'body': { },
         };
       } else if (genericErrorCodes.contains(response.statusCode)) {
@@ -259,11 +268,13 @@ class Client {
         'success': response.statusCode == 200,
         'message': humanize(message ?? ""),
         'body': responseBody,
+        'code':  200,
       };
     } on SocketException catch (_) {
       return {
         'message': 'Not connected to the internet',
         'success': false,
+        'code':  503,
         'body': { },
       };
     }// } catch (e) {

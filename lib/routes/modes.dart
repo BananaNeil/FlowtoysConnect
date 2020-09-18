@@ -2,9 +2,11 @@ import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/models/mode_list.dart';
+import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
+import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 
 class Modes extends StatelessWidget {
@@ -43,29 +45,47 @@ class _ModesPageState extends State<ModesPage> {
 
   List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
 
-  Future<void> _fetchModes() {
+  List<Mode> get allModes => modeLists.map((list) => list.modes).expand((m) => m).toList();
+
+  Future<Map<dynamic, dynamic>> _makeRequest() {
+    if (id == null)
+      return Client.getModeLists(creationType: 'auto');
+    else return Client.getModeList(id);
+  }
+
+  Future<void> requestFromCache() async {
+    var query = id == null ? {'creation_type': 'auto'} : {'id': id};
+    return Preloader.getModeLists(query).then((lists) {
+      print("FROM CACHE: ${lists.length}");
+      setState(() => modeLists = lists);
+    });
+  }
+
+  Future<void> _fetchModes({initialRequest}) {
+    print("authed? ${Authentication.isAuthenticated()} **** lists: ${modeLists.length}");
+    if (!Authentication.isAuthenticated() && modeLists.length > 0) return Future.value(null);
     setState(() { awaitingResponse = true; });
-    return Client.getModeList(id ?? 'default').then((response) {
+    return _makeRequest().then((response) {
       setState(() {
         if (response['success']) {
           awaitingResponse = false;
           var list = response['modeList'];
           if (list != null) modeLists = [list];
           else modeLists = response['modeLists'] ?? [];
-        } else errorMessage = response['message'];
+        } else if (initialRequest != true || modeLists.isEmpty)
+          errorMessage = response['message'];
       });
     });
   }
 
   @override initState() {
     isTopLevelRoute = !Navigator.canPop(context);
+    requestFromCache().then((_) => _fetchModes(initialRequest: true));
     super.initState();
-    _fetchModes();
   }
 
   @override
   Widget build(BuildContext context) {
-    // _fetchModes();
     modeLists = modeLists ?? [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
     isSelecting = isSelecting ?? AppController.getParams(context)['isSelecting'] ?? false;
 

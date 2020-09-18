@@ -1,16 +1,14 @@
 import 'package:app/models/base_mode.dart';
+import 'package:app/models/mode_list.dart';
+import 'package:app/authentication.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:app/authentication.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
-
-import 'package:app/native_storage.dart'
-  if (dart.library.html) 'package:app/web_storage.dart';
 
 class AppController extends StatefulWidget {
   final Function(BuildContext) builder;

@@ -34,7 +34,7 @@ class _NewListPageState extends State<NewListPage> {
 
   void fetchLists() {
     setState(() { awaitingResponse = true; });
-    Client.getModeLists(type: 'custom').then((response) {
+    Client.getModeLists(creationType: 'user').then((response) {
       setState(() {
         awaitingResponse = false;
         if (!response['success'])

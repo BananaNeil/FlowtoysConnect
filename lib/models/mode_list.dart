@@ -4,6 +4,7 @@ import 'package:app/models/mode.dart';
 import 'dart:convert';
 
 class ModeList {
+  String creationType;
   String accessLevel;
   List<Mode> modes;
   String name;
@@ -14,7 +15,15 @@ class ModeList {
     this.name,
     this.modes,
     this.accessLevel,
+    this.creationType,
   });
+
+  static String toJson(List<ModeList> lists) {
+    return jsonEncode({
+      'data': lists.map((list) => list.toResource()).toList(),
+      'included': lists.map((list) => list.modes).expand((modes) => modes).map((mode) => mode.toResource()).toList(),
+    });
+  }
 
   static List<ModeList> fromList(Map<String, dynamic> json) {
     var data = ResourceCollectionData.fromJson(json);
@@ -23,9 +32,17 @@ class ModeList {
     }).toList();
   }
 
+  ResourceObject toResource() {
+    return ResourceObject('mode_list', id.toString(), attributes: toMap(), relationships: {
+      'modes': ToMany(
+        modes.map((mode) => IdentifierObject('mode', mode.id.toString())),
+      )
+    });
+  }
+
   factory ModeList.fromResource(Resource resource, {included}) {
     var modes = resource.toMany['modes'].map((mode) {
-      var modeData = included.firstWhere((item) => item.id == mode.id);
+      var modeData = (included ?? []).firstWhere((item) => item.id == mode.id);
       return Mode.fromMap(modeData.attributes);
     }).toList();
 
@@ -34,7 +51,17 @@ class ModeList {
       id: resource.attributes['id'],
       name: resource.attributes['name'],
       accessLevel: resource.attributes['access_level'],
+      creationType: resource.attributes['creation_type'],
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'access_level': accessLevel,
+      'creation_type': creationType,
+    };
   }
 
   factory ModeList.fromMap(Map<String, dynamic> json) {
@@ -43,7 +70,10 @@ class ModeList {
   }
 
   factory ModeList.fromJson(String body) {
-    return ModeList.fromMap(jsonDecode(body));
+    var json = jsonDecode(body);
+    if (json['data'] == null)
+      json = {'data': json};
+    return ModeList.fromMap(json);
   }
 }
 

@@ -36,6 +36,7 @@ dependencies:
   validators: ^2.0.1
   event_bus: ^1.1.1
   json_api: ^4.3.0
+  darq: ^0.4.0+1
   fluro: ^1.6.3
 
   # The following adds the Cupertino Icons font to your application.
