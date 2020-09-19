@@ -10,6 +10,7 @@ import 'package:app/authentication.dart';
 import 'package:app/routes/login.dart';
 import 'package:app/routes/modes.dart';
 import 'package:app/routes/lists.dart';
+import 'package:app/routes/props.dart';
 
 class FluroRouter {
   static Router router = Router();
@@ -65,6 +66,11 @@ class FluroRouter {
     router.define(
       '/lists/:id',
       handler: newHandler((id) => Modes(id: id), 'id'),
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/props',
+      handler: newHandler(() => Props()),
       transitionType: TransitionType.inFromRight,
     );
   }

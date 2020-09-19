@@ -1,3 +1,4 @@
+import 'package:url_launcher/url_launcher.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -71,7 +72,19 @@ class AppController extends StatefulWidget {
                   fontSize: 18,
                 )
               ),
-              onTap: () { },
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/props', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
+              title: Text('Store',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                launch("https://flowtoys.com/");
+              },
             ),
             ListTile(
               title: Text('Logout',
