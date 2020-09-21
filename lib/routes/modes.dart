@@ -1,6 +1,7 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/components/edit_mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
@@ -39,6 +40,7 @@ class _ModesPageState extends State<ModesPage> {
   List<Mode> modes = [];
   bool isEditing = false;
   List<ModeList> modeLists;
+  Mode currentlyEditingMode;
   List<Mode> selectedModes = [];
   bool awaitingResponse = false;
   bool showExpandedActionButtons = false;
@@ -142,10 +144,6 @@ class _ModesPageState extends State<ModesPage> {
     }).expand((i) => i).toList();
   }
 
-  List<Mode> allModes() {
-    return modeLists.map((list) => list.modes).expand((i) => i).toList();
-  }
-
   Widget _FloatingActionButton() {
     if (isSelecting)
       return _SelectionButtons();
@@ -175,7 +173,6 @@ class _ModesPageState extends State<ModesPage> {
             },
           ),
           _ActionButton(
-            visible: isShowingMultipleLists,
             text: "Select Modes",
             onPressed: () {
               setState(() { isSelecting = true; });
@@ -217,11 +214,11 @@ class _ModesPageState extends State<ModesPage> {
           onPressed: _duplicateSelected,
         ),
         _ActionButton(
-          visible: selectedModes.length < modeLists[0].modes.length,
+          visible: selectedModes.length < allModes.length,
           text: "Select All",
           rightMargin: 25.0,
           onPressed: () {
-            setState(() => selectedModes = modeLists[0].modes);
+            setState(() => selectedModes = allModes);
           },
         ),
         _ActionButton(
@@ -244,7 +241,11 @@ class _ModesPageState extends State<ModesPage> {
                   if (selectedModes.length > 0)
                     Navigator.pushNamed(context, '/lists/new', arguments: {
                       'selectedModes': selectedModes,
-                    }).then((_) => _fetchModes());
+                    }).then((_) {
+                      showExpandedActionButtons = false;
+                      isSelecting = false;
+                      _fetchModes();
+                    });
                 },
               ),
               Container(
@@ -346,7 +347,34 @@ class _ModesPageState extends State<ModesPage> {
       );
     else if (isSelecting)
       return null;
-    else return Icon(Icons.arrow_forward);
+    else return GestureDetector(
+      child: Icon(Icons.donut_small),
+      onTap: () {
+        currentlyEditingMode = mode;
+        showDialog(context: context,
+
+          builder: (context) => Dialog(
+            child: _editModeWidget(mode),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(50),
+            ),
+            elevation: 0,
+            backgroundColor: Colors.transparent,
+          )
+        );
+      },
+    );
+  }
+
+  Widget _editModeWidget(mode) {
+    return Container(
+      width: 300,
+      height: 300,
+      child: EditModeWidget(
+        sliderHeight: 20.0,
+        mode: mode,
+      )
+    );
   }
 
   Future<void> _duplicateSelected() {
