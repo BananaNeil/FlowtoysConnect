@@ -1,5 +1,6 @@
 import 'package:app/models/group.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/models/mode.dart';
 import 'dart:math';
 
 class ModeParam {
@@ -7,20 +8,31 @@ class ModeParam {
   bool multiValueEnabled;
   bool hasChildValues;
   String childType;
+  String paramName;
+  int parentIndex;
   int childIndex;
   num value;
+  Mode mode;
 
   ModeParam({
     this.multiValueEnabled,
     this.hasChildValues,
     this.childParams,
+    this.parentIndex,
     this.childIndex,
     this.childType,
+    this.paramName,
     this.value,
+    this.mode,
   });
 
+  setMode(Mode newMode) {
+    mode = newMode;
+    presentChildParams.forEach((param) => param.setMode(newMode));
+  }
+
   Group get currentGroup =>
-      Group.currentGroupAt(childIndex);
+      Group.currentGroupAt(groupIndex);
 
   int get presentChildCount => {
         'prop': currentGroup?.props?.length,
@@ -55,9 +67,28 @@ class ModeParam {
 
   ModeParam newChildParam(index) {
     return ModeParam.fromMap({
-      'childIndex': index,
-      'value': value,
-    }, childType: nextChildType);
+        'parentIndex': childIndex,
+        'childIndex': index,
+        'value': value,
+      },
+      childType: nextChildType,
+      paramName: paramName,
+      mode: mode,
+    );
+  }
+
+  int get groupIndex {
+    if (childType == 'group')
+      return null;
+    else if (childType == 'prop')
+      return childIndex;
+    else if (childType == null)
+      return parentIndex;
+  }
+
+  int get propIndex {
+    if (childType == null)
+      return childIndex;
   }
 
   void toggleMultiValue() {
@@ -80,7 +111,7 @@ class ModeParam {
     // Sort the keys (your values) by its occurrences
     final sortedValues = counted.keys
         .toList()
-        ..sort((a, b) { print("${b} -- ${a}"); return counted[b].compareTo(counted[a]); });
+        ..sort((a, b) { return counted[b].compareTo(counted[a]); });
 
     return sortedValues.first;
   }
@@ -93,6 +124,10 @@ class ModeParam {
     while (childParams.length <= index)
       childParams.add(newChildParam(index));
     return childParams[index];
+  }
+
+  ModeParam getSiblingParam(paramName) {
+    return mode.getParam(paramName, groupIndex: groupIndex, propIndex: propIndex);
   }
 
   num getValue({indexes}) {
@@ -118,21 +153,35 @@ class ModeParam {
       value = max(0.0, min(newValue, 1.0));
   }
 
-  factory ModeParam.fromMap(dynamic data, {childType}) {
+  factory ModeParam.fromModeMap(dynamic data, paramName) {
+    return ModeParam.fromMap(data[paramName], childType: 'group', paramName: paramName);
+  }
+
+  factory ModeParam.fromMap(dynamic data, {childType, paramName, mode}) {
     Map<String, dynamic> json;
 
     if (data is num)
       json = {'value': data};
     json = data ?? {};
 
+    var childrenChildType = childType == 'group' ? 'prop' : null;
     List<ModeParam> childParams = List<ModeParam>.from(mapWithIndex(json['childValues'] ?? [], (index, childData) {
-      return ModeParam.fromMap(childData, childType: 'prop') ..childIndex = index;
+      childData['childIndex'] = index;
+      childData['parentIndex'] = json['childIndex'];
+      return ModeParam.fromMap(childData,
+        childType: childrenChildType,
+        paramName: paramName,
+        mode: mode
+      );
     }).toList());
 
     return ModeParam(
+      mode: mode,
+      paramName: paramName,
       childType: childType,
       value: json['value'] ?? 0.0,
       childIndex: json['childIndex'],
+      parentIndex: json['parentIndex'],
       hasChildValues: json['hasChildValues'] ?? false,
       multiValueEnabled: json['multiValueEnabled'] ?? false,
       childParams: childParams ?? [],
@@ -144,6 +193,7 @@ class ModeParam {
       'value': value,
       'childType': childType,
       'childIndex': childIndex,
+      'parentIndex': parentIndex,
       'hasChildValues': hasChildValues,
       'multiValueEnabled': multiValueEnabled,
       'childValues': childParams.map((param) => param.toMap()).toList(),

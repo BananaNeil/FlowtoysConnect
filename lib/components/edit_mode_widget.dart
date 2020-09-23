@@ -131,8 +131,66 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     );
   }
 
+  Widget ParamSlider(param, {title, children}) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () {
+              setState(() {
+                if (param.presentChildParams.isNotEmpty) {
+                  param.toggleMultiValue();
+                  _updateMode();
+                }
+              });
+            },
+            child: Row(
+              children: [
+                Text(title, style: TextStyle(
+                  fontSize: 16//, fontWeight: FontWeight.bold
+                )),
+                Visibility(
+                  visible: children != null,
+                  child: param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                ),
+              ]
+            )
+          ),
+          SliderPicker(
+            min: 0,
+            max: 1,
+            height: sliderHeight,
+            value: param.getValue(),
+            colorRows: gradients(param),
+            gradientStops: gradientStops(param),
+            thumbColor: thumbColorFor(param),
+            onChanged: (value){
+              updateModeTimer?.cancel();
+              setState(() => param.setValue(value));
+              updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+            },
+            child: speedLines
+          ),
+          Visibility(
+            visible: param.multiValueEnabled,
+            child: Padding(
+              padding: EdgeInsets.only(left: 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: children ?? [],
+              )
+            )
+          )
+        ]
+      )
+    );
+  }
+
 
   List<Widget> _Sliders() {
+    List<Widget> emptyList = [];
     return [
       "brightness",
       "saturation",
@@ -141,142 +199,22 @@ class _EditModeWidgetState extends State<EditModeWidget> {
       "density",
     ].map((paramName) {
       ModeParam param = mode.getParam(paramName);
-      return Container(
-        margin: EdgeInsets.only(bottom: 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  param.toggleMultiValue();
-                  _updateMode();
-                });
-              },
-              child: Row(
-                 children: [
-                   Text(toBeginningOfSentenceCase(paramName), style: TextStyle(
-                     fontSize: 16//, fontWeight: FontWeight.bold
-                   )),
-                   param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                 ]
-             )
-            ),
-            SliderPicker(
-              min: 0,
-              max: 1,
-              height: sliderHeight,
-              value: param.getValue(),
-              colorRows: colorRowsForSlider(paramName, includeMiddleValue: param.multiValueActive),
-              gradientStops: paramName != 'hue' && param.multiValueActive ? [0.0, param.getValue(), 1.0] : null,
-              thumbColor: showMultiRow(paramName) ? (paramName == 'hue' ? Colors.white : Colors.transparent) : thumbColorFor(paramName,
-                hue: mode.getValue('hue'),
-                brightness: mode.getValue('brightness'),
-                saturation: mode.getValue('saturation')
-              ),
-              onChanged: (value){
-                updateModeTimer?.cancel();
-                setState(() => param.setValue(value));
-                updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-              },
-              child: speedLines
-            ),
-            Visibility(
-              visible: param.multiValueEnabled,
-              child: Padding(
-                padding: EdgeInsets.only(left: 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: !param.multiValueEnabled ? [] : 
-                  mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
-                    Group group = Group.currentGroups[groupIndex];
-                    bool isMultiProp = childParam.multiValueEnabled;
-                    return [
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            childParam.toggleMultiValue();
-                            _updateMode();
-                          });
-                        },
-                        child: Row(
-                          children: [
-                            Text(group.name),
-                            Text(" (${group.props.length})"),
-                            isMultiProp ?  Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                          ]
-                        )
-                      ),
-                      SliderPicker(
-                        min: 0,
-                        max: 1,
-                        height: sliderHeight,
-                        value: childParam.getValue(),
-                        colorRows: colorRowsForSlider(paramName, groupIndex: groupIndex, includeMiddleValue: isMultiProp),
-                        gradientStops: (paramName == 'hue' || !isMultiProp) ? null : [0.0, childParam.getValue(), 1.0],
-                        thumbColor: (paramName == 'hue' && childParam.multiValueActive) ? Colors.white : showMultiRow(paramName, groupIndex: groupIndex) ? Colors.transparent : thumbColorFor(paramName,
-                          hue: mode.getValue('hue', groupIndex: groupIndex),
-                          brightness: mode.getValue('brightness', groupIndex: groupIndex),
-                          saturation: mode.getValue('saturation', groupIndex: groupIndex),
-                        ),
-                        onChanged: (value){
-                          updateModeTimer?.cancel();
-                          setState(() => childParam.setValue(value));
-                          updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-                        },
-                        child: speedLines
-                      ),
-                      Visibility(
-                        visible: isMultiProp,
-                        child: Padding(
-                          padding: EdgeInsets.only(left: 50),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: !isMultiProp ? [] : 
-                            mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
-                              num propValue = propParam.getValue();
-                              bool isMultiProp = propParam.multiValueEnabled;
-                              return [
-                                Text("Prop #${propIndex + 1}"),
-                                SliderPicker(
-                                  min: 0,
-                                  max: 1,
-                                  value: propValue,
-                                  height: sliderHeight,
-                                  colors: colorsForSlider(paramName,
-                                    hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
-                                    brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
-                                    saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
-                                  ),
-                                  thumbColor: thumbColorFor(paramName,
-                                    hue: mode.getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
-                                    brightness: mode.getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
-                                    saturation: mode.getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
-                                  ),
-                                  onChanged: (value){
-                                    updateModeTimer?.cancel();
-                                    setState(() => propParam.setValue(value));
-                                    updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-                                  },
-                                  child: speedLines
-                                ),
-                              ];
-                            }).expand((a) => a).toList()
-                          )
-                        )
-                      )
-                    ];
-                  }).expand((a) => a).toList()
-                )
-              )
-            )
-          ]
-        )
-      );
+
+      return ParamSlider(param,
+        title: toBeginningOfSentenceCase(paramName),
+        children: !param.multiValueEnabled ? emptyList : mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
+          Group group = Group.currentGroups[groupIndex];
+          return ParamSlider(childParam,
+            title: "${group.name} (${group.props.length})",
+            children: !childParam.multiValueEnabled ? emptyList : mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
+              return ParamSlider(propParam, title: "Prop #${propIndex + 1}");
+            }).toList(),
+          );
+        }).toList(),
+      ); 
     }).toList();
   }
 
-  // DOES THIS WORK INSTEAD??
   List<Color> get hueColors {
     return List<int>.generate(13, (int index) => index * 60 % 360).map((degree) {
       return this.color.withHue(1.0 * degree).toColor();
@@ -301,26 +239,35 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     );
   }
 
-  Color thumbColorFor(param, {hue, saturation, brightness}) {
+  Color thumbColorFor(param) {
+    if (showMultiRow(param))
+      if (param.paramName == 'hue')
+        return Colors.white;
+      else return Colors.transparent;
+
+    var hue = param.mode.getValue('hue', groupIndex: param.groupIndex, propIndex: param.propIndex);
+    var brightness = param.mode.getValue('brightness', groupIndex: param.groupIndex, propIndex: param.propIndex);
+    var saturation = param.mode.getValue('saturation', groupIndex: param.groupIndex, propIndex: param.propIndex);
+
     return {
       'hue': color.withHue((hue * 720) % 360).withSaturation(1).toColor(),
       'saturation': color.withHue((hue * 720) % 360).withSaturation(saturation).toColor(),
       'brightness': color.withHue((hue * 720) % 360).withSaturation(saturation).withValue(brightness).toColor(),
-    }[param] ?? Colors.black;
+    }[param.paramName] ?? Colors.black;
   }
 
-  List<Color> colorsForSlider(paramName, {hue, saturation, brightness, includeMiddleValue}) {
+  List<Color> gradientColors(param, {hue, saturation, brightness}) {
     // includeMiddleValue makes the sliders seem more acurate when sub-sliders are active.
     return {
       'hue': hueColors,
       'saturation': [
           color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(0).toColor(),
-          includeMiddleValue == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation).toColor() : null,
+          param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation).toColor() : null,
           color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(1).toColor(),
         ]..removeWhere((color) => color == null),
       'brightness': [
         Colors.black,
-        includeMiddleValue == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation ?? mode.saturation.value).withValue(brightness).toColor() : null,
+        param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation ?? mode.saturation.value).withValue(brightness).toColor() : null,
         color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation ?? mode.saturation.value).toColor(),
       ]..removeWhere((color) => color == null),
       'speed': [
@@ -331,37 +278,38 @@ class _EditModeWidgetState extends State<EditModeWidget> {
         Color(0x44000000),
         Color(0x44FFFFFF),
       ]
-    }[paramName] ?? null;
+    }[param.paramName] ?? null;
   }
 
-  bool showMultiProp(paramName, {groupIndex}) {
-    if (paramName == 'brightness' && showMultiProp('saturation', groupIndex: groupIndex)) return true;
-    if (paramName == 'saturation' && showMultiProp('hue', groupIndex: groupIndex)) return true;
+  bool showMultiProp(param) {
+    if (param.paramName == 'brightness' && showMultiProp(param.getSiblingParam('saturation'))) return true;
+    if (param.paramName == 'saturation' && showMultiProp(param.getSiblingParam('hue'))) return true;
 
-    var param = mode.getParam(paramName, groupIndex: groupIndex);
-    if (groupIndex != null) return param.multiValueActive;
+    if (param.groupIndex != null) return param.multiValueActive;
     return param.hasMultiValueChildren();
   }
 
-  bool showMultiRow(paramName, {groupIndex}) {
+  bool showMultiRow(param) {
     bool showMultiRow = false;
-    if (groupIndex == null) {
-      if (paramName == 'brightness' && (mode.saturation.multiValueActive || mode.hue.multiValueActive)) 
+    if (param.propIndex != null)
+      return false;
+    else if (param.groupIndex == null) {
+      if (param.paramName == 'brightness' && (param.mode.saturation.multiValueActive || param.mode.hue.multiValueActive))
         showMultiRow = true;
-      if (paramName == 'saturation' && mode.hue.multiValueActive)
+      if (param.paramName == 'saturation' && param.mode.hue.multiValueActive)
         showMultiRow = true;
-      showMultiRow = showMultiRow || mode.getParam(paramName).multiValueActive;
+      showMultiRow = showMultiRow || param.mode.getParam(param.paramName).multiValueActive;
     }
-    return showMultiRow || showMultiProp(paramName, groupIndex: groupIndex);
+    return showMultiRow || showMultiProp(param);
   }
 
-  List<Map<String, int>> distinctSliderRowIndexes(paramName, {groupIndex}) {
+  List<Map<String, int>> distinctSliderRowIndexes(param) {
     List<Map<String, int>> rows = [];
 
-    if (showMultiRow(paramName, groupIndex: groupIndex))
+    if (showMultiRow(param))
       List.generate(Group.currentGroups.length, (currentGroupIndex) {
-        if (groupIndex == null || groupIndex == currentGroupIndex) {
-          if (showMultiProp(paramName)) {
+        if (param.groupIndex == null || param.groupIndex == currentGroupIndex) {
+          if (showMultiProp(param)) {
             var propCount = Group.currentGroups[currentGroupIndex].props.length;
             List.generate(propCount, (i) => i).forEach((propIndex) {
               rows.add({
@@ -374,22 +322,32 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           }
         }
       });
-    else rows.add({'group': groupIndex});
+    else rows.add({'group': param.groupIndex});
 
     return rows;
   }
 
-  List<List<Color>> colorRowsForSlider(paramName, {groupIndex, includeMiddleValue}) {
-    if (paramName == 'hue') return [hueColors];
+  List<double> gradientStops(param) {
+    if (param.paramName != 'hue' && param.multiValueActive)
+      return [0.0, param.getValue(), 1.0];
+  }
+
+  List<List<Color>> gradients(param) {
+    if (param.paramName == 'hue') return [hueColors];
+    List<Map<String, int>> indexes;
     List<List<Color>> rows = [];
 
+    if (param.propIndex == null)
+      indexes = distinctSliderRowIndexes(param);
+    else
+      indexes = [{'group': param.groupIndex, 'prop': param.propIndex}];
 
-    return distinctSliderRowIndexes(paramName, groupIndex: groupIndex).map((indexes) {
-      return colorsForSlider(paramName,
-        includeMiddleValue: includeMiddleValue,
-        hue: mode.hue.getValue(indexes: [indexes['group'], indexes['prop']]),
-        brightness: mode.brightness.getValue(indexes: [indexes['group'], indexes['prop']]),
-        saturation: mode.saturation.getValue(indexes: [indexes['group'], indexes['prop']]),
+
+    return indexes.map((indexes) {
+      return gradientColors(param,
+        hue: param.mode.hue.getValue(indexes: [indexes['group'], indexes['prop']]),
+        brightness: param.mode.brightness.getValue(indexes: [indexes['group'], indexes['prop']]),
+        saturation: param.mode.saturation.getValue(indexes: [indexes['group'], indexes['prop']]),
       );
     }).toList();
   }

@@ -95,14 +95,18 @@ class Mode {
     return ResourceObject('mode', id.toString(), attributes: toMap());
   }
 
+  void setModeOnParams() {
+    modeParams.values.forEach((param) => param.setMode(this));
+  }
+
   factory Mode.fromMap(Map<String, dynamic> body) {
     var json = body;
-    return Mode(
-      saturation: ModeParam.fromMap(json['saturation'], childType: 'group'),
-      brightness: ModeParam.fromMap(json['brightness'], childType: 'group'),
-      density: ModeParam.fromMap(json['density'], childType: 'group'),
-      speed: ModeParam.fromMap(json['speed'], childType: 'group'),
-      hue: ModeParam.fromMap(json['hue'], childType: 'group'),
+    var mode = Mode(
+      saturation: ModeParam.fromModeMap(json, 'saturation'),
+      brightness: ModeParam.fromModeMap(json, 'brightness'),
+      density: ModeParam.fromModeMap(json, 'density'),
+      speed: ModeParam.fromModeMap(json, 'speed'),
+      hue: ModeParam.fromModeMap(json, 'hue'),
 
       accessLevel: json['access_level'],
       isAdjusting: json['is_adjusting'],
@@ -114,6 +118,10 @@ class Mode {
       name: json['name'],
       id: json['id'],
     );
+
+    mode.setModeOnParams();
+
+    return mode;
   }
 
   factory Mode.fromJson(String body) {
