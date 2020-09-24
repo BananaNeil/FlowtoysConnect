@@ -34,7 +34,7 @@ class Preloader {
   }
 
   static Future<List<ModeList>> getModeLists(query) async {
-    return AppController.getCachedLists().then((lists) {
+    return getCachedLists().then((lists) {
       return lists.where((list) {
         bool isMatch = true;
         query.forEach((key, value) {
