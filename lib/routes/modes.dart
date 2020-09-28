@@ -167,6 +167,13 @@ class _ModesPageState extends State<ModesPage> {
         children: [
           _ActionButton(
             visible: !isShowingMultipleLists,
+            text: "Create Show",
+            onPressed: () {
+              Navigator.pushNamed(context, '/timelines/${modeLists[0].id}');
+            },
+          ),
+          _ActionButton(
+            visible: !isShowingMultipleLists,
             text: "Edit Modes",
             onPressed: () {
               setState(() { isEditing = true; });

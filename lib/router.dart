@@ -6,6 +6,7 @@ import 'package:app/routes/create_account.dart';
 import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
 import 'package:app/routes/research.dart';
+import 'package:app/routes/timeline.dart';
 import 'package:app/authentication.dart';
 import 'package:app/routes/login.dart';
 import 'package:app/routes/modes.dart';
@@ -71,6 +72,11 @@ class FluroRouter {
     router.define(
       '/props',
       handler: newHandler(() => Props()),
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/timelines/:id',
+      handler: newHandler((id) => Timeline(id: id), 'id'),
       transitionType: TransitionType.inFromRight,
     );
   }
