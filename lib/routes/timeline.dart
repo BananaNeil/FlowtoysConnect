@@ -1,6 +1,6 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:assets_audio_player/assets_audio_player.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:app/components/waveform.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -49,171 +49,139 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
 
   final String id;
 
-  Map<int, dynamic> chunkedData = {};
-  Map<int, int> maxValues = {};
-  List<num> data = [];
   Timer computeDataTimer;
 
-  double futureScale = 20;
+  List<String> songs;
+  List<AssetsAudioPlayer> audioPlayers = [];
+
+  List<WaveformController> waveforms = [];
+  List<Duration> get songDurations => waveforms.map((song) => song.duration).toList();
+
+  Duration startOfSongAtIndex(index) {
+    return songDurations.sublist(0, index).reduce((a, b) => a + b);
+  }
+
+  Duration get windowStart => Duration(milliseconds: startOffset.value.toInt());
+  Duration get windowEnd => windowStart + Duration(milliseconds: visibleMiliseconds.toInt());
+
+
+  List<WaveformController> get visibleWaveforms {
+    return waveforms.where((waveform) {
+      return waveform.startOffset < windowEnd &&
+        waveform.startOffset + waveform.duration > windowStart;
+    }).toList();
+  }
+
+  WaveformController get currentWaveform {
+    return waveforms.firstWhere((waveform) {
+       return waveform.startOffset <= playOffsetDuration &&
+           waveform.startOffset + waveform.duration > playOffsetDuration;
+    });
+  }
+
+
   double scale = 20;
-  double lengthInSeconds;
-  int maxVisibleBands = 1200;
-  int visibleBands;
-  int localMinValue = 1;
-  int localMaxValue = 1;
-  double localMedianValue = 1;
-  double playHeadWidth = 20.0;
+  double futureScale = 20;
+  double maxScale = 20000.0;
+
+  bool isPlaying = false;
+
+  double lengthInMiliseconds = 1;
+  Duration get visibleDuration => Duration(milliseconds: (lengthInMiliseconds / scale).toInt());
+  Duration get futureVisibleDuration => Duration(milliseconds: (lengthInMiliseconds / futureScale).toInt());
+  double get visibleMiliseconds => (lengthInMiliseconds / scale);
+  double get remainingMiliseconds => lengthInMiliseconds - playOffset.value;
+  double get futureVisibleMiliseconds => (lengthInMiliseconds / futureScale);
+
 
   AnimationController startOffset;
   AnimationController playOffset;
 
-  AssetsAudioPlayer audioPlayer = AssetsAudioPlayer();
-  bool isPlaying = false;
-
-  @override initState() {
-    visibleBands = maxVisibleBands;
-    super.initState();
-    loadFile().then((_) {
-      startOffset = AnimationController(
-        upperBound: lengthInMiliseconds,
-        lowerBound: 0,
-        vsync: this
-      );
-      playOffset = AnimationController(
-        upperBound: lengthInMiliseconds,
-        lowerBound: 0,
-        vsync: this
-      );
-    });
-  }
-
-  // int get SecondOffset {
-  //   if (data.length == 0) return 0;
-  //   startOffset.value.toInt().clamp(0, scaledData.length - visibleBands);
-  // }
+  Duration get playOffsetDuration => Duration(milliseconds: playOffset.value.toInt());
 
 
-
-
-  // double get samplesPerBand => scale * maxVisibleBands; 
-  // int get chunkSize => (data.length / samplesPerBand).toInt().clamp(1, 1000000);
-  //
-  int samplesPerSecond = 44410; // This gets updated
-  //
-  // double get bandsPerSecond => samplesPerBand / samplesPerSecond.toDouble();
-  //
-  double get lengthInMiliseconds => lengthInSeconds * 1000.0;
-  double get visibleMiliseconds => (lengthInMiliseconds / scale);
-
-  // We use min(now, future) here because zooming out and zooming in use two different strategies.
-  // Zooming out keeps the same number of bands and shrinks ther widths,
-  // Zooming in grows the widths by decreasing visible bands.
-  double get milisecondsPerBand => min(visibleMiliseconds, futureVisibleMiliseconds) / visibleBands;
-  double get futureVisibleMiliseconds => (lengthInMiliseconds / futureScale);
-
-  // double get bandsPerVisibleMiliseconds => visibleBands / visibleMiliseconds;
-  //
-  // int get bandOffset => (startOffset.value / bandsPerVisibleMilisecond).toInt().clamp(0, scaledData.length - visibleBands);
-  double get remainingMiliseconds => lengthInMiliseconds - playOffset.value;
-
-
-
-  int get bandOffset => data.length == 0 ? 0 : (startOffset.value / milisecondsPerBand).toInt().clamp(0, scaledData.length - visibleBands);
-  // int get milisecondOffset => data.length == 0 ? 0 : startOffset.value.toInt().clamp(0, scaledData.length - visibleBands);
-
-  double get samplesPerBand => scale * maxVisibleBands; 
-  int get chunkSize => (data.length / samplesPerBand).toInt().clamp(1, 1000000);
-  int chunkSizeWas;
-
-  double maxScale = 20000.0;
-
-  List<int> get scaledData {
-    var chunkKey = min(11, chunkSize);
-    if (data.length == 0) return [];
-    if (chunkSize < 11) {
-      if (chunkedData[chunkKey] != null)
-        return chunkedData[chunkKey];
-    } else if (chunkSizeWas == chunkSize)
-      return chunkedData[chunkKey];
-
-    chunkSizeWas = chunkSize;
-
-    if (chunkSize <= 1.0) return data;
-
-    var partitionedData = partition(data, chunkSize.clamp(1, data.length));
-    chunkedData[chunkKey] = List<int>.from(partitionedData.map((chunk) {
-      return (chunk.fold(0, (a, b) => a + b) / chunkSize).toInt();
-    }));
-
-    return chunkedData[chunkKey];
-  }
-
-  List<int> getVisibleData() {
-    //
-    // You can optimize quite a bit here by keeping a slightly larger sublist in memory...
-    // print('dealing with ${scaledData.length}, but sublisting with ${bandOffset}...${(bandOffset + visibleBands).clamp(0, scaledData.length)}');
-    //
-    return scaledData.sublist(bandOffset, (bandOffset + visibleBands).clamp(0, scaledData.length));
-  }
-
-
-  loadFile() async {
-    audioPlayer = AssetsAudioPlayer.newPlayer();
-    audioPlayer.open(Audio('assets/audio/test.wav',
-      metas: Metas(
-        title:  "Insert Show Name",
-        artist: "Username",
-        album: "Flowtoys App",
-        image: MetasImage.asset("assets/images/logo.png"), //can be MetasImage.network
-      ),
-    ), autoStart: false, showNotification: true);
-
-
-    var song = await loadSong();
-    setState(() {
-      data = song.buffer.asUint8List();
-      if (listEquals(data.sublist(0, 4), [82, 73, 70, 70])) {
-        var bytesOf32 = song.buffer.asUint32List();
-        print(bytesOf32);
-        var fileSize = bytesOf32[1];
-        var bitrate = bytesOf32[7];
-        samplesPerSecond = bytesOf32[6];
-        lengthInSeconds = fileSize / bitrate;
-        data = data.sublist(44, data.length);
-      } else print("THIS IS NOT A RIFF (wav) FILE");
-    });
-  }
-
-  Future<ByteData> loadSong() async {
-    return await rootBundle.load('assets/audio/test.wav');
-  }
-
-  List<int> visibleData;
+  double scrollbarWidth = 0;
   double containerWidth = 0;
-  double scrollbarWidth;
-
-  double get scrollContainerWidth => containerWidth * 0.98;
-
+  double playHeadWidth = 20.0;
+  double get scrollContainerWidth => containerWidth * 0.97;
   bool get timelineContainsEnd => startOffset.value + futureVisibleMiliseconds >= lengthInMiliseconds;
 
-  List<int> prepareSublist() {
-    visibleData = getVisibleData();
-    var minimum = 1000000000;
-    var maximum = 0;
-    var sum = 0;
-    visibleData.forEach((value) {
-      sum += value;
-      if (value < minimum)
-        minimum = value;
-      if (value > maximum)
-        maximum = value;
-    });
 
-    localMinValue = minimum.clamp(1, 1000000000);
-    localMaxValue = maximum.clamp(1, 1000000000);
-    localMedianValue = visibleData[(visibleData.length / 2).toInt()].toDouble();
+  double get milisecondsPerPixel => visibleMiliseconds / containerWidth;
+
+  @override dispose() {
+    startOffset.dispose();
+    playOffset.dispose();
+    super.dispose();
+  }
+
+  @override initState() {
+    songs = ['assets/audio/test.wav','assets/audio/test2.wav', 'assets/audio/test.wav', 'assets/audio/test.wav'];
+
+    startOffset = AnimationController(vsync: this);
+    playOffset = AnimationController(vsync: this);
+
+    super.initState();
+
+    waveforms = songs.map((path) => WaveformController.open(path)).toList();
+
+    loadSongs().then((_) {
+      lengthInMiliseconds = 0.1;
+      var index = 0;
+      audioPlayers.forEach((player) {
+        waveforms[index].player = player;
+        waveforms[index].startOffset = Duration(milliseconds: lengthInMiliseconds.toInt());
+        lengthInMiliseconds += player.current.value.audio.duration.inMilliseconds;
+        index += 1;
+      });
+      setState(() {
+        setAnimationControllers();
+      });
+    });
+  }
+
+  Future<dynamic> loadSongs() {
+    AssetsAudioPlayer player;
+    return Future.wait(songs.map((path) {
+      player = AssetsAudioPlayer.newPlayer();
+      audioPlayers.add(player);
+      return player.open(Audio(path,
+        metas: Metas(
+          title:  "Insert Show Name",
+          artist: "Username",
+          album: "Flowtoys App",
+          image: MetasImage.asset("assets/images/logo.png"), //can be MetasImage.network
+        ),
+      ), autoStart: false, showNotification: true);
+    }));
+  }
+
+  void setAnimationControllers() {
+    setStartOffset();
+    setPlayOffset();
+  }
+
+  void setStartOffset() {
+    var currentOffsetValue = startOffset?.value ?? 0;
+    startOffset?.dispose();
+    startOffset = AnimationController(
+      upperBound: lengthInMiliseconds - visibleMiliseconds,
+      value: currentOffsetValue,
+      lowerBound: 0,
+      vsync: this
+    );
+  }
+
+  void setPlayOffset() {
+    playOffset = AnimationController(
+      upperBound: lengthInMiliseconds,
+      lowerBound: 0,
+      vsync: this
+    );
+  }
+
+  void prepareTimeline() {
     setScrollBarWidth();
-    return visibleData;
   }
 
   void setScrollBarWidth() {
@@ -222,10 +190,13 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
 
   void updatePlayIndicatorAnimation() {
     if (isPlaying) {
-      audioPlayer.play();
+      currentWaveform.player.play();
       playOffset.animateTo(lengthInMiliseconds,
         duration: Duration(milliseconds: remainingMiliseconds.toInt()),
       );
+    } else {
+      waveforms.forEach((waveform) => waveform.player.pause());
+      playOffset.stop();
     }
   }
 
@@ -253,7 +224,7 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
           child: LayoutBuilder(
             builder: (BuildContext context, BoxConstraints box) {
               containerWidth = box.maxWidth;
-              if (data.length == 0)
+              if (audioPlayers.length == 0)
                 return Container();
 
               return Column(
@@ -262,10 +233,6 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
                     onTap: () {
                       setState(() => isPlaying = !isPlaying);
                       updatePlayIndicatorAnimation();
-                      if (!isPlaying) {
-                        audioPlayer.pause();
-                        playOffset.stop();
-                      }
                     },
                     child: Text(isPlaying ? 'Pause' : 'Play')
                   ),
@@ -273,8 +240,6 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
                   AnimatedBuilder(
                     animation: startOffset,
                     builder: (ctx, w) {
-                      visibleData = visibleData ?? prepareSublist();
-                      visibleData = getVisibleData();
                       return Column(
                         mainAxisAlignment: MainAxisAlignment.end,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -318,8 +283,8 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
                   var offsetValue = details.delta.dx * (visibleMiliseconds/(containerWidth + playHeadWidth));
                   playOffset.value += offsetValue;
 
-                  audioPlayer.pause();
-                  audioPlayer.seek(Duration(milliseconds: playOffset.value.toInt()));
+                  waveforms.forEach((waveform) => waveform.player.pause());
+                  currentWaveform.player.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
                   // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
                 },
                 onPanEnd: (details) {
@@ -375,13 +340,13 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
     return GestureDetector(
       onPanStart: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
-        audioPlayer.pause();
-        audioPlayer.seek(Duration(milliseconds: playOffset.value.toInt()));
+        waveforms.forEach((waveform) => waveform.player.pause());
+        currentWaveform.player.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
       },
       onPanUpdate: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
-        audioPlayer.pause();
-        audioPlayer.seek(Duration(milliseconds: playOffset.value.toInt()));
+        waveforms.forEach((waveform) => waveform.player.pause());
+        currentWaveform.player.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
         // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
       },
       onPanEnd: (details) {
@@ -410,54 +375,35 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
           timelineGestureStartPointX = details.localFocalPoint.dx;
         },
         onScaleEnd: (details) {
+          scale = futureScale;
           setState(() {
-            visibleBands = maxVisibleBands;
-            scale = futureScale;
-
-            var oldOffset = startOffset;
-            startOffset = AnimationController(
-                upperBound: lengthInMiliseconds - visibleMiliseconds,
-                value: oldOffset.value,
-                lowerBound: 0,
-                vsync: this,
-            );
-
-            // This can be slow at times
-            // print("Current Offest: ${startOffset.value}");
-            prepareSublist();
+            setStartOffset();
+            prepareTimeline();
           });
           startOffset.animateWith(
              // The bigger the first parameter, the less friction is applied
             FrictionSimulation(0.2, startOffset.value,
-              details.velocity.pixelsPerSecond.dx * -1 * milisecondsPerBand// <- Velocity of inertia
+              details.velocity.pixelsPerSecond.dx * -1 * milisecondsPerPixel// <- Velocity of inertia
             )
-          ).then((_) => setState(() => visibleData = getVisibleData() ));
-
-
-
-          // if (details.horizontalScale != 1.0)
+          );
         },
-        onScaleUpdate: (details) {
 
+        onScaleUpdate: (details) {
           setState(() {
             var scrollSpeed = 2;
-            var milisecondOffsetValue = (startOffset.value + (timelineGestureStartPointX - details.localFocalPoint.dx) * milisecondsPerBand * scrollSpeed) ;
+            var milisecondOffsetValue = (startOffset.value + (timelineGestureStartPointX - details.localFocalPoint.dx) * milisecondsPerPixel * scrollSpeed) ;
             if (timelineGestureStartPointX != details.localFocalPoint.dx || startOffset.value != milisecondOffsetValue) {
               timelineGestureStartPointX = details.localFocalPoint.dx;
-              // print("VALUE: ${startOffset.value}");
               startOffset.value = milisecondOffsetValue.clamp(0.0, lengthInMiliseconds - visibleMiliseconds);
-              prepareSublist();
+              prepareTimeline();
             }
           }); 
 
 
-          // print("HHHH scale: ${scale * details.horizontalScale}");
           if (details.horizontalScale != 1.0) {
             setState(() {
               // Scaling:
               futureScale = (scale * details.horizontalScale).clamp(1.0, maxScale);
-              visibleBands = (maxVisibleBands * scale / futureScale).toInt();
-              visibleBands = min(maxVisibleBands, visibleBands);
               setScrollBarWidth();
             });
           }
@@ -466,50 +412,56 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
     );
   }
 
+  visibleDurationOf(waveform, {isFirst, isLast}) {
+    var waveVisibleDuration;
+    if (isFirst == true)
+      waveVisibleDuration = minDuration(visibleDuration, (waveform.duration + waveform.startOffset) - windowStart);
+    else if (isLast == true)
+      waveVisibleDuration = minDuration(visibleDuration, windowEnd - waveform.startOffset);
+    else waveVisibleDuration = waveform.duration;
+
+    return minDuration(waveVisibleDuration, waveform.duration);
+  }
+
+  Duration get invisibleDurationOfLastVisibleWaveform {
+    if (futureScale == scale) return Duration();
+    var waveform = visibleWaveforms.last;
+    return (waveform.startOffset + waveform.duration) - windowEnd;
+  }
+
   Widget _Waveform() {
+    var visibleSongs = visibleWaveforms;
     return Container(
       height: 150,
       child: SizedBox.expand(
         child: FractionallySizedBox(
+          // alignment: FractionalOffset.centerLeft,
           alignment: timelineContainsEnd ? FractionalOffset.centerRight : FractionalOffset.centerLeft,
-          widthFactor: (futureScale / scale).clamp(0.0, 1.0),
+          widthFactor: (futureScale / scale),//.clamp(0.0, 1.0),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: visibleData.map((value) {
-              return _WaveformBand(value);
-            }).toList(),
-          )
-        )
-      )
-    );
-  }
+            children: mapWithIndex(visibleSongs, (index, waveform) {
+              Duration waveVisibleDuration = visibleDurationOf(waveform,
+                isLast: index == visibleSongs.length - 1,
+                isFirst: index == 0,
+              );
+              var widget =  Flexible(
+                flex: ((waveVisibleDuration.inMilliseconds / futureVisibleMiliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
+                child: Waveform(
+                  controller: waveform,
+                  visibleDuration: waveVisibleDuration,
+                  startOffset: maxDuration(windowStart - waveform.startOffset, Duration()),
+                  scale: scale * (waveform.duration.inMilliseconds / lengthInMiliseconds),
+                  futureScale: futureScale * (waveform.duration.inMilliseconds / lengthInMiliseconds),
+                  visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
+                  color: [Colors.blue, Colors.red][waveforms.indexOf(waveform) % 2],
+                )
+              );
 
-  Widget _WaveformBand(value) {
-    double ratio = value / localMaxValue.toDouble();
-    double minRatio = localMinValue / localMaxValue.toDouble();
-    double visibleMedianRatio = localMedianValue / localMaxValue.toDouble();
-
-    double visibleMinRatio = max(0.01, minRatio);
-    double maxRatio = 1;
-
-    ratio = max(ratio, visibleMinRatio);
-    double visibleValue = ((ratio - visibleMinRatio) / (maxRatio - visibleMinRatio));
-
-
-    if (scale < 100)
-      visibleValue = pow(visibleValue,  min(pow(visibleMedianRatio / visibleMinRatio, 0.8), 15));
-
-
-    // The end values are shooting to infinity... seems wrong?
-
-    visibleValue = visibleValue.clamp(0.01, 1.0);
-
-    return Expanded(
-      child: FractionallySizedBox(
-        heightFactor: visibleValue,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.blue,
+              return widget;
+            }).toList() + [Flexible(
+              flex: ((!timelineContainsEnd ? 0 : invisibleDurationOfLastVisibleWaveform.inMilliseconds / futureVisibleMiliseconds) * 1000).toInt(),
+              child: Container(),
+            )]
           )
         )
       )
@@ -551,17 +503,16 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
   }
 
   Widget _ScrollBar() {
+    var horizontalPadding = (containerWidth - scrollContainerWidth)/2;
     return GestureDetector(
       onPanUpdate: (details) {
         setState(() {
-          var unseenBands = scaledData.length - visibleBands;
-          var milisecondsNotVisible = unseenBands * milisecondsPerBand;
-          var mmilisecondsNotVisible = lengthInMiliseconds - visibleMiliseconds;
+          var milisecondsNotVisible = lengthInMiliseconds - visibleMiliseconds;
 
           var offsetValue =  details.delta.dx * milisecondsNotVisible;
           startOffset.value = startOffset.value + (offsetValue/(scrollContainerWidth - scrollbarWidth));
           startOffset.value = startOffset.value.clamp(0.0, milisecondsNotVisible).toDouble();
-          prepareSublist();
+          prepareTimeline();
         });
       },
       child: Stack(
@@ -576,7 +527,7 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
           ),
           Positioned(
             top: 2,
-            left: ((containerWidth - scrollContainerWidth)/2 + scrollContainerWidth * bandOffset / scaledData.length).clamp(5.0, max(5.0, containerWidth - scrollbarWidth - 5)),
+            left: (horizontalPadding + scrollContainerWidth * startOffset.value / lengthInMiliseconds).clamp(horizontalPadding, max(horizontalPadding, containerWidth - scrollbarWidth - horizontalPadding)),
             child: Container(
               width: scrollbarWidth,
               height: 16,
@@ -608,16 +559,12 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
               onChanged: (value){
                 setState(() {
                   futureScale = 1/pow(value, 3);
-                  visibleBands = (maxVisibleBands * scale / futureScale).toInt();
-                  visibleBands = min(maxVisibleBands, visibleBands);
                   setScrollBarWidth();
                 });
                 computeDataTimer?.cancel();
                 computeDataTimer = Timer(Duration(milliseconds: 250), () {
                   setState(() {
-                    visibleBands = maxVisibleBands;
                     scale = futureScale;
-
                     var oldOffset = startOffset;
                     startOffset = AnimationController(
                       upperBound: lengthInMiliseconds - visibleMiliseconds,
@@ -626,8 +573,7 @@ class _TimelinePageState extends State<TimelinePage> with TickerProviderStateMix
                       vsync: this,
                     );
 
-                    // This can be slow at times
-                    prepareSublist();
+                    prepareTimeline();
                   });
                 });
               },

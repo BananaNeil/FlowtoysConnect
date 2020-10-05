@@ -253,6 +253,14 @@ Iterable<E> mapWithIndex<E, T>(
   }
 }
 
+Duration minDuration(a, b) {
+  return a < b ? a : b;
+}
+
+Duration maxDuration(a, b) {
+  return a > b ? a : b;
+}
+
 class TriangleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
