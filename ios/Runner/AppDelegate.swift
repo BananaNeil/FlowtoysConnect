@@ -1,5 +1,7 @@
 import UIKit
 import Flutter
+import flutter_downloader
+
 
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
@@ -11,6 +13,10 @@ import Flutter
     if #available(iOS 10.0, *) {
       UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
     }
+    FlutterDownloaderPlugin.setPluginRegistrantCallback({ registry in
+      FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "vn.hunghd.flutter_downloader")!)
+    })
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
+
 }

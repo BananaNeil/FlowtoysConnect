@@ -1,4 +1,4 @@
-package com.benkuper.flowtoysconnect
+package com.flowtoys.connect
 
 import androidx.annotation.NonNull;
 import io.flutter.embedding.android.FlutterActivity
