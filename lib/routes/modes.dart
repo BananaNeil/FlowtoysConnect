@@ -169,7 +169,7 @@ class _ModesPageState extends State<ModesPage> {
             visible: !isShowingMultipleLists,
             text: "Create Show",
             onPressed: () {
-              Navigator.pushNamed(context, '/timelines/${modeLists[0].id}');
+              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modeLists[0].modes});
             },
           ),
           _ActionButton(

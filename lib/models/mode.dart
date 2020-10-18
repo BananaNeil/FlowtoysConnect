@@ -7,8 +7,8 @@ import 'dart:convert';
 class Mode {
   String accessLevel;
   bool isAdjusting;
-  num modeListId;
   num baseModeId;
+  num parentId;
   num position;
   String name;
   num number;
@@ -26,8 +26,8 @@ class Mode {
     this.isAdjusting,
     this.saturation,
     this.brightness,
-    this.modeListId,
     this.baseModeId,
+    this.parentId,
     this.position,
     this.density,
     this.number,
@@ -75,8 +75,8 @@ class Mode {
     return {
       'access_level': accessLevel,
       'is_adjusting': isAdjusting,
-      'mode_list_id': modeListId,
       'base_mode_id': baseModeId,
+      'parent_id': parentId,
       'position': position,
       'number': number,
       'page': page,
@@ -110,7 +110,7 @@ class Mode {
 
       accessLevel: json['access_level'],
       isAdjusting: json['is_adjusting'],
-      modeListId: json['mode_list_id'],
+      parentId: json['parent_id'],
       baseModeId: json['base_mode_id'],
       position: json['position'],
       number: json['number'],

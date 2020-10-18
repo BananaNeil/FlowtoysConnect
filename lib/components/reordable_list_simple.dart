@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
+import 'package:flutter/material.dart';
 
 
 
@@ -77,6 +77,7 @@ class _ReorderableListSimpleState extends State<ReorderableListSimple> {
   Widget build(BuildContext context) {
     return ReorderableList(
       child: ListView.builder(
+        shrinkWrap: true,
         padding: widget.padding,
         itemCount: _children.length,
         itemBuilder: (BuildContext context, int index) {

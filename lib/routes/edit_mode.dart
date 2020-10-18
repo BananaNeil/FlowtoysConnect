@@ -39,7 +39,6 @@ class _EditModePageState extends State<EditModePage> {
   final String id;
 
   bool awaitingResponse = false;
-  Timer updateModeTimer;
   String errorMessage;
   Mode mode;
 

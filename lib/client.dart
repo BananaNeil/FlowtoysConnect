@@ -6,6 +6,9 @@ import 'package:app/authentication.dart';
 import 'package:app/models/account.dart';
 import 'package:http/http.dart' as http;
 import 'package:app/models/mode.dart';
+import 'package:app/models/show.dart';
+import 'package:app/models/song.dart';
+import 'package:app/preloader.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -78,6 +81,81 @@ class Client {
     if (response['success']) {
       response['modeList'] = ModeList.fromMap(response['body']);
       Preloader.cacheLists([response['modeList']]);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> getShows() async {
+    var response = await makeRequest('get', path: '/shows');
+
+    if (response['success']) {
+      response['shows'] = Show.fromList(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateShow(attributes) async {
+    var id = attributes.remove('id');
+    var response = await makeRequest('post',
+      path: '/shows/$id',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['show'] = Show.fromMap(response['body']['data']['attributes']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> createShow(attributes) async {
+    var response = await makeRequest('post',
+      path: '/shows',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['show'] = Show.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> getShow(id) async {
+    var response = await makeRequest('get', path: '/shows/$id');
+
+    if (response['success']) {
+      response['show'] = Show.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateSong(attributes) async {
+    var id = attributes.remove('id');
+    var response = await makeRequest('post',
+      path: '/songs/$id',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['song'] = Song.fromMap(response['body']['data']['attributes']);
+    }
+
+    return response;
+  }
+
+
+  static Future<Map<dynamic, dynamic>> createSong(attributes) async {
+    var response = await makeRequest('post',
+      path: '/songs',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['song'] = Song.fromMap(response['body']['data']['attributes']);
     }
 
     return response;

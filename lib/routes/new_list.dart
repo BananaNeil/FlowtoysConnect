@@ -68,9 +68,9 @@ class _NewListPageState extends State<NewListPage> {
   @override
   Widget build(BuildContext context) {
     selectedModes = (ModalRoute.of(context).settings.arguments as Map)['selectedModes']; 
-      return GestureDetector(
-        onTap: AppController.closeKeyboard,
-        child: Scaffold(
+    return GestureDetector(
+      onTap: AppController.closeKeyboard,
+      child: Scaffold(
         appBar: AppBar(
           title: Text("Save ${selectedModes.length} Modes to a List"),
           backgroundColor: Color(0xff222222),

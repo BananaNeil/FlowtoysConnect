@@ -67,6 +67,16 @@ class AppController extends StatefulWidget {
               },
             ),
             ListTile(
+              title: Text('My Shows',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/shows', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
               title: Text('My Props',
                 style: TextStyle(
                   fontSize: 18,
@@ -252,15 +262,6 @@ Iterable<E> mapWithIndex<E, T>(
     index = index + 1;
   }
 }
-
-Duration minDuration(a, b) {
-  return a < b ? a : b;
-}
-
-Duration maxDuration(a, b) {
-  return a > b ? a : b;
-}
-
 class TriangleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {

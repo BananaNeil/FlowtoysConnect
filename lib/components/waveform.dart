@@ -1,4 +1,5 @@
 import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:quiver/iterables.dart' hide max, min;
 import 'package:flutter/foundation.dart';
@@ -10,6 +11,9 @@ import 'dart:math';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+
+
+import 'package:app/preloader.dart';
 
 class WaveformController {
   WaveformController({ this.path });
@@ -30,16 +34,16 @@ class WaveformController {
 
   void analyzeSong() async {
     var song = await loadSong();
-      data = song.buffer.asUint8List();
-      if (listEquals(data.sublist(0, 4), [82, 73, 70, 70])) {
-        var bytesOf32 = song.buffer.asUint32List();
-        // print(bytesOf32);
-        var fileSize = bytesOf32[1];
-        var bitrate = bytesOf32[7];
-        samplesPerSecond = bytesOf32[6];
-        duration = Duration(milliseconds: (1000.0 * fileSize / bitrate).toInt());
-        data = data.sublist(44, data.length);
-      } else print("THIS IS NOT A RIFF (wav) FILE");
+    data = song.buffer.asUint8List();
+    if (listEquals(data.sublist(0, 4), [82, 73, 70, 70])) {
+      var bytesOf32 = song.buffer.asUint32List();
+      // print(bytesOf32.length);
+      var fileSize = bytesOf32[1];
+      var bitrate = bytesOf32[7];
+      samplesPerSecond = bytesOf32[6];
+      duration = Duration(milliseconds: (1000.0 * fileSize / bitrate).toInt());
+      data = data.sublist(44, data.length);
+    } else print("THIS IS NOT A RIFF (wav) FILE");
   }
 
   int chunkSizeWas;
@@ -64,7 +68,7 @@ class WaveformController {
   }
 
   Future<ByteData> loadSong() async {
-    return await rootBundle.load(path);
+    return await ByteData.view(File.fromUri(Uri.parse(path)).readAsBytesSync().buffer);
   }
 }
 

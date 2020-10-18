@@ -1,15 +1,59 @@
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
 import 'package:darq/darq.dart';
+import 'dart:isolate';
 import 'dart:convert';
+import 'dart:async';
+import 'dart:io';
+import 'dart:ui';
 
 import 'package:app/native_storage.dart'
   if (dart.library.html) 'package:app/web_storage.dart';
 
 
 class Preloader {
+
+  static Directory songDir;
+  static Map<String, Completer> downloadTasks = {};
+
+  static ReceivePort _port = ReceivePort();
+
+
+  static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+    final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
+    send.send([id, status, progress]);
+  }
+
+
+  static void initDownloader() async {
+    await FlutterDownloader.initialize(debug: false);
+
+    IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
+    _port.listen((dynamic data) {
+      String id = data[0];
+      DownloadTaskStatus status = data[1];
+      int progress = data[2];
+
+      if (status == DownloadTaskStatus.complete) {
+        downloadTasks[id].complete(true);
+      }
+    });
+
+    FlutterDownloader.registerCallback(downloadCallback);
+  }
+
+  static ensureSongDir() async {
+    Directory appDocDirectory = await getApplicationDocumentsDirectory();
+    return Directory("${appDocDirectory.path}/songs/")
+     .create(recursive: true).then((Directory directory) {
+        print("Created song dir!!!!! ${directory}");
+       songDir = directory;
+     });
+  }
 
   static bool downloadStarted = false;
   static List<ModeList> modeLists = [];

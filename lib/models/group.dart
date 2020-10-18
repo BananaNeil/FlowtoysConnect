@@ -11,9 +11,9 @@ class Group {
     this.props,
   });
 
-  // static List<Prop> get currentProps {
-  //   return currentGroups.map((group) => group.props).expand((g) => g).toList();
-  // }
+  static List<Prop> get currentProps {
+    return currentGroups.map((group) => group.props).expand((g) => g).toList();
+  }
 
   static Group currentGroupAt(index) {
     if ((currentGroups ?? []).length > 0 && index != null)

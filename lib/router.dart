@@ -5,9 +5,11 @@ import 'package:app/routes/reset_password.dart';
 import 'package:app/routes/create_account.dart';
 import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
+import 'package:app/routes/new_song.dart';
 import 'package:app/routes/research.dart';
-import 'package:app/routes/timeline.dart';
 import 'package:app/authentication.dart';
+import 'package:app/routes/shows.dart';
+import 'package:app/routes/show.dart';
 import 'package:app/routes/login.dart';
 import 'package:app/routes/modes.dart';
 import 'package:app/routes/lists.dart';
@@ -75,9 +77,24 @@ class FluroRouter {
       transitionType: TransitionType.inFromRight,
     );
     router.define(
-      '/timelines/:id',
-      handler: newHandler((id) => Timeline(id: id), 'id'),
+      '/shows/new',
+      handler: newHandler(() => ShowPage(id: null)),
       transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/shows/:id',
+      handler: newHandler((id) => ShowPage(id: id), 'id'),
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/shows',
+      handler: newHandler(() => Shows()),
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/songs/new',
+      handler: newHandler(() => NewSong()),
+      transitionType: TransitionType.inFromBottom,
     );
   }
 }

@@ -12,7 +12,9 @@ void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   AppController.setEnv(env).then((_) {
+    Preloader.ensureSongDir();
     Preloader.downloadData();
+    Preloader.initDownloader();
   });
   Authentication.checkForAuth().then((isAuthenticated) {
     FluroRouter.setupRouter();
