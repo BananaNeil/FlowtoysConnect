@@ -15,24 +15,21 @@ import 'package:app/client.dart';
 import 'dart:math';
 
 class EditShowWidget extends StatefulWidget {
-  EditShowWidget({Key key, this.show, this.modes}) : super(key: key);
-  List<Mode> modes;
+  EditShowWidget({Key key, this.show}) : super(key: key);
   Show show;
 
   @override
   _EditShowWidgetState createState() => _EditShowWidgetState(
-    modes: modes,
     show: show,
   );
 }
 
 class _EditShowWidgetState extends State<EditShowWidget> {
-  _EditShowWidgetState({this.show, this.modes});
+  _EditShowWidgetState({this.show});
 
   Show show;
-  List<Mode> modes;
   String errorMessage;
-  int propCount = 4;
+  Map<String, WaveformController> waveforms = {};
 
 
   double modeDurationInput = 0.1;
@@ -47,19 +44,31 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Duration get lastModeDuration => Duration(microseconds: show.duration.inMicroseconds - ((totalModeCount-1) * modeDuration.inMicroseconds));
 
   @override initState() {
-    show = Show.create();
     super.initState();
+    loadSongs();
   }
 
   void _saveAndFinish() {
     if ((show.name ?? '').isEmpty) return;
-    var isEditing = show.isPersisted;
-    show.save().then((response) {
+
+    setState(() => errorMessage = null);
+    show.save(modeDuration: modeDuration).then((response) {
       if (response['success']) {
         setState(() {
           show = response['show'];
+          Navigator.pushReplacementNamed(context, "/shows/${show.id}", arguments: {'show': show});
         });
       } else setState(() => errorMessage = response['message']);
+    });
+  }
+
+  Future<dynamic> loadSongs() {
+    return show.downloadSongs().then((_) {
+      setState(() {
+        show.songs.forEach((song) {
+          waveforms[song.id.toString()] = WaveformController.open(song.localPath);
+        });
+      });
     });
   }
 
@@ -94,6 +103,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             Container(
               padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
               child: TextFormField(
+                initialValue: show.name,
                 decoration: InputDecoration(
                   labelText: 'Name your show...',
                 ),
@@ -112,13 +122,12 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 )
               )
             ),
-            Row(
+            show.isPersisted ? Container() : Row(
               children: [
                 Expanded(
                   child: Slider(
                     value: modeDurationInput,
                     onChanged: (value){
-                      print("AAAA: ${modeDuration.inMicroseconds}");
                       setState(() {
                         modeDurationInput = value;
                       });
@@ -130,28 +139,60 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             ),
             Container(
               height: 50,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.white),
+                  right: BorderSide(color: Colors.white),
+                  left: BorderSide(color: Colors.white),
+                )
+              ),
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox.expand(
                 child: Row(
-                  children: List<Widget>.generate(totalModeCount, (index) {
+                  children: show.isPersisted ? mapWithIndex(show.modes, (index, mode) {
+                    return Flexible(
+                      flex: mode.duration.inMilliseconds,
+                      child: Container(
+                        // decoration: BoxDecoration(
+                        //   color: [Colors.red, Colors.blue][index %2],
+                        // ),
+                        child: ModeColumn(mode: mode),
+                      )
+                    );
+                  }).toList() : List<Widget>.generate(totalModeCount, (index) {
                     return Flexible(
                       flex: (index == totalModeCount - 1) ? lastModeDuration.inMicroseconds : modeDuration.inMicroseconds,
                       child: Container(
-                        child: Column(
-                          children: List<Widget>.generate(Group.currentProps.length, (ii) {
-                            return Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: [Colors.red, Colors.blue, Colors.green, Colors.purple, Colors.yellow][ (index + ii) % 5],
-                                )
-                              )
-                            );
-                          })
-                        )
+                        child: show.modes.isEmpty ? Container() : ModeColumn(mode: show.modes[index % show.modes.length]),
                       )
                     );
                   }).toList(),
                 )
+              )
+            ),
+            Container(
+              height: 50,
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.white),
+                  right: BorderSide(color: Colors.white),
+                  left: BorderSide(color: Colors.white),
+                )
+              ),
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: show.songs.map((song) {
+                  var waveform = waveforms[song.id.toString()];
+                  var color = [Colors.blue, Colors.red][waveforms.values.toList().indexOf(waveform) % 2];
+                  return Flexible(
+                    flex: ((song.duration.inMilliseconds / show.duration.inMilliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
+                    child: waveform == null ? SpinKitCircle(color: color, size: 30) :
+                      Waveform(
+                        controller: waveform,
+                        color: color,
+                      )
+                  );
+                }).toList()
               )
             ),
             Row(
@@ -179,6 +220,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   show.songs.insert(min(show.songs.length, current), song);
                   show.songs.asMap().forEach((index, other) => other.position = index + 1);
                   if (show.isPersisted) show.save();
+                  setState((){});
                 },
                 children: [
                   ...show.songs.map((song) {
@@ -197,6 +239,15 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                       song.save().then((response) {
                         if (response['success'] && response['song'].status == 'failed')
                           song.status = 'failed';
+                        else {
+                          song.id = response['song'].id;
+                          song.filePath = response['song'].filePath;
+                          song.downloadFile().then((_) {
+                            setState(() {
+                              waveforms[song.id.toString()] = WaveformController.open(song.localPath);
+                            });
+                          });
+                        }
                       });
                     }
                   });
@@ -227,7 +278,9 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 'text': 'Remove',
                 'color': Colors.red,
                 'onPressed': () {
-                  setState(() => show.songs.remove(song));
+                  setState(() {
+                    show.songs.remove(song);
+                  });
                   if (show.isPersisted) show.save();
                 },
               }]
@@ -246,7 +299,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             Container(
               margin: EdgeInsets.only(right: 10, top: 2, bottom: 2),
               child: Column(
-                children: [
+                children: song.thumbnailUrl == null ? [] : [
                   Container(
                     height: 40,
                     margin: EdgeInsets.only(bottom: 2),

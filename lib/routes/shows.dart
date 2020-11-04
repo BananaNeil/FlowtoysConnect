@@ -71,7 +71,21 @@ class _ShowsPageState extends State<ShowsPage> {
                   onRefresh: fetchShows,
                   child: ListView(
                     padding: EdgeInsets.only(top: 5),
-                    children: _Shows()
+                    children: [
+                      ..._Shows(),
+                      Container(
+                        margin: EdgeInsets.all(5),
+                        child: GestureDetector(
+                          child: Text("CREATE A NEW SHOW", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
+                          onTap: () {
+                            Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true, 'selectAction': 'Create Show'}).then((modes) {
+                              if (modes != null)
+                                Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes});
+                            });
+                          }
+                        )
+                      ),
+                    ]
                   ),
                 ),
               )
@@ -94,12 +108,6 @@ class _ShowsPageState extends State<ShowsPage> {
             Column(
               children: [
                 Text("You have not created any shows yet!", textAlign: TextAlign.center),
-                GestureDetector(
-                  child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
-                  onTap: () {
-                    // Navigator.pushReplacementNamed(context, '/modes', arguments: {'isSelecting': true});
-                  }
-                ),
               ]
             )
         ),

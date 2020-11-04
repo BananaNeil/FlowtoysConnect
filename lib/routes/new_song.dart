@@ -1,7 +1,6 @@
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 import 'package:html_unescape/html_unescape_small.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:app/helpers/duration_helper.dart';
 import 'package:icon_shadow/icon_shadow.dart';
 import 'package:youtube_api/youtube_api.dart';
@@ -41,7 +40,6 @@ class _NewSongPageState extends State<NewSongPage> {
   List<YT_API> videos = [];
   bool loadingPreview = false;
   bool waitingForYoutube = false;
-  WebViewController youtubePlayer;
 
   @override initState() {
     song = Song.fromMap({});

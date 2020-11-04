@@ -37,6 +37,7 @@ class _ModesPageState extends State<ModesPage> {
 
   bool isSelecting;
   String errorMessage;
+  String selectAction;
   bool isTopLevelRoute;
   List<Mode> modes = [];
   bool isEditing = false;
@@ -59,7 +60,6 @@ class _ModesPageState extends State<ModesPage> {
   Future<void> requestFromCache() async {
     var query = id == null ? {'creation_type': 'auto'} : {'id': id};
     return Preloader.getModeLists(query).then((lists) {
-      print("FROM CACHE: ${lists.length}");
       setState(() => modeLists = lists);
     });
   }
@@ -91,6 +91,8 @@ class _ModesPageState extends State<ModesPage> {
   Widget build(BuildContext context) {
     modeLists = modeLists ?? [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
     isSelecting = isSelecting ?? AppController.getParams(context)['isSelecting'] ?? false;
+    selectAction = selectAction ?? AppController.getParams(context)['selectAction'];
+    var propCount = Group.currentQuickGroup.props.length;
 
     return Scaffold(
       floatingActionButton: _FloatingActionButton(),
@@ -168,16 +170,16 @@ class _ModesPageState extends State<ModesPage> {
         children: [
           _ActionButton(
             visible: !isShowingMultipleLists,
-            text: "Create Show",
+            text: "Edit Modes",
             onPressed: () {
-              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modeLists[0].modes});
+              setState(() { isEditing = true; });
             },
           ),
           _ActionButton(
             visible: !isShowingMultipleLists,
-            text: "Edit Modes",
+            text: "Create Show",
             onPressed: () {
-              setState(() { isEditing = true; });
+              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modeLists[0].modes});
             },
           ),
           _ActionButton(
@@ -216,18 +218,37 @@ class _ModesPageState extends State<ModesPage> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         _ActionButton(
-          visible: !isShowingMultipleLists && selectedModes.length > 0,
-          text: "Duplicate",
-          rightMargin: 25.0,
-          onPressed: _duplicateSelected,
-        ),
-        _ActionButton(
           visible: selectedModes.length < allModes.length,
           text: "Select All",
           rightMargin: 25.0,
           onPressed: () {
             setState(() => selectedModes = allModes);
           },
+        ),
+        _ActionButton(
+          visible: !isShowingMultipleLists && selectedModes.length > 0,
+          text: "Remove (${selectedModes.length})",
+          rightMargin: 25.0,
+          onPressed: () {
+            if (selectedModes.length > 0)
+              AppController.openDialog("Are you sure?", "This will remove ${selectedModes.length} modes from this list along with any customizations made to them.",
+                buttonText: 'Cancel',
+                buttons: [{
+                  'text': 'Delete',
+                  'color': Colors.red,
+                  'onPressed': () {
+                    selectedModes.forEach((mode) => _removeMode(mode));
+                    selectedModes = [];
+                  },
+                }]
+              );
+          },
+        ),
+        _ActionButton(
+          visible: !isShowingMultipleLists && selectedModes.length > 0,
+          text: "Duplicate (${selectedModes.length})",
+          rightMargin: 25.0,
+          onPressed: _duplicateSelected,
         ),
         _ActionButton(
           visible: selectedModes.length > 0,
@@ -242,7 +263,13 @@ class _ModesPageState extends State<ModesPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              _ActionButton(
+              selectAction != null ? _ActionButton(
+                margin: EdgeInsets.only(bottom: 0),
+                text: selectAction,
+                onPressed: () {
+                  Navigator.pop(context, selectedModes);
+                },
+              ) : _ActionButton(
                 margin: EdgeInsets.only(bottom: 0),
                 text: "Save (${selectedModes.length}) to list",
                 onPressed: () {
@@ -375,7 +402,7 @@ class _ModesPageState extends State<ModesPage> {
       return GestureDetector(
         onTap: () {
 					AppController.openDialog("Are you sure?", "This will remove \"${mode.name}\" from this list along with any customizations made to it.",
-              buttonText: 'Cancel',
+            buttonText: 'Cancel',
 						buttons: [{
 							'text': 'Delete',
               'color': Colors.red,

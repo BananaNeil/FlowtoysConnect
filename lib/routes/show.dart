@@ -4,7 +4,7 @@ import 'package:app/components/timeline_widget.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/show.dart';
-import 'package:app/models/mode.dart';
+import 'package:app/client.dart';
 
 class ShowPage extends StatelessWidget {
   ShowPage({this.id});
@@ -30,34 +30,48 @@ class _ShowPageState extends State<ShowPageState> {
   String id;
 
   Show show;
-  List<Mode> modes;
   String errorMessage;
   bool isEditing = false;
+
+  @override initState() {
+    super.initState();
+  }
+
+  fetchShow() {
+    Client.getShow(show?.id).then((response) {
+      setState(() {
+        if (response['success']) {
+          show = response['show'];
+        }
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
     if (arguments != null) {
-      modes = arguments['modes'];
-      show = arguments['show'];
+      show = show ?? arguments['show']; 
     }
-    show = show ?? Show.create();
-    print("ID: ${show.id}");
+    if (show == null) fetchShow();
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text(show.name ?? "New Show"),
+        title: Text(show?.name ?? "Loading"),
         backgroundColor: Color(0xff222222),
         actions: <Widget>[
           IconButton(
             icon: Icon(Icons.edit),
+            onPressed: () {
+              Navigator.pushNamed(context, "/shows/${show.id}/edit", arguments: {
+                'show': show,
+              }).then((_) => setState(() {}) );
+            }
           ),
         ],
       ),
-      body: !show.isPersisted || isEditing ?
-        EditShowWidget(show: show, modes: modes) :
-        TimelineWidget(show: show)
+      body: show == null ? SpinKitCircle(color: Colors.blue) : TimelineWidget(show: show)
     );
   }
 

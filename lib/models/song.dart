@@ -38,6 +38,7 @@ class Song {
   }
 
   String get fileUrl {
+    if (filePath == null) return null;
     final protocol = AppController.config['protocol'];
     final domain = AppController.config['domain'];
     final host = "$protocol://$domain";

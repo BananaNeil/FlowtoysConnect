@@ -99,13 +99,13 @@ class Client {
 
   static Future<Map<dynamic, dynamic>> updateShow(attributes) async {
     var id = attributes.remove('id');
-    var response = await makeRequest('post',
+    var response = await makeRequest('put',
       path: '/shows/$id',
       body: attributes,
     );
 
     if (response['success']) {
-      response['show'] = Show.fromMap(response['body']['data']['attributes']);
+      response['show'] = Show.fromMap(response['body']);
     }
 
     return response;
@@ -223,6 +223,24 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> createMode(mode) async {
+    var response = await makeRequest('post',
+      path: "/modes",
+      body: {
+        'mode': mode.toMap(),
+      },
+    );
+
+    if (response['success']) {
+      // This should bust the cached mode list
+      response['mode'] = Mode.fromMap(response['body']['data']['attributes']);
+      if (mode.parentType == 'ModeList')
+        getModeList(mode.parentId);
+    }
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> updateMode(mode) async {
     var response = await makeRequest('put',
       path: "/modes/${mode.id}",
@@ -233,7 +251,9 @@ class Client {
 
     if (response['success']) {
       // This should bust the cached mode list
-      getModeList(mode.modeListId);
+      response['mode'] = Mode.fromMap(response['body']);
+      if (mode.parentType == 'ModeList')
+        getModeList(mode.parentId);
     }
 
     return response;

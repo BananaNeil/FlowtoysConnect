@@ -3,10 +3,12 @@ import 'package:fluro/fluro.dart';
 
 import 'package:app/routes/reset_password.dart';
 import 'package:app/routes/create_account.dart';
+import 'package:app/routes/edit_show.dart';
 import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
 import 'package:app/routes/new_song.dart';
 import 'package:app/routes/research.dart';
+import 'package:app/routes/new_show.dart';
 import 'package:app/authentication.dart';
 import 'package:app/routes/shows.dart';
 import 'package:app/routes/show.dart';
@@ -83,7 +85,15 @@ class FluroRouter {
     );
     router.define(
       '/shows/:id',
-      handler: newHandler((id) => ShowPage(id: id), 'id'),
+      handler: newHandler((id) {
+        if (id == 'new') return NewShow();
+        else return ShowPage(id: id);
+      }, 'id'),
+      transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/shows/new',
+      handler: newHandler(() => NewShow()),
       transitionType: TransitionType.inFromRight,
     );
     router.define(

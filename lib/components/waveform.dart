@@ -1,4 +1,3 @@
-import 'package:assets_audio_player/assets_audio_player.dart';
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:quiver/iterables.dart' hide max, min;
@@ -19,12 +18,13 @@ class WaveformController {
   WaveformController({ this.path });
   final String path;
 
-  int index;
   int samplesPerSecond = 44410;
-  AssetsAudioPlayer player;
   Duration startOffset = Duration();
   List<num> data = [];
   Duration duration;
+
+  Duration get endOffset => startOffset + duration;
+
 
   factory WaveformController.open(path) {
     var controller = WaveformController(path: path);
@@ -96,17 +96,18 @@ class Waveform extends StatefulWidget {
 }
 
 class _WaveformState extends State<Waveform> {
-  Duration get startOffset => widget.startOffset;
+  Duration get startOffset => widget.startOffset ?? Duration();
   double get futureVisibleMiliseconds => visibleMiliseconds * futureScale / scale;
-  double get visibleMiliseconds => widget.visibleDuration.inMilliseconds.toDouble();
+  Duration get visibleDuration => widget.visibleDuration ?? controller.duration;
+  double get visibleMiliseconds => visibleDuration.inMilliseconds.toDouble();
+  Color get color => widget.color ?? Colors.blue;
   double get futureScale => widget.futureScale;
-  double get scale => widget.scale;
-  Color get color => widget.color;
+  double get scale => widget.scale ?? 1;
 
   WaveformController get controller => widget.controller;
 
   List<int> get data => controller.data;
-  double get visibleBands => widget.visibleBands;
+  double get visibleBands => widget.visibleBands ?? 1200;
   int get durationInMilliseconds => controller.duration.inMilliseconds;
   double get visibleRatio => (visibleMiliseconds / durationInMilliseconds);
   int get totalChunksForSong => (visibleBands / visibleRatio).ceil();
