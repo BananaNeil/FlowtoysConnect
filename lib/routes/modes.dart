@@ -2,11 +2,13 @@ import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_mode_widget.dart';
+import 'package:app/components/edit_groups.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
@@ -101,9 +103,34 @@ class _ModesPageState extends State<ModesPage> {
       appBar: AppBar(
         title: Text(_getTitle()), backgroundColor: Color(0xff222222),
         actions: <Widget>[
-          IconButton(
-            icon: Icon(Icons.content_paste),
-          ),
+          GestureDetector(
+            onTap: () {
+              showDialog(context: context,
+                builder: (context) => Dialog(
+                  child: _editGroupsWidget(),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  elevation: 0,
+                  backgroundColor: Colors.transparent,
+                )
+              ).then((_) { setState(() {}); });
+            },
+            child: Container(
+              padding: EdgeInsets.all(15),
+              child: Text(
+                  propCount <= 0 ? "warning" :
+                 'filter_${propCount > 8 ? '9_plus': propCount}',
+                style: TextStyle(
+                  fontFamily: 'MaterialIcons',
+                  fontSize: 24,
+                )
+              ),
+            ),
+          )
+          // IconButton(
+          //   icon: Icon(Icons.filter_7),
+          // ),
         ],
       ),
       body: Center(
