@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
+import 'package:app/preloader.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
@@ -16,7 +17,6 @@ class AppController extends StatefulWidget {
 
   static final globalKey = new GlobalKey<NavigatorState>();
   static Map<String, dynamic> config = {};
-  static List<BaseMode> baseModes = [];
   static bool dialogIsOpen = false;
   static String openedPath;
 
@@ -26,7 +26,7 @@ class AppController extends StatefulWidget {
   }
 
   static BaseMode getBaseMode(id) {
-    return baseModes.firstWhere((baseMode) => baseMode.id == id);
+    return Preloader.baseModes.firstWhere((baseMode) => baseMode.id == id);
   }
 
   static Widget drawer() {
@@ -262,7 +262,17 @@ Iterable<E> mapWithIndex<E, T>(
     index = index + 1;
   }
 }
+void eachWithIndex<E, T>(
+    Iterable<T> items, E Function(int index, T item) f) {
+  var index = 0;
+
+  for (final item in items) {
+    f(index, item);
+    index = index + 1;
+  }
+}
 class TriangleClipper extends CustomClipper<Path> {
+
   @override
   Path getClip(Size size) {
     final path = Path();
@@ -274,4 +284,40 @@ class TriangleClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(TriangleClipper oldClipper) => false;
+}
+class PieClipper extends CustomClipper<Path> {
+	PieClipper({this.ratio, this.offset});
+
+	double ratio;
+	double offset;
+
+  @override
+  Path getClip(Size size) {
+    final path = Path();
+    if (ratio == 1) {
+      path.lineTo(size.width, 0);
+      path.lineTo(size.width, size.height);
+      path.lineTo(0, size.height);
+      path.close();
+      return path;
+    }
+
+    // path.lineTo(0.0, 0.0);
+    // path.lineTo(100* cos(ratio * 2 * pi), 100* cos(ratio * 2 * pi));
+    path.moveTo(size.width/2, size.height/2);
+
+
+		// Use this for the offset:
+		path.lineTo( size.width * (0.5 + 100 * cos(offset * 2 * pi)),  size.height * (0.5 + 100 * sin(offset * 2 * pi)));
+
+    ratio += offset;
+
+    // path.lineTo( size.width * (0.5 + 100 * cos(ratio  * pi)),  size.height * (0.5 + 100 * sin(ratio * pi)));
+    path.lineTo( size.width * (0.5 + 100 * cos(ratio * 2 * pi)),  size.height * (0.5 + 100 * sin(ratio * 2 * pi)));
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldReclip(PieClipper oldClipper) => true;
 }

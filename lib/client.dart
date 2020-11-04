@@ -70,6 +70,7 @@ class Client {
 
     if (response['success']) {
       response['baseModes'] = BaseMode.fromList(response['body']);
+      Preloader.cacheBaseModes(response['baseModes']);
     }
 
     return response;
@@ -270,12 +271,12 @@ class Client {
     return response;
   }
 
+  static String get protocol => AppController.config['protocol'];
+  static String get domain => AppController.config['domain'];
+  static String get host => "${protocol}://${domain}";
+
   static Future<Map<dynamic, dynamic>> makeRequest(method, {path, uri, headers, body, requireAuth, basicAuth, unauthorized, genericErrorCodes}) async {
     try {
-      final protocol = AppController.config['protocol'];
-      final domain = AppController.config['domain'];
-      final host = "$protocol://$domain";
-
       print("Request: $host$path");
       http.Request request = http.Request(method, uri ?? Uri.parse('$host$path'));
       if (genericErrorCodes == null) genericErrorCodes = [500];

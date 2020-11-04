@@ -2,6 +2,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 
 class Lists extends StatelessWidget {
@@ -26,7 +27,13 @@ class _ListsPageState extends State<ListsPage> {
   bool isTopLevelRoute;
   String errorMessage;
 
-  Future<void> fetchLists() {
+  Future<void> requestFromCache() {
+    return Preloader.getModeLists({'creation_type': 'user'}).then((modeLists) {
+      setState(() => lists = modeLists);
+    });
+  }
+
+  Future<void> fetchLists({initialRequest}) {
     setState(() {
       errorMessage = null;
       awaitingResponse = true;
@@ -34,9 +41,12 @@ class _ListsPageState extends State<ListsPage> {
     return Client.getModeLists(creationType: 'custom').then((response) {
       setState(() {
         awaitingResponse = false;
-        if (!response['success'])
+        if (response['success'])
+          lists = response['modeLists'];
+        else if (initialRequest != true || lists.isEmpty)
           setState(() => errorMessage = response['message'] );
-        else lists = response['modeLists'];
+
+        print(lists.map((list) => list.creationType));
       });
     });
   }
@@ -44,7 +54,7 @@ class _ListsPageState extends State<ListsPage> {
   @override initState() {
     isTopLevelRoute = !Navigator.canPop(context);
     super.initState();
-    fetchLists();
+    requestFromCache().then((_) => fetchLists(initialRequest: true));
   }
 
   @override

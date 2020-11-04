@@ -1,6 +1,7 @@
 import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:app/models/mode_list.dart';
+import 'package:app/models/base_mode.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
@@ -57,6 +58,26 @@ class Preloader {
 
   static bool downloadStarted = false;
   static List<ModeList> modeLists = [];
+  static List<BaseMode> baseModes = [];
+
+  static Future<void> cacheBaseModes(newBaseModes) async {
+    return getCachedBaseModes().then((cachedBaseModes) {
+      cachedBaseModes = List.from(newBaseModes ?? [])..addAll(cachedBaseModes);
+      cachedBaseModes = cachedBaseModes.distinct((baseMode) => baseMode.id).toList();
+      baseModes = cachedBaseModes;
+      return Storage.write('baseModes', BaseMode.toJson(cachedBaseModes));
+    });
+  }
+
+  static Future<List<BaseMode>> getCachedBaseModes() async {
+    if (baseModes.length > 0) return Future.value(baseModes);
+    return Storage.read('baseModes').then((listJson) {
+      if (listJson == null) return [];
+      var listData = json.decode(listJson) as Map;
+      baseModes = BaseMode.fromList(listData);
+      return baseModes;
+    });
+  }
 
   static Future<List<ModeList>> getCachedLists() async {
     if (modeLists.length > 0) return Future.value(modeLists);
@@ -73,6 +94,7 @@ class Preloader {
       // Put the newest ones first, incase of multiple devices
       cachedLists = List.from(lists ?? [])..addAll(cachedLists);
       cachedLists = cachedLists.distinct((list) => list.id).toList();
+      modeLists = cachedLists;
       return Storage.write('modeLists', ModeList.toJson(cachedLists));
     });
   }
@@ -82,7 +104,7 @@ class Preloader {
       return lists.where((list) {
         bool isMatch = true;
         query.forEach((key, value) {
-          isMatch = isMatch && list.toMap()[key] == value;
+          isMatch = isMatch && list.toMap()[key].toString() == value.toString();
         });
         return isMatch;
       }).toList();
@@ -91,20 +113,21 @@ class Preloader {
 
   static void downloadData() async {
     Client.getBaseModes().then((response) {
-      if (response['success'])
-        AppController.baseModes = response['baseModes'];
+      if (response['success']) {
+        baseModes = response['baseModes'];
+        baseModes.forEach((mode) {
+          if (downloadStarted) return;
+          downloadStarted = true;
+
+          var context = AppController.getCurrentContext();
+
+          // Preload images:
+          var configuration = createLocalImageConfiguration(context);
+          NetworkImage(mode.thumbnail)..resolve(configuration);
+          NetworkImage(mode.image)..resolve(configuration);
+        });
+      }
     });
-  }
-
-  static void downloadImages() async {
-    if (downloadStarted) return;
-    downloadStarted = true;
-
-    var context = AppController.getCurrentContext();
-
-    // // Preload images:
-    // var configuration = createLocalImageConfiguration(context);
-    // NetworkImage(image_url)..resolve(configuration);
   }
 
 }

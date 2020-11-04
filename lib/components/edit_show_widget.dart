@@ -2,6 +2,8 @@ import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/helpers/duration_helper.dart';
+import 'package:app/components/mode_widget.dart';
+import 'package:app/components/waveform.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';

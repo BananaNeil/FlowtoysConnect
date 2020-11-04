@@ -1,6 +1,7 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_mode_widget.dart';
+import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_param.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/app_controller.dart';
@@ -36,8 +37,9 @@ class EditModePage extends StatefulWidget {
 class _EditModePageState extends State<EditModePage> {
   _EditModePageState({this.id, this.mode});
 
-  final String id;
+  String id;
 
+  bool awaitingSave = false;
   bool awaitingResponse = false;
   String errorMessage;
   Mode mode;
@@ -58,13 +60,16 @@ class _EditModePageState extends State<EditModePage> {
   }
 
   @override initState() {
+    if (id == 'null') id = null;
     super.initState();
-    _fetchMode();
+    if (id != null)
+      _fetchMode();
   }
 
   @override
   Widget build(BuildContext context) {
     mode = mode ?? AppController.getParams(context)['mode'] ?? null;
+    var saveMessage = AppController.getParams(context)['saveMessage'] ?? null;
 
     return GestureDetector(
       onTap: AppController.closeKeyboard,
@@ -72,11 +77,23 @@ class _EditModePageState extends State<EditModePage> {
         // floatingActionButton: _FloatingActionButton(),
         backgroundColor: AppController.darkGrey,
         appBar: AppBar(
-          title: Text(mode?.name ?? "Loading..."), backgroundColor: Color(0xff222222),
+          title: Text(mode?.name ?? (id == null ? "Edit" : "Loading...")), backgroundColor: Color(0xff222222),
+          leading: new IconButton(
+            icon: new Icon(Icons.close),
+            onPressed: () {
+              Navigator.pop(context, null);
+            },
+          ),
           actions: <Widget>[
-            IconButton(
-              icon: Icon(Icons.content_paste),
-            ),
+            GestureDetector(
+              child: Container(
+                padding: EdgeInsets.all(18),
+                child: awaitingSave ? SpinKitCircle(color: Colors.white) : Text(saveMessage ?? 'SAVE'),
+              ),
+              onTap: () {
+                Navigator.pop(context, true);
+              }
+            )
           ],
         ),
         body: Center(
@@ -90,10 +107,34 @@ class _EditModePageState extends State<EditModePage> {
                   child: Text(errorMessage ?? "", textAlign: TextAlign.center, style: TextStyle(color: AppController.red)),
                 )
               ),
+              Container(
+                margin: EdgeInsets.symmetric(vertical: 5),
+                child: ModeImage(
+                  mode: mode,
+                  size: 80.0,
+                )
+              ),
+              Container(
+                height: 25,
+                child: ModeRow(
+                  mode: mode,
+                  showImages: true,
+                  fit: BoxFit.fill,
+                ),
+              ),
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: _fetchMode,
-                  child: EditModeWidget(mode: mode, editDetails: true)
+                  child: EditModeWidget(
+                    autoUpdate: false,
+                    editDetails: true,
+                    mode: mode,
+                    onChange: (_mode) {
+                      setState(() {
+                        mode = _mode;
+                      });
+                    },
+                  )
                 ),
               ),
             ],
@@ -102,8 +143,4 @@ class _EditModePageState extends State<EditModePage> {
       )
     );
   }
-
-
 }
-
-

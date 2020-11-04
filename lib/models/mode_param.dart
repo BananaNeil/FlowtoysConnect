@@ -132,7 +132,7 @@ class ModeParam {
 
   num getValue({indexes}) {
     indexes = (indexes ?? [])..removeWhere((index) => index == null);
-    if (!multiValueEnabled) return value;
+    if (!multiValueEnabled || Group.currentProps.length == 0) return value;
 
     if (indexes.length == 0)
       return getMultiValueAverage();
@@ -143,6 +143,7 @@ class ModeParam {
 
   void setValue(newValue) {
     newValue = num.parse(newValue.toStringAsFixed(3));
+    newValue = newValue.clamp(0.0, paramName == 'hue' ? 2.0 : 1.0);
     childParams = presentChildParams;
     if (multiValueEnabled) {
       var delta = newValue - getValue();
@@ -150,7 +151,7 @@ class ModeParam {
         param.setValue(param.getValue() + delta);
       });
     } else
-      value = max(0.0, min(newValue, 1.0));
+      value = max(0.0, newValue);
   }
 
   factory ModeParam.fromModeMap(dynamic data, paramName) {

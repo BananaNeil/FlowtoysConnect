@@ -2,6 +2,7 @@ import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_mode_widget.dart';
+import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
@@ -296,41 +297,75 @@ class _ModesPageState extends State<ModesPage> {
       key: Key(mode.id.toString()),
       elevation: 8.0,
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-      child: ListTile(
-        onTap: () {
-          if (isSelecting)
-            setState(() {
-              if (selectedModes.contains(mode))
-                selectedModes.removeWhere((item) => item == mode);
-              else selectedModes.add(mode);
-            });
-          else
-            Navigator.pushNamed(context, '/modes/${mode.id}', arguments: {
-              'mode': mode,
-            }).then((_) => _fetchModes());
-        },
-        contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-        leading: isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!isSelecting ? null : Container(
-          width: 22,
-          padding: EdgeInsets.symmetric(vertical: 5),
-          decoration: BoxDecoration(
-            color: isSelected ? Color(0xFF4f8adb) : null,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: Colors.white,
-              width: 2,
+      child: Column(
+        children: [
+          Container(
+            child: ListTile(
+              onTap: () {
+                if (isSelecting)
+                  setState(() {
+                    if (selectedModes.contains(mode))
+                      selectedModes.removeWhere((item) => item == mode);
+                    else selectedModes.add(mode);
+                  });
+                else {
+                  var replacement = mode.dup();
+                  Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
+                    'mode': replacement,
+                  }).then((saved) {
+                    if (saved == true)
+                      setState(() {
+                        mode.updateFromCopy(replacement).then((_) {
+                          _fetchModes();
+                        });
+                      });
+                  });
+                }
+              },
+              contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
+              leading: isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!isSelecting ? null : Container(
+                width: 22,
+                padding: EdgeInsets.symmetric(vertical: 5),
+                decoration: BoxDecoration(
+                  color: isSelected ? Color(0xFF4f8adb) : null,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                ),
+                child: Text(
+                  isSelected ? index.toString() : "",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                  )
+                ),
+              )),
+              trailing: _TrailingIcon(mode),
+              title: Row(
+                children: [
+                  Container(
+                    margin: EdgeInsets.only(right: 15),
+                    child: ModeImage(
+                      mode: mode,
+                      size: 30.0,
+                    )
+                  ),
+                  Text(mode.name),
+                ]
+              )
             ),
           ),
-          child: Text(
-            isSelected ? index.toString() : "",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-            )
-          ),
-        )),
-        trailing: _TrailingIcon(mode),
-        title: Text(mode.name),
+          Container(
+            height: 15,
+            child: ModeRow(
+              mode: mode,
+              showImages: true,
+              fit: BoxFit.fill,
+            ),
+          )
+        ]
       ),
     );
   }
@@ -358,24 +393,26 @@ class _ModesPageState extends State<ModesPage> {
       child: Icon(Icons.donut_small),
       onTap: () {
         currentlyEditingMode = mode;
-        showDialog(context: context,
 
-          builder: (context) => Dialog(
-            child: _editModeWidget(mode),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(50),
-            ),
-            elevation: 0,
-            backgroundColor: Colors.transparent,
-          )
+        showModalBottomSheet(
+          context: context,
+          builder: (context) => _editModeWidget(mode),
         );
       },
     );
   }
 
-  Widget _editModeWidget(mode) {
+  Widget _editGroupsWidget() {
     return Container(
       width: 300,
+      height: 500,
+      decoration: BoxDecoration(color: Colors.black),
+      child: EditGroups(),
+    );
+  }
+
+  Widget _editModeWidget(mode) {
+    return Container(
       height: 300,
       child: EditModeWidget(
         sliderHeight: 20.0,

@@ -49,7 +49,7 @@ class FluroRouter {
     router.define(
       '/modes/:id',
       handler: newHandler((id) => EditMode(id: id), 'id'),
-      transitionType: TransitionType.inFromRight,
+      transitionType: TransitionType.inFromBottom,
     );
     router.define(
       '/lists/new',
@@ -77,9 +77,9 @@ class FluroRouter {
       transitionType: TransitionType.inFromRight,
     );
     router.define(
-      '/shows/new',
-      handler: newHandler(() => ShowPage(id: null)),
-      transitionType: TransitionType.inFromRight,
+      '/shows/:id/edit',
+      handler: newHandler((id) => EditShow(id: id), 'id'),
+      transitionType: TransitionType.inFromBottom,
     );
     router.define(
       '/shows/:id',

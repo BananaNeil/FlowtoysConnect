@@ -14,16 +14,26 @@ import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
 
 import 'package:app/models/group.dart';
+import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 
 class EditModeWidget extends StatefulWidget {
-  EditModeWidget({Key key, this.mode, this.editDetails, this.sliderHeight}) : super(key: key);
+  EditModeWidget({
+    Key key,
+    this.mode,
+    this.onChange,
+    this.autoUpdate,
+    this.editDetails,
+    this.sliderHeight
+  }) : super(key: key);
 
   final Mode mode;
   final num sliderHeight;
   final bool editDetails;
+  final bool autoUpdate;
+  Function onChange = (mode) {};
 
   @override
   _EditModeWidgetState createState() => _EditModeWidgetState(
@@ -36,6 +46,7 @@ class EditModeWidget extends StatefulWidget {
 class _EditModeWidgetState extends State<EditModeWidget> {
   _EditModeWidgetState({this.mode, this.editDetails, this.sliderHeight});
 
+  List<BaseMode> baseModes = [];
   final Mode mode;
 
   bool awaitingResponse = false;
@@ -45,6 +56,21 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   num sliderHeight;
 
   HSVColor color = HSVColor.fromColor(Colors.blue);
+
+  bool get autoUpdate => widget.autoUpdate ?? true;
+
+  Function get onChange => widget.onChange ?? (mode){};
+
+  @override initState() {
+    super.initState();
+    Preloader.getCachedBaseModes().then((cachedBaseModes) {
+      setState(() => baseModes = cachedBaseModes);
+      Client.getBaseModes().then((response) {
+        if (response['success'])
+          setState(() => baseModes = response['baseModes']);
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +88,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   }
 
   Future<void> _updateMode() {
+    if (autoUpdate != true) return Future.value(null);
     setState(() { awaitingResponse = true; });
     return Client.updateMode(mode).then((response) {
       setState(() {
@@ -91,8 +118,8 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           margin: EdgeInsets.only(bottom: 20),
           child: DropdownButton(
             isExpanded: true,
-            value: mode.baseModeId.toString(),
-            items: AppController.baseModes.map((BaseMode baseMode) {
+            value: (mode.baseModeId ?? baseModes.elementAt(0)?.id)?.toString(),
+            items: baseModes.map((BaseMode baseMode) {
               return DropdownMenuItem<String>(
                   value: baseMode.id.toString(),
                   child: new Text(baseMode.name),
@@ -160,13 +187,14 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           ),
           SliderPicker(
             min: 0,
-            max: 1,
+            max: param.paramName == 'hue' ? 2.0 : 1.0,
             height: sliderHeight,
-            value: param.getValue(),
+            value: param.getValue().clamp(0.0, param.paramName == 'hue' ? 2.0 : 1.0),
             colorRows: gradients(param),
             gradientStops: gradientStops(param),
             thumbColor: thumbColorFor(param),
             onChanged: (value){
+              onChange(mode);
               updateModeTimer?.cancel();
               setState(() => param.setValue(value));
               updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
@@ -222,20 +250,18 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   }
 
   Widget get speedLines {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints box) {
-        return Row(
-          children: List<int>.generate(10, (int index) => 12 - index+1).map((size) {
-            return Container(
-                height: 30,
-                width: AppController.scale(box.maxWidth*(size * size * 0.425)/355.0),
-                  decoration: BoxDecoration(
-                    border: Border(right: BorderSide(color: Colors.grey, width: 1)),
-                  ),
-                );
-          }).toList()
+    return Row(
+      children: List<int>.generate(17, (int index) => 17 - index+1).map((size) {
+        return Flexible(
+            flex: size * size,
+            child: Container(
+            height: 30,
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: Colors.grey, width: 1)),
+              ),
+            )
         );
-      }
+      }).toList()
     );
   }
 
@@ -250,9 +276,9 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     var saturation = param.mode.getValue('saturation', groupIndex: param.groupIndex, propIndex: param.propIndex);
 
     return {
-      'hue': color.withHue((hue * 720) % 360).withSaturation(1).toColor(),
-      'saturation': color.withHue((hue * 720) % 360).withSaturation(saturation).toColor(),
-      'brightness': color.withHue((hue * 720) % 360).withSaturation(saturation).withValue(brightness).toColor(),
+      'hue': color.withHue((hue * 360) % 360).withSaturation(1).toColor(),
+      'saturation': color.withHue((hue * 360) % 360).withSaturation(saturation).toColor(),
+      'brightness': color.withHue((hue * 360) % 360).withSaturation(saturation).withValue(brightness).toColor(),
     }[param.paramName] ?? Colors.black;
   }
 
@@ -261,14 +287,14 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     return {
       'hue': hueColors,
       'saturation': [
-          color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(0).toColor(),
-          param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation).toColor() : null,
-          color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(1).toColor(),
+          color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(0).toColor(),
+          param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation).toColor() : null,
+          color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(1).toColor(),
         ]..removeWhere((color) => color == null),
       'brightness': [
         Colors.black,
-        param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation ?? mode.saturation.value).withValue(brightness).toColor() : null,
-        color.withHue((hue ?? mode.hue.value) * 720 % 360).withSaturation(saturation ?? mode.saturation.value).toColor(),
+        param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation ?? mode.saturation.value).withValue(brightness).toColor() : null,
+        color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation ?? mode.saturation.value).toColor(),
       ]..removeWhere((color) => color == null),
       'speed': [
         Color(0x44000000),
