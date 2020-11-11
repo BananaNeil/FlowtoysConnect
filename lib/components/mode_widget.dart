@@ -1,4 +1,5 @@
 import 'package:app/helpers/color_filter_generator.dart';
+import 'package:app/models/base_mode.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
@@ -29,7 +30,7 @@ class RadiallySlicedModeImage extends StatelessWidget {
               mode: mode,
               hsvColor: color,
               child: CircleAvatar(
-                radius: size - 5.0,
+                radius: size - (size > 20 ? 5.0 : size * 0.2),
                 backgroundColor: Colors.transparent,
                 backgroundImage: NetworkImage(mode.image),
               ),
@@ -40,6 +41,27 @@ class RadiallySlicedModeImage extends StatelessWidget {
     );
   }
 }
+
+class BaseModeImage extends StatelessWidget {
+  BaseModeImage({this.baseMode, this.size});
+
+  BaseMode baseMode;
+  num size;
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: size.toDouble(),
+      backgroundColor: Colors.black,
+      child: CircleAvatar(
+        radius: size - (size > 20 ? 5.0 : size * 0.2),
+        backgroundColor: Colors.transparent,
+        backgroundImage: NetworkImage(baseMode.image),
+      ),
+    );
+  }
+}
+
 
 class ModeImage extends StatelessWidget {
   ModeImage({this.mode, this.size});
@@ -55,7 +77,7 @@ class ModeImage extends StatelessWidget {
       child: ModeImageFilter(
         mode: mode,
         child: CircleAvatar(
-          radius: size - 5.0,
+        radius: size - (size > 20 ? 5.0 : size * 0.2),
           backgroundColor: Colors.transparent,
           backgroundImage: NetworkImage(mode.image),
         ),

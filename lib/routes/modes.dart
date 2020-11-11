@@ -47,7 +47,9 @@ class _ModesPageState extends State<ModesPage> {
   Mode currentlyEditingMode;
   List<Mode> selectedModes = [];
   bool awaitingResponse = false;
+  ModeList get firstList => modeLists.isEmpty ? null : modeLists[0];
   bool showExpandedActionButtons = false;
+
 
   List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
 
@@ -102,6 +104,12 @@ class _ModesPageState extends State<ModesPage> {
       drawer: isTopLevelRoute ? AppController.drawer() : null,
       appBar: AppBar(
         title: Text(_getTitle()), backgroundColor: Color(0xff222222),
+        leading: isTopLevelRoute ? null : IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context, firstList);
+          },
+        ),
         actions: <Widget>[
           GestureDetector(
             onTap: () {
@@ -145,10 +153,13 @@ class _ModesPageState extends State<ModesPage> {
                   child: ReorderableListSimple(
                     childrenAlreadyHaveListener: true,
                     allowReordering: isEditing,
-                    children: _ListItems(),
+                    children: [
+                      ..._ListItems,
+                      _AddMoreModes,
+                    ],
                     onReorder: (int start, int current) {
                       if (isShowingMultipleLists) return;
-                      var list = modeLists[0];
+                      var list = firstList;
                       var mode = list.modes[start];
                       list.modes.remove(mode);
                       list.modes.insert(current, mode);
@@ -165,7 +176,41 @@ class _ModesPageState extends State<ModesPage> {
     );
   }
 
-  List<Widget> _ListItems() {
+  bool addingMore = false;
+
+  Widget get _AddMoreModes {
+    if (firstList?.creationType != 'user') return Container();
+    if (addingMore) return Container(
+      child: SpinKitCircle(color: Colors.blue),
+      margin: EdgeInsets.all(10),
+    );
+    return Center(
+      child: GestureDetector(
+        onTap: () {
+          Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true, 'selectAction': "Add to \"${firstList.name}\""}).then((selectedModes) {
+            if (selectedModes != null) {
+              setState(() => addingMore = true);
+              List<Mode> modes = selectedModes;
+              Client.updateList(firstList.id, {'append': modes.map((mode) => mode.id).toList()}).then((response) {
+                if (response['success'])
+                  setState(() {
+                    addingMore = false;
+                    modeLists[0] = response['modeList'];
+                  });
+              });
+            }
+            //   Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes});
+          });
+        },
+        child: Container(
+          margin: EdgeInsets.only(top: 10, bottom: 15),
+          child: Text("+ Add more modes"),
+        )
+      )
+    );
+  }
+
+  List<Widget> get _ListItems {
     return modeLists.map((list) {
       var items = list.modes.map(_ModeItem).toList();
       if (isShowingMultipleLists)
@@ -206,7 +251,7 @@ class _ModesPageState extends State<ModesPage> {
             visible: !isShowingMultipleLists,
             text: "Create Show",
             onPressed: () {
-              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modeLists[0].modes});
+              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': firstList.modes});
             },
           ),
           _ActionButton(
@@ -306,6 +351,7 @@ class _ModesPageState extends State<ModesPage> {
                     }).then((_) {
                       showExpandedActionButtons = false;
                       isSelecting = false;
+                      selectedModes = [];
                       _fetchModes();
                     });
                 },
@@ -327,7 +373,7 @@ class _ModesPageState extends State<ModesPage> {
               )
             ]
           )
-          )
+        )
       ]
     );
   }
@@ -397,16 +443,25 @@ class _ModesPageState extends State<ModesPage> {
                 ),
               )),
               trailing: _TrailingIcon(mode),
-              title: Row(
+              title: Column(
                 children: [
-                  Container(
-                    margin: EdgeInsets.only(right: 15),
-                    child: ModeImage(
-                      mode: mode,
-                      size: 30.0,
-                    )
+                  Row(
+                    children: [
+                      Container(
+                        margin: EdgeInsets.only(right: 15),
+                        child: ModeImage(
+                          mode: mode,
+                          size: 30.0,
+                        )
+                      ),
+                      Column(
+                          children: [
+                            Text(mode.name),
+                          ]
+                      )
+                    ]
                   ),
-                  Text(mode.name),
+                  _ModeTileParams(mode),
                 ]
               )
             ),
@@ -421,6 +476,90 @@ class _ModesPageState extends State<ModesPage> {
           )
         ]
       ),
+    );
+  }
+
+  List<Color> get hueColors {
+    var color = HSVColor.fromColor(Colors.blue);
+    return List<int>.generate(7, (int index) => index * 60 % 360).map((degree) {
+      return color.withHue(1.0 * degree).toColor();
+    }).toList();
+  }
+
+  Widget _ModeTileParams(mode) {
+    var color = mode.getHSVColor();
+    var colors = {
+      'hue': color.withSaturation(1.0).withValue(1.0).toColor(),
+      'saturation': color.withValue(1.0).toColor(),
+      'brightness': color.toColor(),
+    };
+
+    Map<String, List<Color>> gradients = {
+      'hue': hueColors,
+      'saturation': [color.withValue(1.0).withSaturation(0.0).toColor(), color.withValue(1.0).withSaturation(1.0).toColor()],
+      'brightness': [color.withValue(0.0).toColor(), color.withValue(1.0).toColor()],
+    };
+    var icons = {
+      'brightness': 'brightness_medium',
+      'saturation': 'opacity',
+      'speed': 'fast_forward',
+      'hue': 'color_lens',
+      'density': 'waves',
+    };
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        'hue',
+        'saturation',
+        'brightness',
+        'density',
+        'speed',
+      ].map<Widget>((paramName) {
+        return Column(
+          children: [
+            Container(
+              margin: EdgeInsets.symmetric(vertical: 5),
+              child: Text(icons[paramName],
+                style: TextStyle(
+                  fontFamily: 'MaterialIcons',
+                  fontSize: 24,
+                )
+              )
+            ),
+            Container(
+              height: 20,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 8,
+                    margin: EdgeInsets.only(top: 6),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: gradients[paramName] ?? [
+                          Colors.black,
+                          Colors.white,
+                        ]
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 34 * mode.getValue(paramName).remainder(1),
+                    child: Container(
+                      width: 6,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Color(0x99FFFFFF), width: 1),
+                        color: colors[paramName] ?? Colors.black,
+                      ),
+                    ),
+                  )
+                ]
+              ),
+            )
+          ]
+        );
+      }).toList()
     );
   }
 
@@ -460,15 +599,22 @@ class _ModesPageState extends State<ModesPage> {
     return Container(
       width: 300,
       height: 500,
-      decoration: BoxDecoration(color: Colors.black),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: EditGroups(),
     );
   }
 
   Widget _editModeWidget(mode) {
     return Container(
-      height: 300,
+      height: mode.accessLevel == 'frozen' ? 300 : 450,
       child: EditModeWidget(
+        editDetails: true,
+        onChange: (mode) {
+           setState((){}); 
+        },
         sliderHeight: 20.0,
         mode: mode,
       )
@@ -476,8 +622,8 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   Future<void> _duplicateSelected() {
-    Client.updateList(modeLists[0].id, {'append': selectedModesIds}).then((response) {
-      var list = modeLists[0];
+    Client.updateList(firstList.id, {'append': selectedModesIds}).then((response) {
+      var list = firstList;
       setState(() {
         if (!response['success'])
           errorMessage = response['message'];
@@ -490,7 +636,7 @@ class _ModesPageState extends State<ModesPage> {
 
   Future<void> _removeMode(mode) {
     Client.removeMode(mode).then((response) {
-      var list = modeLists[0];
+      var list = firstList;
       setState(() {
         if (!response['success'])
           errorMessage = response['message'];
@@ -503,7 +649,7 @@ class _ModesPageState extends State<ModesPage> {
     if (isSelecting)
       return "${selectedModes.length} item selected";
     else if (modeLists.length != 0 && !isShowingMultipleLists)
-      return modeLists[0]?.name ?? 'Modes';
+      return firstList?.name ?? 'Modes';
     else return "Modes";
   }
 

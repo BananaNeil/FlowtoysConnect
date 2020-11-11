@@ -33,7 +33,7 @@ class _NewShowState extends State<NewShowState> {
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
     if (arguments != null) {
       if (show.modes.isEmpty && !arguments['modes'].isEmpty)
-        show.modes = arguments['modes']
+        show.modes = arguments['modes'];
     }
 
     return Scaffold(

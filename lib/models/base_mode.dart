@@ -6,8 +6,10 @@ class BaseMode {
   Map<String, dynamic> images;
   num brightness;
   num saturation;
+  num density;
   String name;
   num number;
+  num speed;
   num page;
   num hue;
   num id;
@@ -15,8 +17,10 @@ class BaseMode {
   BaseMode({
     this.saturation,
     this.brightness,
+    this.density,
     this.images,
     this.number,
+    this.speed,
     this.page,
     this.name,
     this.hue,
@@ -35,6 +39,8 @@ class BaseMode {
     return {
       'brightness': brightness,
       'saturation': saturation,
+      'density': density,
+      'speed': speed,
       'hue': hue,
     }[param];
   }
@@ -68,7 +74,9 @@ class BaseMode {
       saturation: json['saturation'],
       brightness: json['brightness'],
       images: json['images'] ?? {},
+      density: json['density'],
       number: json['number'],
+      speed: json['speed'],
       page: json['page'],
       name: json['name'],
       hue: json['hue'],

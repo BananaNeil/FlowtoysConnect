@@ -37,7 +37,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
 
 
-  bool showModeImages = false; 
+  bool showModeImages = true; 
   bool selectMultiple = false;
   List<Mode> selectedModes = [];
   bool slideModesWhenStretching = false;
@@ -1189,8 +1189,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   Widget _Controls() {
     return Expanded(
-        child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      child: Column(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         Visibility(
           visible: selectedModes != show.modes.length,

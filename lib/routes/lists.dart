@@ -1,4 +1,5 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
@@ -118,9 +119,29 @@ class _ListsPageState extends State<ListsPage> {
           onTap: () {
             Navigator.pushNamed(context, "/lists/${list.id}", arguments: {
               'modeList': list,
+            }).then((newList) {
+              setState(() {
+                lists[lists.indexOf(list)] = newList;
+              });
             });
           },
-          title: Text(list.name),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: EdgeInsets.only(top: 6, bottom: 10),
+                child: Text(list.name, style: TextStyle(fontSize: 17)),
+              ),
+              Wrap(
+                children: list.modes.map((mode) {
+                  return Container(
+                    margin: EdgeInsets.only(right: 4, bottom: 4),
+                    child: ModeImage(mode: mode, size: 12)
+                  );
+                }).toList(),
+              )
+            ]
+          ),
         )
       );
     }).toList();

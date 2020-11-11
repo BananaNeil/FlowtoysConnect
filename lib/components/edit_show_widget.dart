@@ -122,19 +122,33 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 )
               )
             ),
-            show.isPersisted ? Container() : Row(
+            show.isPersisted ? Container() : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Slider(
-                    value: modeDurationInput,
-                    onChanged: (value){
-                      setState(() {
-                        modeDurationInput = value;
-                      });
-                    }
+                Container(
+                    margin: EdgeInsets.only(left: 20, top: 20),
+                  child: Text("Initial Mode Duration",
+                    style: TextStyle(
+                      color: Color(0xFFBBBBBB),
+                      fontSize: 13,
+                    ),
                   )
                 ),
-                Text(twoDigitString(modeDuration, includeMilliseconds: true), style: TextStyle(fontSize: 13)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: modeDurationInput,
+                        onChanged: (value){
+                          setState(() {
+                            modeDurationInput = value;
+                          });
+                        }
+                      )
+                    ),
+                    Text(twoDigitString(modeDuration, includeMilliseconds: true), style: TextStyle(fontSize: 13)),
+                  ]
+                ),
               ]
             ),
             Container(
@@ -171,7 +185,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               )
             ),
             Container(
-              height: 50,
+              height: show.songs.isEmpty ? 0 : 50,
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Colors.white),

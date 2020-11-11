@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:app/models/mode.dart';
+import 'package:app/components/mode_widget.dart';
 
 
 
@@ -75,15 +76,30 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
-      child: ListView(
-        padding: EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
+      child: Column(
         children: [
-          _RenameField(),
-          _ChooseBaseMode(),
-          ..._Sliders(),
-        ],
-      ),
+          Container(
+            height: 25,
+            margin: EdgeInsets.only(top: 5),
+            child: ModeRow(
+              mode: mode,
+              showImages: true,
+              fit: BoxFit.fill,
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.all(20),
+              children: [
+                _RenameField(),
+                _ChooseBaseMode(),
+                ..._Sliders(),
+              ],
+            ),
+          ),
+        ]
+      )
     );
   }
 
@@ -115,19 +131,28 @@ class _EditModeWidgetState extends State<EditModeWidget> {
         ),
         Container(
           width: 250,
-          margin: EdgeInsets.only(bottom: 20),
+          margin: EdgeInsets.only(bottom: 20, top: 5),
           child: DropdownButton(
             isExpanded: true,
             value: (mode.baseModeId ?? baseModes.elementAt(0)?.id)?.toString(),
             items: baseModes.map((BaseMode baseMode) {
               return DropdownMenuItem<String>(
-                  value: baseMode.id.toString(),
-                  child: new Text(baseMode.name),
+                value: baseMode.id.toString(),
+                child: Row(
+                  children: [
+                    Container(
+                      margin: EdgeInsets.only(right: 7),
+                      child: BaseModeImage(baseMode: baseMode, size: 12),
+                    ),
+                    Text(baseMode.name),
+                  ]
+                )
               );
             }).toList(),
             onChanged: (value) {
               setState(() {
                 mode.updateBaseModeId(int.parse(value));
+                onChange(mode);
               });
               _updateMode();
             },
@@ -158,9 +183,9 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     );
   }
 
-  Widget ParamSlider(param, {title, children}) {
+  Widget ParamSlider(param, {title, children, onReset, margin}) {
     return Container(
-      margin: EdgeInsets.only(bottom: 10),
+      margin: margin ?? EdgeInsets.only(bottom: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -174,14 +199,29 @@ class _EditModeWidgetState extends State<EditModeWidget> {
               });
             },
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: TextStyle(
-                  fontSize: 16//, fontWeight: FontWeight.bold
-                )),
-                Visibility(
-                  visible: children != null,
-                  child: param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                Row(
+                  children: [
+                    Text(title, style: TextStyle(
+                      fontSize: 16//, fontWeight: FontWeight.bold
+                    )),
+                    Visibility(
+                      visible: children != null,
+                      child: param.multiValueEnabled ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                    ),
+                  ]
                 ),
+                Container(
+                  child: onReset == null ? null : GestureDetector(
+                    onTap: onReset,
+                    child: Transform(
+                      alignment: Alignment.center,
+                      transform: Matrix4.rotationY(pi),
+                      child: Icon(Icons.refresh),
+                    )
+                  )
+                )
               ]
             )
           ),
@@ -229,7 +269,13 @@ class _EditModeWidgetState extends State<EditModeWidget> {
       ModeParam param = mode.getParam(paramName);
 
       return ParamSlider(param,
+        margin: EdgeInsets.only(bottom: 20),
         title: toBeginningOfSentenceCase(paramName),
+        onReset: () {
+          setState(() => mode.resetParam(paramName));
+          onChange(mode);
+          _updateMode();
+        },
         children: !param.multiValueEnabled ? emptyList : mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
           Group group = Group.currentGroups[groupIndex];
           return ParamSlider(childParam,

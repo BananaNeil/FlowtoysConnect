@@ -81,6 +81,17 @@ class Mode {
     };
   }
 
+  void resetParam(name) {
+    modeParams[name].multiValueEnabled = false;
+    modeParams[name].value = initialValue(name);
+  }
+
+  void resetToBaseMode() {
+    modeParams.keys.forEach((key) {
+      resetParam(key);
+    });
+  }
+
   void assignAttributesFromCopy(copy) {
     var json = copy.toMap();
 
@@ -176,6 +187,8 @@ class Mode {
     var baseMode = AppController.getBaseMode(id);
 
     if (name == currentBaseMode.name) name = baseMode.name;
+    if (!hue.multiValueActive) hue.setValue(baseMode.hue);
+    images = baseMode.images;
     number = baseMode.number;
     page = baseMode.page;
     baseModeId = id;

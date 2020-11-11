@@ -88,7 +88,15 @@ class _EditModePageState extends State<EditModePage> {
             GestureDetector(
               child: Container(
                 padding: EdgeInsets.all(18),
-                child: awaitingSave ? SpinKitCircle(color: Colors.white) : Text(saveMessage ?? 'SAVE'),
+                child: awaitingSave ? SpinKitCircle(color: Colors.white) :
+                  Text(
+                    saveMessage ?? 'SAVE',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                      fontSize: 16,
+                    )
+                  ),
               ),
               onTap: () {
                 Navigator.pop(context, true);
@@ -108,19 +116,11 @@ class _EditModePageState extends State<EditModePage> {
                 )
               ),
               Container(
-                margin: EdgeInsets.symmetric(vertical: 5),
+                margin: EdgeInsets.symmetric(vertical: 10),
                 child: ModeImage(
                   mode: mode,
                   size: 80.0,
                 )
-              ),
-              Container(
-                height: 25,
-                child: ModeRow(
-                  mode: mode,
-                  showImages: true,
-                  fit: BoxFit.fill,
-                ),
               ),
               Expanded(
                 child: RefreshIndicator(
