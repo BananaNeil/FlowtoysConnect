@@ -10,7 +10,6 @@ import 'dart:convert';
 
 class Mode {
   Duration get endOffset => startOffset + duration;
-  Duration get midPoint => startOffset + (duration * 0.5);
 
   String get thumbnailPath => (images['club'] ?? {})['thumb'];
   String get imagePath => (images['club'] ?? {})['medium'];
@@ -170,7 +169,11 @@ class Mode {
   }
 
   BaseMode get baseMode {
-    return Preloader.baseModes.firstWhere((bm) => baseModeId.toString() == bm.id.toString());
+    return Preloader.baseModes.firstWhere((bm) {
+      return baseModeId.toString() == bm.id.toString();
+    }, orElse: () {
+      return BaseMode.basic();
+    });
   }
 
   ModeParam getParam(param, {groupIndex, propIndex}) {

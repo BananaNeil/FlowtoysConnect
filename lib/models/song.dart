@@ -13,7 +13,9 @@ import 'dart:io';
 
 
 class Song {
+  Duration get endOffset => startOffset + duration;
 
+  Duration startOffset;
   String thumbnailUrl;
   Duration duration;
   String youtubeUrl;

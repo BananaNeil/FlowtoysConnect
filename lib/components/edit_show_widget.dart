@@ -170,14 +170,14 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                         // decoration: BoxDecoration(
                         //   color: [Colors.red, Colors.blue][index %2],
                         // ),
-                        child: ModeColumn(mode: mode),
+                        child: ModeColumn(mode: mode, showImages: true),
                       )
                     );
                   }).toList() : List<Widget>.generate(totalModeCount, (index) {
                     return Flexible(
                       flex: (index == totalModeCount - 1) ? lastModeDuration.inMicroseconds : modeDuration.inMicroseconds,
                       child: Container(
-                        child: show.modes.isEmpty ? Container() : ModeColumn(mode: show.modes[index % show.modes.length]),
+                        child: show.modes.isEmpty ? Container() : ModeColumn(mode: show.modes[index % show.modes.length], showImages: true),
                       )
                     );
                   }).toList(),

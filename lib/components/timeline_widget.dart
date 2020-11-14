@@ -37,12 +37,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   List<AssetsAudioPlayer> audioPlayers = [];
   List<TimelineTrackController> timelineControllers = [];
+  TimelineTrackController waveformTimelineController = null;
 
   bool showModeImages = true; 
   bool selectMultiple = false;
   List<Mode> selectedModes = [];
   bool slideModesWhenStretching = false;
-  bool get oneModeSelected => selectedModes.length == 1;
+  bool get oneModeSelected => selectedElements.length == 1;
+  List<TimelineElement> get selectedElements => timelineControllers.map((controller) {
+    return controller.selectedElements;
+  }).expand((e) => e).toList();
 
 
   double scale = 1;
@@ -141,11 +145,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return waveforms.firstWhere((waveform) {
        return waveform.startOffset <= playOffsetDuration &&
            waveform.endOffset > playOffsetDuration;
-    });
+    }, orElse: () => null);
   }
 
   AssetsAudioPlayer get currentPlayer {
-    return audioPlayers[waveforms.indexOf(currentWaveform)];
+    if (currentWaveform != null)
+      return audioPlayers[waveforms.indexOf(currentWaveform)];
   }
 
   void reloadModes() {
@@ -158,6 +163,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (modesLoaded && force != true) return;
     modesLoaded = true;
     Duration offset = Duration();
+    show.modes.sort((a, b) => a.position.compareTo(b.position));
     show.modes.forEach((mode) {
       mode.startOffset = Duration() + offset;
       offset += mode.duration;
@@ -190,11 +196,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     setScrollBarWidth();
     setAnimationControllers();
 
-    timelineControllers = timelineControllers.isNotEmpty ? timelineControllers : [
+    // timelineControllers = timelineControllers.isNotEmpty ? timelineControllers : [
+    timelineControllers =  [
       TimelineTrackController(
         elements: TimelineElement.fromList(show.modes),
+        onSelectionUpdate: (() => setState(() {})),
+        selectMultiple: selectMultiple,
       )
     ];
+
   }
 
   void loadPlayers() {
@@ -208,6 +218,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         lengthInMiliseconds += player.current.value.audio.duration.inMilliseconds;
         index += 1;
       });
+      waveformTimelineController = TimelineTrackController(
+        elements: TimelineElement.fromList(waveforms),
+        onSelectionUpdate: (() => setState(() {})),
+        selectMultiple: selectMultiple,
+      );
       setState(() {
         reloadModes();
         setAnimationControllers();
@@ -289,41 +304,46 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   void removeSelectedModes({growFrom, replaceWithBlack}) {
     var replacedModeIndexes = [];
-    selectedModes.reversed.forEach((mode) {
-      var index = show.modes.indexOf(mode);
-      var sibling;
+    timelineControllers.forEach((controller) {
+      List<Mode> selectedModes = controller.selectedObjects.map<Mode>((object) {
+        return object;
+      }).toList();
+      selectedModes.reversed.forEach((mode) {
+        var index = show.modes.indexOf(mode);
+        var sibling;
 
-      if (replacedModeIndexes.contains(index+1)) {
-        replaceWithBlack = false;
-        growFrom = 'right';
-      }
-
-      if (growFrom == 'right')
-        if (index < show.modes.length - 1)
-          sibling = show.modes[index + 1];
-        else replaceWithBlack = true;
-      else if (growFrom == 'left')
-        if (index > 0)
-          sibling = show.modes[index - 1];
-        else replaceWithBlack = true;
-      else sibling = show.modes.last;
-
-      setState(() {
-        if (replaceWithBlack == true) {
-          replacedModeIndexes.add(show.modes.indexOf(mode));
-          mode.setAsBlack();
-          mode.save();
-        } else {
-          sibling.duration += mode.duration;
-          show.modes.remove(mode);
-
-          // Maybe do something here to make sure this succeeds?
-          sibling.save();
-          show.save();
+        if (replacedModeIndexes.contains(index+1)) {
+          replaceWithBlack = false;
+          growFrom = 'right';
         }
+
+        if (growFrom == 'right')
+          if (index < show.modes.length - 1)
+            sibling = show.modes[index + 1];
+          else replaceWithBlack = true;
+        else if (growFrom == 'left')
+          if (index > 0)
+            sibling = show.modes[index - 1];
+          else replaceWithBlack = true;
+        else sibling = show.modes.last;
+
+        setState(() {
+          if (replaceWithBlack == true) {
+            replacedModeIndexes.add(show.modes.indexOf(mode));
+            mode.setAsBlack();
+            mode.save();
+          } else {
+            sibling.duration += mode.duration;
+            show.modes.remove(mode);
+
+            // Maybe do something here to make sure this succeeds?
+            sibling.save();
+            show.save();
+          }
+        });
       });
+      controller.selectedElements = [];
     });
-    selectedModes = [];
     reloadModes();
   }
 
@@ -397,7 +417,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   playOffset.value += offsetValue;
 
                   audioPlayers.forEach((player) => player.pause());
-                  currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+                  if (currentWaveform != null)
+                    currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
                   // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
                 },
                 onPanEnd: (details) {
@@ -454,33 +475,35 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       onPanStart: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         audioPlayers.forEach((player) => player.pause());
-        currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+        if (currentWaveform != null)
+          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
       },
       onPanUpdate: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         audioPlayers.forEach((player) => player.pause());
-        currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+        if (currentWaveform != null)
+          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
         // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
       },
       onPanEnd: (details) {
         updatePlayIndicatorAnimation();
       },
-      child:Container(
+      child: Container(
         height: 16,
         decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment(-0.9, 0.9),
-          stops: [0.0, 0.5, 0.5, 1],
-          colors: [
-            Color(0xff333333),
-            Color(0xff333333),
-            Color(0xff222222),
-            Color(0xff222222),
-          ],
-          tileMode: TileMode.repeated,
-					),
-				)
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment(-0.9, 0.9),
+            stops: [0.0, 0.5, 0.5, 1],
+            colors: [
+              Color(0xff333333),
+              Color(0xff333333),
+              Color(0xff222222),
+              Color(0xff222222),
+            ],
+            tileMode: TileMode.repeated,
+          ),
+        )
       )
     );
   }
@@ -540,6 +563,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   Widget _ModeContainer() {
     return Column(
       children: timelineControllers.map((controller) {
+        controller.setWindow(
+          futureVisibleDuration: futureVisibleDuration,
+          visibleDuration: visibleDuration,
+          timelineDuration: duration,
+          windowStart: windowStart,
+        );
         return Container(
           height: 150,
           padding: EdgeInsets.symmetric(vertical: 1),
@@ -552,15 +581,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               widthFactor: (futureScale / scale),//.clamp(0.0, 1.0),
               child: TimelineTrackWidget(
                 controller: controller,
-                windowStart: windowStart,
-                timelineDuration: duration,
-                selectMultiple: selectMultiple,
-                visibleDuration: visibleDuration,
-                futureVisibleDuration: futureVisibleDuration,
                 onScrollUpdate: (windowStart) {
-                  startOffset.value = windowStart.inMiliseconds;
+                  setState(() {
+                    startOffset.value = windowStart.inMilliseconds.toDouble();
+                  });
                 },
                 onReorder: () {
+                  eachWithIndex(controller.elements, (index, element) => element.object.position = index + 1);
+                  controller.selectedElements.forEach((element) => element.object.save());
                   reloadModes();
                 },
                 slideWhenStretching: slideModesWhenStretching,
@@ -651,7 +679,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     else if (value < 1)
 			_stretchSelectedModes(value, growFrom: side); 
 
-    setState(() { });
+    setState(() { reloadModes(); });
   }
 
   void _afterDelete() {
@@ -691,34 +719,44 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (audioPlayers.isEmpty)
       return Container();
 
+
+    waveformTimelineController.setWindow(
+      futureVisibleDuration: futureVisibleDuration,
+      visibleDuration: visibleDuration,
+      timelineDuration: duration,
+      windowStart: windowStart,
+    );
+
     return Container(
       height: 150,
-      child: SizedBox.expand(
+      child: waveformTimelineController == null ? SpinKitCircle(color: Colors.blue) : SizedBox.expand(
         child: FractionallySizedBox(
           alignment: timelineContainsEnd && !timelineContainsStart ? FractionalOffset.centerRight : FractionalOffset.centerLeft,
           widthFactor: (futureScale / scale),//.clamp(0.0, 1.0),
-          child: Row(
-            children: mapWithIndex(visibleSongs, (index, waveform) {
-              Duration waveVisibleDuration = visibleDurationOf(waveform);
-              var widget =  Flexible(
-                flex: ((waveVisibleDuration.inMilliseconds / futureVisibleMiliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
-                child: Waveform(
-                  controller: waveform,
-                  visibleDuration: waveVisibleDuration,
-                  startOffset: maxDuration(windowStart - waveform.startOffset, Duration()),
-                  scale: scale * (waveform.duration.inMilliseconds / lengthInMiliseconds),
-                  futureScale: futureScale * (waveform.duration.inMilliseconds / lengthInMiliseconds),
-                  visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
-                  color: [Colors.blue, Colors.red][waveforms.indexOf(waveform) % 2],
-                )
+          child: TimelineTrackWidget(
+            controller: waveformTimelineController,
+            onScrollUpdate: (windowStart) {
+              setState(() {
+                startOffset.value = windowStart.inMilliseconds.toDouble();
+              });
+            },
+            onReorder: () {
+            },
+            slideWhenStretching: slideModesWhenStretching,
+            buildElement: (element) {
+              Duration waveVisibleDuration = visibleDurationOf(element);
+              return Waveform(
+                controller: element.object,
+                visibleDuration: waveVisibleDuration,
+                startOffset: maxDuration(windowStart - element.startOffset, Duration()),
+                scale: scale * (element.duration.inMilliseconds / lengthInMiliseconds),
+                futureScale: futureScale * (element.duration.inMilliseconds / lengthInMiliseconds),
+                visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
+                color: [Colors.blue, Colors.red][waveforms.indexOf(element.object) % 2],
               );
-              return widget;
-            }).toList() + [
-              Flexible(
-                flex: ((max(0, (windowEnd - waveforms.last.endOffset).inMilliseconds) / futureVisibleMiliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
-                child: Container(),
-              ),
-            ]
+            },
+            onStretchUpdate: (side, value) {
+            }
           )
         )
       )
@@ -845,10 +883,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
         Visibility(
-          visible: selectedModes != show.modes.length,
+          visible: timelineControllers.any((controller) => !controller.allElementsSelected),
           child: GestureDetector(
             onTap: () {
-              setState(() => selectedModes = List.from(show.modes));
+              setState(() {
+                timelineControllers.forEach((controller) => controller.selectAll());
+              });
             },
             child: Container(
                padding: EdgeInsets.all(2),
@@ -857,10 +897,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
            )
         ),
         Visibility(
-          visible: selectedModes.isNotEmpty,
+          visible: selectedElements.isNotEmpty,
           child: GestureDetector(
             onTap: () {
-              setState(() => selectedModes = []);
+              setState(() {
+                timelineControllers.forEach((controller) => controller.deselectAll());
+              });
             },
             child: Container(
                padding: EdgeInsets.all(2),
@@ -877,7 +919,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             child: Row(
                mainAxisAlignment: MainAxisAlignment.center,
                children: [
-                 Text("Slide Modes When Expanding "),
+                 Text("Push Mode "),
                  Icon(slideModesWhenStretching ? Icons.check_circle : Icons.circle, size: 16),
                ]
              )
@@ -904,6 +946,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               controller.selectedElements = [controller.selectedElements.last];
             });
             setState(() => selectMultiple = !selectMultiple);
+            setState(() => timelineControllers.forEach((controller) => controller.toggleSelectMultiple()));
           },
           child: Container(
             padding: EdgeInsets.all(2),
@@ -918,22 +961,27 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         ),
         GestureDetector(
           onTap: () {
-            var current = currentMode;
-            var newMode = current.dup();
-            var index = show.modes.indexOf(current);
+            timelineControllers.forEach((controller) {
+              var current = controller.elementAtTime(playOffsetDuration);
+              if (current.startOffset == playOffsetDuration) return;
+              var index = controller.elements.indexOf(current);
+              var newMode = current.object.dup();
 
-            newMode.position += 1;
-            newMode.startOffset = playOffsetDuration;
-            newMode.duration = current.duration - (playOffsetDuration - current.startOffset);
-            current.duration -= newMode.duration;
-            setState(() {
-              show.modes.insert(index+1, newMode);
+              newMode.position += 1;
+              newMode.startOffset = playOffsetDuration;
+              newMode.duration = current.duration - (playOffsetDuration - current.startOffset);
+              current.object.duration -= newMode.duration;
+              setState(() {
+                show.modes.insert(index+1, newMode);
+              });
+              current.object.save();
+              newMode.save();
             });
-            current.save();
-            newMode.save();
-            if (selectMultiple)
-              selectedModes = [current, newMode];
-            else selectedModes = [newMode];
+            reloadModes();
+            timelineControllers.forEach((controller) {
+              controller.deselectAll();
+              controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
+            });
           },
           child: Container(
             padding: EdgeInsets.all(2),
@@ -941,39 +989,39 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
            )
         ),
         Visibility(
-          visible: selectedModes.isNotEmpty,
+          visible: selectedElements.isNotEmpty,
           child: GestureDetector(
             onTap: () {
               _afterDelete();
             },
             child: Container(
               padding: EdgeInsets.all(2),
-                child: Text("Delete (${selectedModes.length})"),
+                child: Text("Delete (${selectedElements.length})"),
              )
           ),
         ),
         Visibility(
-          visible: selectedModes.isNotEmpty,
+          visible: timelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
           child: GestureDetector(
             onTap: () {
-              var replacement = selectedModes.first.dup();
+              var replacement = selectedElements.first.object.dup();
               Navigator.pushNamed(context, "/modes/${replacement.id}",
                 arguments: {
                   'mode': replacement,
                   'autoUpdate': false,
-                  'saveMessage': oneModeSelected ? "SAVE" : "REPLACE (${selectedModes.length})"
+                  'saveMessage': oneModeSelected ? "SAVE" : "REPLACE (${selectedElements.length})"
                 }
               ).then((saved) {
                 if (saved == true) {
-                  selectedModes.forEach((mode) {
-                    mode.updateFromCopy(replacement);
+                  selectedElements.forEach((element) {
+                    element.object.updateFromCopy(replacement);
                   });
                 }
               });
             },
             child: Container(
               padding: EdgeInsets.all(2),
-              child: Text(oneModeSelected ? "Edit Mode" : "Replace (${selectedModes.length})")
+              child: Text(oneModeSelected ? "Edit Mode" : "Replace (${selectedElements.length})")
             )
           )
         ),

@@ -98,4 +98,16 @@ class BaseMode {
   factory BaseMode.fromJson(String body) {
     return BaseMode.fromMap(jsonDecode(body));
   }
+
+  factory BaseMode.basic() {
+    return BaseMode(
+      name: 'Rainbow',
+      saturation: 0.5,
+      brightness: 0.5,
+      density: 0.5,
+      speed: 0.5,
+      images: {},
+      hue: 0.5,
+    );
+  }
 }

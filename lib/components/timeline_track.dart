@@ -12,28 +12,23 @@ class TimelineTrackWidget extends StatefulWidget {
     Key key,
     this.onReorder,
     this.controller,
-    this.windowStart,
     this.buildElement,
     this.onScrollUpdate,
-    this.selectMultiple,
     this.onStretchUpdate,
-    this.visibleDuration,
-    this.timelineDuration,
     this.slideWhenStretching,
-    this.futureVisibleDuration,
   }) : super(key: key);
 
   final TimelineTrackController controller;
-  Duration futureVisibleDuration;
-  Duration timelineDuration;
   bool slideWhenStretching;
-  Duration visibleDuration;
   Function onStretchUpdate;
   Function onScrollUpdate;
   Function buildElement;
-  Duration windowStart;
-  bool selectMultiple;
   Function onReorder;
+
+  Duration get futureVisibleDuration => controller.futureVisibleDuration;
+  Duration get timelineDuration => controller.timelineDuration;
+  Duration get visibleDuration => controller.visibleDuration;
+  Duration get windowStart => controller.windowStart;
 
   @override
   _TimelineTrackState createState() => _TimelineTrackState();
@@ -46,7 +41,6 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   List<TimelineElement> get selectedElements => controller.selectedElements;
 
   Duration get windowStart => widget.windowStart;
-  bool get selectMultiple => widget.selectMultiple;
 
   bool get slideWhenStretching => widget.slideWhenStretching;
   bool get isActingOnSelected => isStretching || isReordering;
@@ -84,6 +78,12 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     return minDuration(elementVisibleDuration, element.duration);
   }
 
+  Widget buildElement(element) {
+    if (element.object == null)
+      return Container();
+    else return widget.buildElement(element);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -101,15 +101,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 
   void toggleSelected(element, {only}) {
     setState(() {
-      var isSelected = selectedElements.contains(element);
-      if (isSelected && only != 'select') 
-        controller.selectedElements.remove(element);
-      else if (selectMultiple)
-        controller.selectedElements.add(element);
-      else
-        controller.selectedElements = [element];
-
-      controller.selectedElements.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+      controller.toggleSelected(element, only: only);
     });
   }
 
@@ -122,16 +114,14 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   }
 
   TimelineElement elementAtTime(time) {
-    return elements.firstWhere((element) {
-       return element.startOffset <= time &&
-           element.endOffset > time;
-    });
+    return controller.elementAtTime(time);
   }
 
   void triggerDragScroll(movementAmount) {
     dragScrollTimer?.cancel();
     dragScrollTimer = Timer(Duration(milliseconds: 50), () => setState(() {
       dragDelta += movementAmount;
+      updateDragDelta();
     }));
   }
 
@@ -160,7 +150,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
           Duration elementVisibleDuration = visibleDurationOf(element);
           if (isSelected && isReordering)
             if (element == selectedElements[0])
-              elementVisibleDuration = selectedDuration;
+              elementVisibleDuration = visibleSelectedDuration;
             else elementVisibleDuration = Duration();
 
           return Flexible(
@@ -175,7 +165,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                 ),
                 child: Stack(
                   children: (isSelected && isActingOnSelected) ? [
-                    isStretching && !slideWhenStretching ? widget.buildElement(stretchedSibling) : Container(
+                    isStretching && !slideWhenStretching ? buildElement(stretchedSibling) : Container(
                       decoration: BoxDecoration(
                         boxShadow: [
                           const BoxShadow(
@@ -190,7 +180,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                       ),
                     )
                   ] : [
-                     widget.buildElement(element),
+                     buildElement(element),
                      Container(
                        width: stretchedSibling == element ? 0 : 1,
                        decoration: BoxDecoration(
@@ -229,6 +219,9 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   List<TimelineElement> get consecutivelySelectedElements => controller.consecutivelySelectedElements;
 
   Duration get selectedDuration => controller.selectedDuration;
+  Duration get visibleSelectedDuration => controller.consecutivelySelectedElements.map((element) {
+    return visibleDurationOf(element);
+  }).reduce((a, b) => a+b);
 
   Widget _SelectedElementHandles() {
     if (consecutivelySelectedElements.isEmpty)
@@ -236,40 +229,15 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 
     var firstElement = consecutivelySelectedElements.first;
     var lastElement = consecutivelySelectedElements.last;
-    var visibleSelectedDuration;
+    // var visibleSelectedDuration;
     var end;
     var start;
 
     if (isReordering) {
-      visibleSelectedDuration = selectedDuration;
       start = maxDuration(Duration(), firstElement.startOffset - windowStart + dragDelta);
-      start = minDuration(start, visibleDuration - selectedDuration);
-      end = start + selectedDuration;
-
-      // This is a bunch of logic that auto scrolls the timeline
-      // when dragging modes close to the start or end and probably
-      // needs to be moved into a gesterdetector? Bleh...
-      var triggerPoint = visibleDuration * 0.05;
-      var movementAmount = minDuration(Duration(seconds: 5), widget.timelineDuration * 0.01);
-
-      if (start <= triggerPoint) {
-        movementAmount *= -1;
-        widget.windowStart += minDuration(movementAmount, start);
-        widget.onScrollUpdate(windowStart);
-        if (windowStart.inMilliseconds > 0)
-          triggerDragScroll(movementAmount);
-
-      } else if (end >= visibleDuration - triggerPoint) {
-        widget.windowStart += movementAmount;
-        widget.onScrollUpdate(windowStart);
-        if (windowStart < (widget.timelineDuration - visibleDuration))
-          triggerDragScroll(movementAmount);
-      }
-    } else { // if !isReordering
-      visibleSelectedDuration = consecutivelySelectedElements.map((element) {
-        return visibleDurationOf(element);
-      }).reduce((a, b) => a+b);
-
+      end = start + selectedDuration;// + dragDelta;
+      end = minDuration(end, visibleDuration);
+    } else {
       end = maxDuration(Duration(), (firstElement.startOffset - windowStart)) +
           (visibleSelectedDuration * max(0, selectionStretch['right']));
 
@@ -350,7 +318,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: widget.buildElement(element),
+                      child: buildElement(element),
                     )
                   );
                 }).toList(),
@@ -362,34 +330,31 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
           visible: lastElement.endOffset + dragDelta < windowEnd && selectedElementsVisibleInWindow,
           child: Flexible(
             flex: (visibleDuration - end).inMilliseconds,
-            child: Visibility(
-              visible: endWidth > 0,
-              child: Container(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onPanEnd: (details) {
-                      widget.onStretchUpdate('right', stretchedValue);
-                      setState(() { selectionStretch['right'] = 1.0; });
-                    },
-                    onPanStart: (details) {
-                      selectionStretch['right'] = 1;
-                    },
-                    onPanUpdate: (details) {
-                      updateStretch(
-                        side: 'right',
-                        dx: details.delta.dx / containerWidth,
-                        visiblySelectedRatio: visiblySelectedRatio,
-                        maxStretch: (visibleDuration - start).inMilliseconds / visibleSelectedDuration.inMilliseconds,
-                      );
-                    },
-                    child: Container(
-                      width: 30,
-                      child: Transform.translate(
-                        offset: Offset(-12, 0),
-                        child: Icon(Icons.arrow_right, size: 40),
-                      )
+            child: Container(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onPanEnd: (details) {
+                    widget.onStretchUpdate('right', stretchedValue);
+                    setState(() { selectionStretch['right'] = 1.0; });
+                  },
+                  onPanStart: (details) {
+                    selectionStretch['right'] = 1;
+                  },
+                  onPanUpdate: (details) {
+                    updateStretch(
+                      side: 'right',
+                      dx: details.delta.dx / containerWidth,
+                      visiblySelectedRatio: visiblySelectedRatio,
+                      maxStretch: (visibleDuration - start).inMicroseconds / visibleSelectedDuration.inMicroseconds,
+                    );
+                  },
+                  child: Container(
+                    width: end >= visibleDuration ? 0 : 30,
+                    child: Transform.translate(
+                      offset: Offset(-12, 0),
+                      child: Icon(Icons.arrow_right, size: 40),
                     )
                   )
                 )
@@ -410,14 +375,52 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
       nextElement.startOffset -= selectedDuration;
       dragDelta -= nextElement.duration;
       selectedElements.forEach((element) => element.startOffset += nextElement.duration);
-      controller.elements.insert(selectedElementIndexes.first, controller.elements.removeAt(nextIndex));
+      controller._elements.insert(selectedElementIndexes.first, controller._elements.removeAt(nextIndex));
     } 
     if (prevIndex != -1 && selectedElements.first.startOffset + dragDelta < controller.elements.elementAt(prevIndex).midPoint) {
       var prevElement = controller.elements.elementAt(prevIndex);
       prevElement.startOffset += selectedDuration;
       dragDelta += prevElement.duration;
       selectedElements.forEach((element) => element.startOffset -= prevElement.duration);
-      controller.elements.insert(selectedElementIndexes.last, controller.elements.removeAt(prevIndex));
+      controller._elements.insert(selectedElementIndexes.last, controller._elements.removeAt(prevIndex));
+    }
+
+    scrollWithDragDelta();
+  }
+
+  String initialSelectionOverflowSide = 'right';
+  Duration initialVisibleSelectedDuration;
+
+  void scrollWithDragDelta() {
+    var thresholdEnd;
+    var thresholdStart;
+    var triggerPoint = visibleDuration * 0.05;
+    var firstElement = consecutivelySelectedElements.first;
+    var movementAmount = minDuration(Duration(seconds: 5), controller.timelineDuration * 0.01);
+
+    thresholdStart = maxDuration(Duration(), firstElement.startOffset - windowStart + dragDelta);
+    thesholdEnd = thresholdStart + selectedDuration;
+
+    if (initialSelectionOverflowSide == 'right')
+      thesholdEnd = thresholdStart + initialVisibleSelectedDuration * 0.65;
+    else if (initialSelectionOverflowSide == 'left')
+      thresholdStart = initialVisibleSelectedDuration * 0.30 + dragDelta;
+
+    if (thresholdStart <= triggerPoint) {
+      movementAmount *= -1;
+      // controller.windowStart += minDuration(movementAmount, thresholdStart);
+      controller.windowStart += movementAmount;
+      controller.windowStart = maxDuration(Duration(), controller.windowStart);
+      widget.onScrollUpdate(windowStart);
+      if (windowStart.inMilliseconds > 0)
+        triggerDragScroll(movementAmount);
+
+    } else if (thesholdEnd > visibleDuration - triggerPoint) {
+      controller.windowStart += movementAmount;
+      controller.windowStart = minDuration(controller.timelineDuration - visibleDuration, controller.windowStart);
+      widget.onScrollUpdate(controller.windowStart);
+      if (windowStart < (controller.timelineDuration - visibleDuration))
+        triggerDragScroll(movementAmount);
     }
   }
 
@@ -437,8 +440,21 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
         instance..onStart = (Offset offset) {
           var element = elementAtTime(windowStart + visibleDuration * (offset.dx / containerWidth));
           toggleSelected(element, only: 'select');
-          if (!selectedElementsAreConsecutive) controller.selectedElements = [element];
+          if (!selectedElementsAreConsecutive) {
+            controller.deselectAll();
+            toggleSelected(element, only: 'select');
+          }
           setState(() => isReordering = true);
+
+          var firstElement = consecutivelySelectedElements.first;
+          initialVisibleSelectedDuration = visibleSelectedDuration;
+
+          if (firstElement.startOffset + selectedDuration >= windowEnd)
+            initialSelectionOverflowSide = 'right';
+          else if (firstElement.startOffset + dragDelta < windowStart)
+            initialSelectionOverflowSide = 'left';
+          else initialSelectionOverflowSide = null;
+
           return LongPressDraggable(
             onUpdate: (details) {
               setState(() {
@@ -450,8 +466,6 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
               dragDelta = Duration();
               setState(() => isReordering = false);
               widget.onReorder();
-              eachWithIndex(controller.elements, (index, element) => element.object.position = index + 1);
-              selectedElements.forEach((element) => element.object.save());
             }
           );
         };
@@ -474,13 +488,65 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 
 }
 class TimelineTrackController {
-  TimelineTrackController({ this.elements });
+  TimelineTrackController({
+    elements,
+    this.selectMultiple,
+    this.onSelectionUpdate,
+  }) {
+    this._elements = elements;
+  }
 
-  List<TimelineElement> elements;
+  void set elements(elements) => _elements = elements;
+
+  Duration futureVisibleDuration = Duration();
+  Duration timelineDuration = Duration();
+  Duration visibleDuration = Duration();
+  Duration windowStart = Duration();
+
+  List<TimelineElement> _elements;
   List<TimelineElement> selectedElements = [];
+  Function onSelectionUpdate;
+  bool selectMultiple;
+
+  void setWindow({windowStart, visibleDuration, futureVisibleDuration, timelineDuration}) {
+    this.futureVisibleDuration = futureVisibleDuration;
+    this.timelineDuration = timelineDuration;
+    this.visibleDuration = visibleDuration;
+    this.windowStart = windowStart;
+  }
 
   List<int> get selectedElementIndexes {
     return selectedElements.map((element) => elements.indexOf(element)).toList()..sort();
+  }
+
+  bool get allElementsSelected => selectedElements.length == elements.length;
+
+  void deselectAll() {
+    selectedElements = [];
+    onSelectionUpdate();
+  }
+
+  void selectAll() {
+    selectedElements = List.from(elements);
+    onSelectionUpdate();
+  }
+
+  void toggleSelectMultiple() {
+    selectMultiple = !selectMultiple;
+  }
+
+  void toggleSelected(element, {only}) {
+    var isSelected = selectedElements.contains(element);
+    if (isSelected && only == 'select') return;
+    else if (isSelected)
+      selectedElements.remove(element);
+    else if (selectMultiple)
+      selectedElements.add(element);
+    else
+      selectedElements = [element];
+
+    selectedElements.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+    onSelectionUpdate();
   }
 
   bool get selectedElementsAreConsecutive {
@@ -505,6 +571,21 @@ class TimelineTrackController {
 
   List<dynamic> get selectedObjects {
     return selectedElements.map((element) => element.object).toList();
+  }
+
+  TimelineElement blankElement = TimelineElement();
+
+  Duration get visibleEnd => minDuration(windowStart + visibleDuration, timelineDuration);
+
+  List<TimelineElement> get elements {
+    var elements = List<TimelineElement>.from(_elements);
+    if (elements.last.endOffset < visibleEnd) {
+      blankElement.startOffset = elements.last.endOffset;
+      blankElement.duration = timelineDuration - elements.last.endOffset;
+      elements.add(blankElement);
+    }
+
+    return elements;
   }
 
   TimelineElement elementAtTime(time) {
