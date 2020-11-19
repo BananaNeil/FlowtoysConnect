@@ -71,7 +71,10 @@ class _ShowPageState extends State<ShowPageState> {
           ),
         ],
       ),
-      body: show == null ? SpinKitCircle(color: Colors.blue) : TimelineWidget(show: show)
+      body: show == null ?
+        SpinKitCircle(color: Colors.blue) : TimelineWidget(
+          show: show,
+        )
     );
   }
 

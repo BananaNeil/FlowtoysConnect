@@ -49,6 +49,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   }
 
   void _saveAndFinish() {
+    var isNewShow = !show.isPersisted;
     if ((show.name ?? '').isEmpty) return;
 
     setState(() => errorMessage = null);
@@ -56,17 +57,47 @@ class _EditShowWidgetState extends State<EditShowWidget> {
       if (response['success']) {
         setState(() {
           show = response['show'];
-          Navigator.pushReplacementNamed(context, "/shows/${show.id}", arguments: {'show': show});
+          if (isNewShow)
+            Navigator.pushReplacementNamed(context, "/shows/${show.id}", arguments: {'show': show});
+          else Navigator.pop(context, null);
         });
       } else setState(() => errorMessage = response['message']);
     });
   }
 
+  void _addNewSong(obj) {
+    var element;
+    Song song = obj;
+
+    if (song != null) {
+      setState(() {
+        element = show.addAudioElement(song);
+      });
+      song.save().then((response) {
+        if (response['success'] && response['song'].status == 'failed')
+          song.status = 'failed';
+        else {
+          song.id = response['song'].id;
+          song.filePath = response['song'].filePath;
+          element.save().then((response) {
+            element = response['timelineElement'] ?? element;
+            setState(() {});
+            song.downloadFile().then((_) {
+              setState(() {
+                waveforms[element.id ?? element.hashCode.toString()] = WaveformController.open(song.localPath);
+              });
+            });
+          });
+        }
+      });
+    }
+  }
+
   Future<dynamic> loadSongs() {
     return show.downloadSongs().then((_) {
       setState(() {
-        show.songs.forEach((song) {
-          waveforms[song.id.toString()] = WaveformController.open(song.localPath);
+        show.songElements.forEach((element) {
+          waveforms[element.id ?? element.hashCode.toString()] = WaveformController.open(element.object.localPath);
         });
       });
     });
@@ -163,21 +194,19 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox.expand(
                 child: Row(
-                  children: show.isPersisted ? mapWithIndex(show.modes, (index, mode) {
+                  children: show.isPersisted ? mapWithIndex(show.modeElements, (index, element) {
                     return Flexible(
-                      flex: mode.duration.inMilliseconds,
+                      flex: element.duration.inMilliseconds,
                       child: Container(
-                        // decoration: BoxDecoration(
-                        //   color: [Colors.red, Colors.blue][index %2],
-                        // ),
-                        child: ModeColumn(mode: mode, showImages: true),
+                        child: ModeColumn(mode: element.object, showImages: true),
                       )
                     );
                   }).toList() : List<Widget>.generate(totalModeCount, (index) {
+                    var element = show.modeElements[index % show.modeElements.length];
                     return Flexible(
                       flex: (index == totalModeCount - 1) ? lastModeDuration.inMicroseconds : modeDuration.inMicroseconds,
                       child: Container(
-                        child: show.modes.isEmpty ? Container() : ModeColumn(mode: show.modes[index % show.modes.length], showImages: true),
+                        child: show.modeElements.isEmpty ? Container() : ModeColumn(mode: element.object, showImages: true),
                       )
                     );
                   }).toList(),
@@ -185,7 +214,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               )
             ),
             Container(
-              height: show.songs.isEmpty ? 0 : 50,
+              height: show.songElements.isEmpty ? 0 : 50,
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Colors.white),
@@ -195,16 +224,16 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               ),
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
-                children: show.songs.map((song) {
-                  var waveform = waveforms[song.id.toString()];
-                  var color = [Colors.blue, Colors.red][waveforms.values.toList().indexOf(waveform) % 2];
+                children: mapWithIndex(show.songElements, (index, element) {
+                  var waveform = waveforms[element.id ?? element.hashCode.toString()];
+                  var color = [Colors.blue, Colors.red][index % 2];
                   return Flexible(
-                    flex: ((song.duration.inMilliseconds / show.duration.inMilliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
-                    child: waveform == null ? SpinKitCircle(color: color, size: 30) :
-                      Waveform(
-                        controller: waveform,
-                        color: color,
-                      )
+                    flex: ((element.duration.inMilliseconds / show.duration.inMilliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
+                    child: Waveform(
+                      controller: waveform,
+                      song: element.object,
+                      color: color,
+                    )
                   );
                 }).toList()
               )
@@ -229,43 +258,27 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 allowReordering: true,
                 childrenAlreadyHaveListener: true,
                 onReorder: (int start, int current) {
-                  var song = show.songs[start];
-                  show.songs.remove(song);
-                  show.songs.insert(min(show.songs.length, current), song);
-                  show.songs.asMap().forEach((index, other) => other.position = index + 1);
+                  var elements = show.songElements;
+                  var element = elements[start];
+                  elements.remove(element);
+                  elements.insert(min(elements.length, current), element);
+                  elements.asMap().forEach((index, other) {
+                    other.position = index + 1;
+                    other.save();
+                  });
                   if (show.isPersisted) show.save();
                   setState((){});
                 },
                 children: [
-                  ...show.songs.map((song) {
-                    return _SongCard(song);
+                  ...show.songElements.map((element) {
+                    return _SongCard(element);
                   }),
                 ],
               ),
             ),
             GestureDetector(
               onTap: () {
-                Navigator.pushNamed(context, '/songs/new').then((obj) {
-                  Song song = obj;
-                  setState(() {
-                    if (song != null) {
-                      show.songs.add(song);
-                      song.save().then((response) {
-                        if (response['success'] && response['song'].status == 'failed')
-                          song.status = 'failed';
-                        else {
-                          song.id = response['song'].id;
-                          song.filePath = response['song'].filePath;
-                          song.downloadFile().then((_) {
-                            setState(() {
-                              waveforms[song.id.toString()] = WaveformController.open(song.localPath);
-                            });
-                          });
-                        }
-                      });
-                    }
-                  });
-                });
+                Navigator.pushNamed(context, '/songs/new').then(_addNewSong);
               },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -280,22 +293,22 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     );
   }
 
-  Widget _SongCard(song) {
+  Widget _SongCard(element) {
     return Card(
       elevation: 8.0,
       child: ListTile(
         trailing: GestureDetector(
           onTap: () {
-            AppController.openDialog("Are you sure?", "This will remove \"${song.name}\" from this show.",
+            AppController.openDialog("Are you sure?", "This will remove \"${element.object.name}\" from this show.",
               buttonText: 'Cancel',
               buttons: [{
                 'text': 'Remove',
                 'color': Colors.red,
                 'onPressed': () {
                   setState(() {
-                    show.songs.remove(song);
+                    show.timelineElements.remove(element);
+                    Client.removeTimelineElement(element);
                   });
-                  if (show.isPersisted) show.save();
                 },
               }]
             );
@@ -313,11 +326,11 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             Container(
               margin: EdgeInsets.only(right: 10, top: 2, bottom: 2),
               child: Column(
-                children: song.thumbnailUrl == null ? [] : [
+                children: element.object.thumbnailUrl == null ? [] : [
                   Container(
                     height: 40,
                     margin: EdgeInsets.only(bottom: 2),
-                    child: Image.network(song.thumbnailUrl),
+                    child: Image.network(element.object.thumbnailUrl),
                   ),
                 ]
               )
@@ -328,10 +341,10 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 children: [
                   Container(
                     margin: EdgeInsets.only(bottom: 2),
-                    child: Text(song.name, style: TextStyle(fontSize: 14))
+                    child: Text(element.object.name, style: TextStyle(fontSize: 14))
                   ),
-                  song.status == 'failed' ? Text("Failed! Something went wrong...", style: TextStyle(color: Colors.red, fontSize: 14))
-                  : Text(song.durationString, style: TextStyle(fontSize: 11)),
+                  element.object.status == 'failed' ? Text("Failed! Something went wrong...", style: TextStyle(color: Colors.red, fontSize: 14))
+                  : Text(element.object.durationString, style: TextStyle(fontSize: 11)),
                 ]
               )
             )

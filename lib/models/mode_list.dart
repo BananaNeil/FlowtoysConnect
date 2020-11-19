@@ -8,7 +8,7 @@ class ModeList {
   String accessLevel;
   List<Mode> modes;
   String name;
-  num id;
+  String id;
 
   ModeList({
     this.id,

@@ -399,10 +399,10 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     var movementAmount = minDuration(Duration(seconds: 5), controller.timelineDuration * 0.01);
 
     thresholdStart = maxDuration(Duration(), firstElement.startOffset - windowStart + dragDelta);
-    thesholdEnd = thresholdStart + selectedDuration;
+    thresholdEnd = thresholdStart + selectedDuration;
 
     if (initialSelectionOverflowSide == 'right')
-      thesholdEnd = thresholdStart + initialVisibleSelectedDuration * 0.65;
+      thresholdEnd = thresholdStart + initialVisibleSelectedDuration * 0.65;
     else if (initialSelectionOverflowSide == 'left')
       thresholdStart = initialVisibleSelectedDuration * 0.30 + dragDelta;
 
@@ -415,7 +415,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
       if (windowStart.inMilliseconds > 0)
         triggerDragScroll(movementAmount);
 
-    } else if (thesholdEnd > visibleDuration - triggerPoint) {
+    } else if (thresholdEnd > visibleDuration - triggerPoint) {
       controller.windowStart += movementAmount;
       controller.windowStart = minDuration(controller.timelineDuration - visibleDuration, controller.windowStart);
       widget.onScrollUpdate(controller.windowStart);
@@ -521,13 +521,32 @@ class TimelineTrackController {
 
   bool get allElementsSelected => selectedElements.length == elements.length;
 
-  void deselectAll() {
-    selectedElements = [];
+  void deselectAll({before, after}) {
+    if (after != null)
+      selectedElements = selectedElements.where((element) {
+        return element.startOffset < after;
+      }).toList();
+    else if (before != null)
+      selectedElements = selectedElements.where((element) {
+        return element.endOffset > before;
+      }).toList();
+    else selectedElements = [];
     onSelectionUpdate();
   }
 
-  void selectAll() {
-    selectedElements = List.from(elements);
+  void selectAll({before, after}) {
+    if (after != null)
+      selectedElements = elements.where((element) {
+        return selectedElements.contains(element) ||
+          element.endOffset > after;
+      }).toList();
+    else if (before != null)
+      selectedElements = elements.where((element) {
+        return selectedElements.contains(element) ||
+            element.startOffset < before;
+      }).toList();
+    else
+      selectedElements = List.from(elements);
     onSelectionUpdate();
   }
 
@@ -579,7 +598,7 @@ class TimelineTrackController {
 
   List<TimelineElement> get elements {
     var elements = List<TimelineElement>.from(_elements);
-    if (elements.last.endOffset < visibleEnd) {
+    if (elements.isNotEmpty && elements.last.endOffset < visibleEnd) {
       blankElement.startOffset = elements.last.endOffset;
       blankElement.duration = timelineDuration - elements.last.endOffset;
       elements.add(blankElement);

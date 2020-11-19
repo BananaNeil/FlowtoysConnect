@@ -1,4 +1,5 @@
 import 'package:app/helpers/duration_helper.dart';
+import 'package:app/models/timeline_element.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:json_api/document.dart';
@@ -8,42 +9,82 @@ import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 
 class Show {
-  List<Song> songs = [];
-  List<Mode> modes = [];
+  List<TimelineElement> timelineElements = [];
   String name;
-  num id;
+  String id;
 
   Show({
     this.id,
     this.name,
-    this.modes,
-    this.songs,
+    this.timelineElements,
   });
 
+  List<TimelineElement> get songElements => timelineElements.where((element) {
+    return element.timelineType == 'audio';
+  }).toList()..sort((a, b) => a.position.compareTo(b.position));
+
+  List<TimelineElement> get modeElements => timelineElements.where((element) {
+    return element.timelineType == 'modes';
+  }).toList()..sort((a, b) => a.position.compareTo(b.position));
+
+  TimelineElement addAudioElement(song) {
+    var element = TimelineElement(
+      position: songElements.isEmpty ? 1 : songElements.last.position + 1,
+      duration: song.duration,
+      timelineType: 'audio',
+      timelineIndex: 0,
+      object: song,
+      showId: id,
+    );
+    timelineElements.add(element);
+    return element;
+  }
+
+  void set modes(_modes) {
+    clearModes();
+    timelineElements.addAll(mapWithIndex(_modes, (index, mode) {
+      return TimelineElement(
+        timelineType: 'modes',
+        position: index + 1,
+        timelineIndex: 0,
+        object: mode,
+      );
+    }).toList());
+  }
+
+  void clearModes() {
+    this.timelineElements = timelineElements.where((element) {
+      return element.timelineType != 'modes';
+    }).toList();
+  }
+
+  List<String> get songIds => songElements.map((element) => element.objectId).toList();
+  List<String> get modeIds => modeElements.map((element) => element.objectId).toList();
+
   Duration get duration {
-    if (songs.length == 0 && modes.length == 0) return Duration(minutes: 1);
+    if (songElements.length == 0 && modeElements.length == 0) return Duration(minutes: 1);
+    if (songDuration == Duration() && modeDuration == Duration()) return Duration(minutes: 1);
     return maxDuration(songDuration, modeDuration);
   }
 
   Duration get songDuration {
-    var songDurations = songs.map((song) => song.duration);
-    if (songDurations.length == 0)
-      return Duration(minutes: 1);
-    else
-      return songDurations.reduce((a, b) => a+b); 
+    var songDurations = songElements.map((song) => song.duration);
+    if (songDurations.length == 0) return Duration();
+    return songDurations.reduce((a, b) => a+b); 
   }
 
   Duration get modeDuration {
-    var modeDurations = modes.map((mode) => mode.duration);
+    var modeDurations = modeElements.map((mode) => mode.duration ?? Duration());
     if (modeDurations.length == 0) return Duration();
     return modeDurations.reduce((a, b) => a+b); 
   }
 
   Future<void> downloadSongs() {
-    return Future.wait(songs.map((song) {
-			return song.downloadFile();
+    return Future.wait(songElements.map((element) {
+      return element.object?.downloadFile() ?? Future.value(true);
     }));
   }
 
@@ -53,8 +94,8 @@ class Show {
       baseMode = Preloader.baseModes.elementAt(0);
     print ("fromMap: ");
     return Mode.fromMap({
+      'position': modeElements.length + 1,
       'base_mode_id': baseMode?.id,
-      'position': modes.length + 1,
       'parent_type': 'Show',
       'parent_id': id,
     });
@@ -66,28 +107,23 @@ class Show {
       return Show.fromResource(object.unwrap(), included: data.included);
     }).toList();
   }
+
   factory Show.fromResource(Resource resource, {included}) {
-    var modes = resource.toMany['modes'].map((mode) {
-      var modeData = (included ?? []).firstWhere((item) => item.id == mode.id);
-      return Mode.fromMap(modeData.attributes);
+    var elements = resource.toMany['timeline_elements'].map((element) {
+      var elementData = (included ?? []).firstWhere((item) => item.id == element.id);
+      return TimelineElement.fromResource(elementData.unwrap(), included: included);
     }).toList();
 
-    var songs = resource.toMany['songs'].map((song) {
-      var songData = (included ?? []).firstWhere((item) => item.id == song.id);
-      return Song.fromMap(songData.attributes);
-    }).toList();
 
     return Show(
-      modes: modes ?? [],
-      songs: songs ?? [],
+      timelineElements: elements,
       id: resource.attributes['id'],
       name: resource.attributes['name'],
     );
   }
 
   void updateFromCopy(copy) {
-    modes = copy.modes;
-    songs = copy.songs;
+    timelineElements = copy.timelineElements;
     name = copy.name;
     id = copy.id;
   }
@@ -102,15 +138,13 @@ class Show {
     return {
       'id': id,
       'name': name,
-      'song_ids': songs.map((song) => song.id).toList(),
-      'mode_ids': modes.map((mode) => mode.id).toList(),
+      'timeline_element_ids': timelineElements.map((element) => element.id).toList(),
     };
   }
 
   factory Show.create() {
     return Show(
-      modes: [],
-      songs: [],
+      timelineElements: [],
     );
   }
 
@@ -123,6 +157,8 @@ class Show {
     if (!isPersisted) {
       attributes['mode_duration'] = modeDuration?.inMilliseconds;
       attributes['duration'] = duration.inMilliseconds;
+      attributes['song_ids'] = songIds;
+      attributes['mode_ids'] = modeIds;
     }
     return method(attributes);
   }

@@ -99,7 +99,13 @@ class ModeColumn extends StatelessWidget {
       builder: (BuildContext context, BoxConstraints box) {
         var height = box.maxHeight;
         var width = box.maxWidth;
-        return Column(
+        if (mode == null)
+          return Container(
+            decoration: BoxDecoration(
+              color: Colors.black,
+            )
+          );
+        else return Column(
           children: showImages == true ?
             imagesForProps(mode, size: height, fit: fit, vertical: true) :
             widgetsForProps(mode),

@@ -19,6 +19,7 @@ import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'dart:math';
 
 class EditModeWidget extends StatefulWidget {
   EditModeWidget({
@@ -76,7 +77,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   @override
   Widget build(BuildContext context) {
     return Container(
-              decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
+      decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
       child: Column(
         children: [
           Container(
@@ -151,7 +152,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
             }).toList(),
             onChanged: (value) {
               setState(() {
-                mode.updateBaseModeId(int.parse(value));
+                mode.updateBaseModeId(value);
                 onChange(mode);
               });
               _updateMode();
@@ -192,10 +193,8 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           GestureDetector(
             onTap: () {
               setState(() {
-                if (param.presentChildParams.isNotEmpty) {
                   param.toggleMultiValue();
                   _updateMode();
-                }
               });
             },
             child: Row(

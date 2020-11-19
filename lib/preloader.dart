@@ -20,6 +20,7 @@ class Preloader {
 
   static Directory songDir;
   static Map<String, Completer> downloadTasks = {};
+  static Map<String, int> downloadTaskProgress = {};
 
   static ReceivePort _port = ReceivePort();
 
@@ -39,6 +40,7 @@ class Preloader {
       DownloadTaskStatus status = data[1];
       int progress = data[2];
 
+      downloadTaskProgress[id] = progress;
       if (status == DownloadTaskStatus.complete) {
         downloadTasks[id].complete(true);
       }

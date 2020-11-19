@@ -51,7 +51,7 @@ class _ModesPageState extends State<ModesPage> {
   bool showExpandedActionButtons = false;
 
 
-  List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
+  List<String> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
 
   List<Mode> get allModes => modeLists.map((list) => list.modes).expand((m) => m).toList();
 
@@ -107,7 +107,7 @@ class _ModesPageState extends State<ModesPage> {
         leading: isTopLevelRoute ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, firstList);
+            Navigator.pop(context, null);
           },
         ),
         actions: <Widget>[
@@ -443,6 +443,10 @@ class _ModesPageState extends State<ModesPage> {
                 ),
               )),
               trailing: _TrailingIcon(mode),
+              subtitle: isSelecting ? null : Container(
+                margin: EdgeInsets.only(top: 10),
+                child: _ModeTileParams(mode),
+              ),
               title: Column(
                 children: [
                   Row(
@@ -455,13 +459,12 @@ class _ModesPageState extends State<ModesPage> {
                         )
                       ),
                       Column(
-                          children: [
-                            Text(mode.name),
-                          ]
+                        children: [
+                          Text(mode.name),
+                        ]
                       )
                     ]
                   ),
-                  _ModeTileParams(mode),
                 ]
               )
             ),
@@ -509,53 +512,48 @@ class _ModesPageState extends State<ModesPage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
+        null,
         'hue',
         'saturation',
         'brightness',
         'density',
         'speed',
       ].map<Widget>((paramName) {
-        return Column(
+        if (paramName == null)
+          return Container(width: 0);
+        return Stack(
+          alignment: Alignment.center,
           children: [
             Container(
-              margin: EdgeInsets.symmetric(vertical: 5),
-              child: Text(icons[paramName],
-                style: TextStyle(
-                  fontFamily: 'MaterialIcons',
-                  fontSize: 24,
-                )
+              height: 37,
+              width: 37,
+              decoration: BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0xFF333333),
+                    spreadRadius: 2.0,
+                    blurRadius: 2.0,
+                  ),
+                ],
+                color: color.toColor(),
+                shape: BoxShape.circle,
               )
             ),
             Container(
-              height: 20,
-              child: Stack(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 8,
-                    margin: EdgeInsets.only(top: 6),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: gradients[paramName] ?? [
-                          Colors.black,
-                          Colors.white,
-                        ]
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 34 * mode.getValue(paramName).remainder(1),
-                    child: Container(
-                      width: 6,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Color(0x99FFFFFF), width: 1),
-                        color: colors[paramName] ?? Colors.black,
-                      ),
-                    ),
+                height: 30,
+                width: 30,
+                padding: EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black,
+                ),
+                child: Text(icons[paramName],
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                    fontFamily: 'MaterialIcons',
+                    fontSize: 22,
                   )
-                ]
-              ),
             )
           ]
         );

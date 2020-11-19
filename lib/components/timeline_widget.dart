@@ -35,9 +35,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   Show show;
   Timer computeDataTimer;
 
-  List<AssetsAudioPlayer> audioPlayers = [];
-  List<TimelineTrackController> timelineControllers = [];
-  TimelineTrackController waveformTimelineController = null;
+  Map<TimelineElement, AssetsAudioPlayer> audioPlayers = {};
+  List<TimelineTrackController> modeTimelineControllers = [];
+  TimelineTrackController waveformTimelineController = TimelineTrackController(elements: <TimelineElement>[]);
+
+  List<TimelineTrackController> get timelineControllers => [
+    waveformTimelineController,
+    ...modeTimelineControllers,
+  ].where((controller) => controller != null).toList();
+
 
   bool showModeImages = true; 
   bool selectMultiple = false;
@@ -51,7 +57,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   double scale = 1;
   double futureScale = 1;
-  double maxScale = 20000.0;
+  double get maxScale => max(1, duration.inSeconds / 5);
 
   bool isPlaying = false;
 
@@ -78,7 +84,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   bool get timelineContainsEnd => startOffset.value + futureVisibleMiliseconds >= lengthInMiliseconds;
   double get milisecondsPerPixel => visibleMiliseconds / containerWidth;
 
-  bool playersLoaded = false;
   bool modesLoaded = false;
   bool loading = true;
 
@@ -86,8 +91,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   double timelineGestureStartPointX;
 
 
-  List<WaveformController> waveforms = [];
-  List<Duration> get songDurations => waveforms.map((song) => song.duration).toList();
+  Map<TimelineElement, WaveformController> waveforms = {};
 
   Duration get windowStart => Duration(milliseconds: startOffset.value.toInt());
   Duration get windowEnd => windowStart + Duration(milliseconds: visibleMiliseconds.toInt());
@@ -108,7 +112,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   @override dispose() {
     startOffset.dispose();
     playOffset.dispose();
-    audioPlayers.forEach((player) => player.dispose());
+    audioPlayers.values.forEach((player) => player.dispose());
     super.dispose();
   }
 
@@ -119,38 +123,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     super.initState();
   }
 
-  Duration startOfSongAtIndex(index) {
-    return songDurations.sublist(0, index).reduce((a, b) => a + b);
-  }
 
-  List<WaveformController> get visibleWaveforms {
-    return waveforms.where((waveform) {
-      return waveform.startOffset <= windowEnd &&
-        waveform.endOffset >= windowStart;
-    }).toList();
-  }
-
-  Mode get currentMode {
-    return modeAtTime(playOffsetDuration);
-  }
-
-  Mode modeAtTime(time) {
-    return show.modes.firstWhere((mode) {
-       return mode.startOffset <= time &&
-           mode.endOffset > time;
-    });
-  }
-
-  WaveformController get currentWaveform {
-    return waveforms.firstWhere((waveform) {
-       return waveform.startOffset <= playOffsetDuration &&
-           waveform.endOffset > playOffsetDuration;
-    }, orElse: () => null);
+  TimelineElement get currentAudioElement {
+    return waveformTimelineController.elementAtTime(playOffsetDuration);
   }
 
   AssetsAudioPlayer get currentPlayer {
-    if (currentWaveform != null)
-      return audioPlayers[waveforms.indexOf(currentWaveform)];
+    return audioPlayers[currentAudioElement];
   }
 
   void reloadModes() {
@@ -163,30 +142,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (modesLoaded && force != true) return;
     modesLoaded = true;
     Duration offset = Duration();
-    show.modes.sort((a, b) => a.position.compareTo(b.position));
-    show.modes.forEach((mode) {
-      mode.startOffset = Duration() + offset;
-      offset += mode.duration;
+    show.modeElements.forEach((element) {
+      element.startOffset = Duration() + offset;
+      offset += element.duration;
     });
 
-    var remainingTime = show.duration - offset;
-    if (remainingTime > Duration()) {
-      var emptySpaceAtEnd;
 
-      if (show.modes.isNotEmpty && show.modes.last.isBlackMode)
-        show.modes.last.duration += remainingTime;
-      else {
-        if (show.modes.isEmpty)
-          emptySpaceAtEnd = show.createNewMode();
-        else emptySpaceAtEnd = show.modes.last.dup();
-
-        emptySpaceAtEnd.duration = remainingTime;
-        emptySpaceAtEnd.startOffset = offset;
-        emptySpaceAtEnd.setAsBlack();
-        show.modes.add(emptySpaceAtEnd);
-      }
-
-    }
 
     if (!loading)
       scale *= show.duration.inMilliseconds / duration.inMilliseconds;
@@ -197,31 +158,44 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     setAnimationControllers();
 
     // timelineControllers = timelineControllers.isNotEmpty ? timelineControllers : [
-    timelineControllers =  [
+    modeTimelineControllers =  [
       TimelineTrackController(
-        elements: TimelineElement.fromList(show.modes),
         onSelectionUpdate: (() => setState(() {})),
         selectMultiple: selectMultiple,
+        elements: show.modeElements,
       )
     ];
 
   }
 
   void loadPlayers() {
-    if (playersLoaded) return;
-    playersLoaded = true;
-    loadSongs().then((_) {
+    var waveformLengthWas = waveforms.keys.length;
+    List.from(waveforms.keys).forEach((element) {
+      if (!show.songElements.contains(element))
+        waveforms.remove(element);
+    });
+
+    if (waveformLengthWas == waveforms.keys.length)
+      if (waveforms.keys.length == show.songElements.length)
+        return;
+
+    waveformTimelineController.elements = show.songElements;
+    var offset = Duration();
+    show.songElements.forEach((element) {
+      element.startOffset = Duration() + offset;
+      offset += element.duration;
+    });
+
+    loadAudioPlayers().then((_) {
       var lengthInMiliseconds = 0.1;
       var index = 0;
-      audioPlayers.forEach((player) {
-        waveforms[index].startOffset = Duration(milliseconds: lengthInMiliseconds.toInt());
-        lengthInMiliseconds += player.current.value.audio.duration.inMilliseconds;
-        index += 1;
+      mapWithIndex(show.songElements, (index, element) {
+        waveforms[element].startOffset = element.startOffset;
       });
       waveformTimelineController = TimelineTrackController(
-        elements: TimelineElement.fromList(waveforms),
         onSelectionUpdate: (() => setState(() {})),
         selectMultiple: selectMultiple,
+        elements: show.songElements,
       );
       setState(() {
         reloadModes();
@@ -230,20 +204,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     });
   }
 
-  Future<dynamic> loadSongs() {
+  Future<dynamic> loadAudioPlayers() {
     if (show == null) return Future.value(null);
     return show.downloadSongs().then((_) {
       print("Okay, done downloading files... ");
       setState(() {
-        waveforms = show.songs.map((song) => WaveformController.open(song.localPath)).toList();
+        show.songElements.forEach((element) => waveforms[element] = WaveformController.open(element.object?.localPath));
         loading = false;
       });
 
+      audioPlayers = {};
       AssetsAudioPlayer player;
-      return Future.wait(show.songs.map((song) {
+      return Future.wait(show.songElements.map((element) {
         player = AssetsAudioPlayer.newPlayer();
-        audioPlayers.add(player);
-        return player.open(Audio.file(song.localPath,
+        audioPlayers[element] = player;
+        if (element.object == null)
+          return Future.value(true);
+
+        return player.open(Audio.file(element.object.localPath,
           metas: Metas(
             title:  "Insert Show Name",
             artist: "Username",
@@ -297,48 +275,46 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         duration: Duration(milliseconds: remainingMiliseconds.toInt()),
       );
     } else {
-      audioPlayers.forEach((player) => player.pause());
+      audioPlayers.values.forEach((player) => player.pause());
       playOffset.stop();
     }
   }
 
-  void removeSelectedModes({growFrom, replaceWithBlack}) {
-    var replacedModeIndexes = [];
+  void removeSelected({growFrom, replaceWithBlack}) {
     timelineControllers.forEach((controller) {
-      List<Mode> selectedModes = controller.selectedObjects.map<Mode>((object) {
-        return object;
-      }).toList();
-      selectedModes.reversed.forEach((mode) {
-        var index = show.modes.indexOf(mode);
+      var replacedIndexes = [];
+      controller.selectedElements.reversed.forEach((element) {
+        var index = controller.elements.indexOf(element);
         var sibling;
 
-        if (replacedModeIndexes.contains(index+1)) {
+        if (replacedIndexes.contains(index+1)) {
           replaceWithBlack = false;
           growFrom = 'right';
         }
 
         if (growFrom == 'right')
-          if (index < show.modes.length - 1)
-            sibling = show.modes[index + 1];
+          if (index < controller.elements.length - 1)
+            sibling = controller.elements[index + 1];
           else replaceWithBlack = true;
         else if (growFrom == 'left')
           if (index > 0)
-            sibling = show.modes[index - 1];
+            sibling = controller.elements[index - 1];
           else replaceWithBlack = true;
-        else sibling = show.modes.last;
 
         setState(() {
           if (replaceWithBlack == true) {
-            replacedModeIndexes.add(show.modes.indexOf(mode));
-            mode.setAsBlack();
-            mode.save();
+            replacedIndexes.add(index);
+            element.object = null;
+            element.save();
           } else {
-            sibling.duration += mode.duration;
-            show.modes.remove(mode);
+            sibling?.duration += element.duration;
+            print("Removing ${element}");
+            controller.elements.remove(element);
+            show.timelineElements.remove(element);
+            Client.removeTimelineElement(element);
 
             // Maybe do something here to make sure this succeeds?
-            sibling.save();
-            show.save();
+            sibling?.save();
           }
         });
       });
@@ -416,9 +392,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   var offsetValue = details.delta.dx * (visibleMiliseconds/(containerWidth + playHeadWidth));
                   playOffset.value += offsetValue;
 
-                  audioPlayers.forEach((player) => player.pause());
-                  if (currentWaveform != null)
-                    currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+                  audioPlayers.values.forEach((player) => player.pause());
+                  if (currentAudioElement.object != null)
+                    currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
                   // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
                 },
                 onPanEnd: (details) {
@@ -474,15 +450,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return GestureDetector(
       onPanStart: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
-        audioPlayers.forEach((player) => player.pause());
-        if (currentWaveform != null)
-          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+        audioPlayers.values.forEach((player) => player.pause());
+        if (currentAudioElement.object != null)
+          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
       },
       onPanUpdate: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
-        audioPlayers.forEach((player) => player.pause());
-        if (currentWaveform != null)
-          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentWaveform.startOffset);
+        audioPlayers.values.forEach((player) => player.pause());
+        if (currentAudioElement.object != null)
+          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
         // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
       },
       onPanEnd: (details) {
@@ -562,7 +538,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   Widget _ModeContainer() {
     return Column(
-      children: timelineControllers.map((controller) {
+      children: modeTimelineControllers.map((controller) {
         controller.setWindow(
           futureVisibleDuration: futureVisibleDuration,
           visibleDuration: visibleDuration,
@@ -587,8 +563,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   });
                 },
                 onReorder: () {
-                  eachWithIndex(controller.elements, (index, element) => element.object.position = index + 1);
-                  controller.selectedElements.forEach((element) => element.object.save());
+                  eachWithIndex(controller.elements, (index, element) => element.position = index + 1);
+                  controller.selectedElements.forEach((element) => element.save());
                   reloadModes();
                 },
                 slideWhenStretching: slideModesWhenStretching,
@@ -609,62 +585,66 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   void _stretchSelectedModes(stretchedValue, {overwrite, insertBlack, growFrom}) {
     timelineControllers.forEach((controller) {
       List<int> selectedIndexes = controller.selectedElementIndexes;
-      List<Mode> selectedModes = controller.selectedObjects.map<Mode>((object) {
-        return object;
-      }).toList();
       Duration selectedDuration = controller.selectedDuration;
       Duration newDuration = selectedDuration * stretchedValue;
       var durationDifference = newDuration - selectedDuration;
       if (insertBlack == 'right') {
-        var blackMode = selectedModes.last.dup();
+        var blackMode = controller.selectedElements.last.dup();
         blackMode.duration = durationDifference * -1;
-        blackMode.setAsBlack();
+        blackMode.object.setAsBlack();
         blackMode.position += 1;
         blackMode.save();
-        show.modes.insert(blackMode.position - 1, blackMode);
+        show.timelineElements.add(blackMode);
       } else if (insertBlack == 'left') {
-        var blackMode = selectedModes.first.dup();
+        var blackMode = controller.selectedElements.first.dup();
         blackMode.duration = durationDifference * -1;
-        blackMode.setAsBlack();
+        blackMode.object.setAsBlack();
         blackMode.position -= 1;
         blackMode.save();
+        show.timelineElements.add(blackMode);
       } else if (growFrom != null) {
         var sibling;
         if (growFrom == 'left')
-          sibling = show.modes[show.modes.indexOf(selectedModes.first) - 1];
-        else sibling = show.modes[show.modes.indexOf(selectedModes.last) + 1];
+          sibling = controller.elements[controller.elements.indexOf(controller.selectedElements.first) - 1];
+        else sibling = controller.elements[controller.elements.indexOf(controller.selectedElements.last) + 1];
 
         // There is some sort of bug here where the first visible mode won't show a resize and another bug where it's dropping to zero if stretch < 1
 
         sibling.duration -= durationDifference;
         sibling.save();
       } else if (overwrite == 'left') {
-        show.modes.sublist(0, selectedIndexes.first).reversed.forEach((mode) {
-          var newStart = selectedModes.first.startOffset - durationDifference;
-          if (mode.startOffset >= newStart) {
-            Client.removeMode(mode);
-            show.modes.remove(mode);
-          } else if (mode.endOffset > newStart)
-            mode.duration -= mode.endOffset - newStart;
+        controller.elements.sublist(0, controller.selectedElementIndexes.first).reversed.forEach((element) {
+          var newStart = controller.selectedElements.first.startOffset - durationDifference;
+          if (element.startOffset >= newStart) {
+            Client.removeMode(element.object);
+            Client.removeTimelineElement(element);
+            show.timelineElements.remove(element);
+          } else if (element.endOffset > newStart)
+            element.duration -= element.endOffset - newStart;
+            element.save();
         });
       } else if (overwrite == 'right') {
-        show.modes.sublist(selectedIndexes.last + 1).forEach((mode) {
-          var newEnd = selectedModes.last.endOffset + durationDifference;
-          if (mode.endOffset <= newEnd) {
-            Client.removeMode(mode);
-            show.modes.remove(mode);
-          } else if (mode.startOffset < newEnd)
-            mode.duration -= newEnd - mode.startOffset;
+        controller.elements.sublist(controller.selectedElementIndexes.last + 1).forEach((element) {
+          var newEnd = controller.selectedElements.last.endOffset + durationDifference;
+          if (element.endOffset <= newEnd) {
+            Client.removeMode(element.object);
+            Client.removeTimelineElement(element);
+            show.timelineElements.remove(element);
+          } else if (element.startOffset < newEnd) {
+            element.duration -= newEnd - element.startOffset;
+            element.save();
+          }
         });
       }
-      selectedModes.forEach((mode) {
-        mode.duration *= stretchedValue;
-        if (mode.duration == Duration()) {
-          Client.removeMode(mode);
-          show.modes.remove(mode);
-        } else mode.save();
+      controller.selectedElements.forEach((element) {
+        element.duration *= stretchedValue;
+        if (element.duration == Duration()) {
+          Client.removeMode(element.object);
+          Client.removeTimelineElement(element);
+          show.timelineElements.remove(element);
+        } else element.save();
       });
-      selectedModes.removeWhere((mode) => mode.duration == Duration());
+      controller.selectedElements.removeWhere((element) => element.duration == Duration());
       reloadModes();
     });
   }
@@ -686,28 +666,28 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     AppController.openDialog("How would you like to delete?", "",
       buttonText: 'Cancel',
       buttons: [{
-        'text': 'Replace with black mode',
+        'text': 'Replace with empty space',
         'color': Colors.white,
         'onPressed': () {
-          removeSelectedModes(replaceWithBlack: true); 
+          removeSelected(replaceWithBlack: true);
         },
-      }, oneModeSelected && selectedModes == [show.modes.last] ? null : {
-        'text': 'Expand mode from the right',
+      }, oneModeSelected && selectedModes == [show.modeElements.last] ? null : {
+        'text': 'Expand from the right',
         'color': Colors.white,
         'onPressed': () {
-          removeSelectedModes(growFrom: 'right'); 
+          removeSelected(growFrom: 'right');
         },
-      }, oneModeSelected && selectedModes == [show.modes.first] ? null : {
-        'text': 'Expand mode from the left',
+      }, oneModeSelected && selectedModes == [show.modeElements.first] ? null : {
+        'text': 'Expand from the left',
         'color': Colors.white,
         'onPressed': () {
-          removeSelectedModes(growFrom: 'left'); 
+          removeSelected(growFrom: 'left');
         },
       }, {
-        'text': 'Slide modes to the Left',
+        'text': 'Slide everything left',
         'color': Colors.red,
         'onPressed': () {
-          removeSelectedModes(); 
+          removeSelected();
         },
       }]
     );
@@ -715,12 +695,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
 
   Widget _Waveforms() {
-    var visibleSongs = visibleWaveforms;
-    if (audioPlayers.isEmpty)
+    if (audioPlayers.values.isEmpty || waveforms.values.isEmpty)
       return Container();
 
 
-    waveformTimelineController.setWindow(
+    waveformTimelineController?.setWindow(
       futureVisibleDuration: futureVisibleDuration,
       visibleDuration: visibleDuration,
       timelineDuration: duration,
@@ -741,18 +720,20 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               });
             },
             onReorder: () {
+              eachWithIndex(waveformTimelineController.elements, (index, element) => element.position = index + 1);
+              waveformTimelineController.selectedElements.forEach((element) => element.save());
             },
             slideWhenStretching: slideModesWhenStretching,
             buildElement: (element) {
               Duration waveVisibleDuration = visibleDurationOf(element);
               return Waveform(
-                controller: element.object,
+                controller: waveforms[element],
                 visibleDuration: waveVisibleDuration,
                 startOffset: maxDuration(windowStart - element.startOffset, Duration()),
                 scale: scale * (element.duration.inMilliseconds / lengthInMiliseconds),
                 futureScale: futureScale * (element.duration.inMilliseconds / lengthInMiliseconds),
                 visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
-                color: [Colors.blue, Colors.red][waveforms.indexOf(element.object) % 2],
+                color: [Colors.blue, Colors.red][waveforms.keys.toList().indexOf(element) % 2],
               );
             },
             onStretchUpdate: (side, value) {
@@ -853,7 +834,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               height: 20,
               max: 1.0,
               value: (1/pow(futureScale, 1/3)).clamp(1/maxScale, 1.0),
-              min: 1/maxScale,
+              min: 1/pow(maxScale, 1/3),
               onChanged: (value){
                 setState(() {
                   futureScale = 1/pow(value, 3);
@@ -884,31 +865,95 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       children: [
         Visibility(
           visible: timelineControllers.any((controller) => !controller.allElementsSelected),
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                timelineControllers.forEach((controller) => controller.selectAll());
-              });
-            },
-            child: Container(
-               padding: EdgeInsets.all(2),
-               child: Text("Select All"),
-             )
-           )
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    timelineControllers.forEach((controller) => controller.selectAll());
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(2),
+                  child: Text("Select All"),
+                )
+              ),
+              GestureDetector(
+                onTap: () {
+                  AppController.openDialog("Select All", "",
+                    buttons: [{
+                      'text': 'After Playhead',
+                      'color': Colors.white,
+                      'onPressed': () {
+                        timelineControllers.forEach((controller) {
+                          controller.selectAll(after: playOffsetDuration);
+                        });
+                      },
+                    }, {
+                      'text': 'Before Playhead',
+                      'color': Colors.white,
+                      'onPressed': () {
+                        timelineControllers.forEach((controller) {
+                          controller.selectAll(before: playOffsetDuration);
+                        });
+                      },
+                    }]
+                  );
+                },
+                child: Container(
+                   padding: EdgeInsets.all(2),
+                   child: Icon(Icons.arrow_drop_down),
+                 )
+               )
+            ]
+          )
         ),
         Visibility(
           visible: selectedElements.isNotEmpty,
-          child: GestureDetector(
-            onTap: () {
-              setState(() {
-                timelineControllers.forEach((controller) => controller.deselectAll());
-              });
-            },
-            child: Container(
-               padding: EdgeInsets.all(2),
-               child: Text("Deselect All"),
-             )
-           )
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    timelineControllers.forEach((controller) => controller.deselectAll());
+                  });
+                },
+                child: Container(
+                  padding: EdgeInsets.all(2),
+                  child: Text("Deselect All"),
+                )
+              ),
+              GestureDetector(
+                onTap: () {
+                  AppController.openDialog("Deselect All", "",
+                    buttons: [{
+                      'text': 'After Playhead',
+                      'color': Colors.white,
+                      'onPressed': () {
+                        timelineControllers.forEach((controller) {
+                          controller.deselectAll(after: playOffsetDuration);
+                        });
+                      },
+                    }, {
+                      'text': 'Before Playhead',
+                      'color': Colors.white,
+                      'onPressed': () {
+                        timelineControllers.forEach((controller) {
+                          controller.deselectAll(before: playOffsetDuration);
+                        });
+                      },
+                    }]
+                  );
+                },
+                child: Container(
+                   padding: EdgeInsets.all(2),
+                   child: Icon(Icons.arrow_drop_down),
+                 )
+               )
+            ]
+          )
         ),
         GestureDetector(
           onTap: () {
@@ -943,7 +988,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         GestureDetector(
           onTap: () {
             timelineControllers.forEach((controller) {
-              controller.selectedElements = [controller.selectedElements.last];
+              if (controller.selectedElements.isNotEmpty)
+                controller.selectedElements = [controller.selectedElements.last];
             });
             setState(() => selectMultiple = !selectMultiple);
             setState(() => timelineControllers.forEach((controller) => controller.toggleSelectMultiple()));
@@ -965,17 +1011,17 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               var current = controller.elementAtTime(playOffsetDuration);
               if (current.startOffset == playOffsetDuration) return;
               var index = controller.elements.indexOf(current);
-              var newMode = current.object.dup();
+              var newElement = current.dup();
 
-              newMode.position += 1;
-              newMode.startOffset = playOffsetDuration;
-              newMode.duration = current.duration - (playOffsetDuration - current.startOffset);
-              current.object.duration -= newMode.duration;
-              setState(() {
-                show.modes.insert(index+1, newMode);
-              });
-              current.object.save();
-              newMode.save();
+              controller.elements.sublist(index+1).forEach((element) => element.position += 1);
+
+              newElement.position += 1;
+              newElement.startOffset = playOffsetDuration;
+              newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
+              current.duration -= newElement.duration;
+              show.timelineElements.add(newElement);
+              newElement.save();
+              current.save();
             });
             reloadModes();
             timelineControllers.forEach((controller) {
@@ -1001,7 +1047,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           ),
         ),
         Visibility(
-          visible: timelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
+          visible: modeTimelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
           child: GestureDetector(
             onTap: () {
               var replacement = selectedElements.first.object.dup();

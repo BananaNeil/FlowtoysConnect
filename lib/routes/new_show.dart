@@ -32,7 +32,7 @@ class _NewShowState extends State<NewShowState> {
     show = show ?? Show.create();
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
     if (arguments != null) {
-      if (show.modes.isEmpty && !arguments['modes'].isEmpty)
+      if (show.modeElements.isEmpty && !arguments['modes'].isEmpty)
         show.modes = arguments['modes'];
     }
 

@@ -30,7 +30,7 @@ class _NewListPageState extends State<NewListPage> {
   String listErrorMessage;
   String errorMessage;
 
-  List<num> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
+  List<String> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
 
   void fetchLists() {
     setState(() { awaitingResponse = true; });

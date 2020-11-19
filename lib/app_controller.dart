@@ -213,7 +213,9 @@ class AppController extends StatefulWidget {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      dialogIsOpen = false;
+    });
   }
 
   static void closeUntilPath(String path) {
@@ -262,7 +264,8 @@ Iterable<E> mapWithIndex<E, T>(
     index = index + 1;
   }
 }
-void eachWithIndex<E, T>(
+
+Iterable<T> eachWithIndex<E, T>(
     Iterable<T> items, E Function(int index, T item) f) {
   var index = 0;
 
@@ -270,6 +273,8 @@ void eachWithIndex<E, T>(
     f(index, item);
     index = index + 1;
   }
+
+  return items;
 }
 class TriangleClipper extends CustomClipper<Path> {
 

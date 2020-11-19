@@ -13,9 +13,8 @@ import 'dart:io';
 
 
 class Song {
-  Duration get endOffset => startOffset + duration;
+  bool get isPersisted => id != null;
 
-  Duration startOffset;
   String thumbnailUrl;
   Duration duration;
   String youtubeUrl;
@@ -23,10 +22,12 @@ class Song {
   String status;
   int position;
   String name;
-  num id;
+  double bpm;
+  String id;
 
   Song({
     this.id,
+    this.bpm,
     this.name,
     this.status,
     this.filePath,
@@ -54,8 +55,9 @@ class Song {
   bool fileDownloadPending = false;
 
 
+  String downloadTaskId;
   String get durationString => twoDigitString(duration);
-
+  int get downloadProgress => downloadTaskId == null ? 0 : Preloader.downloadTaskProgress[downloadTaskId];
 
   Future<dynamic> downloadFile() async {
     print('Downloading ${fileUrl} into: '+ Preloader.songDir.path);
@@ -68,7 +70,7 @@ class Song {
 
     fileDownloadPending = true;
 
-    var taskId = await FlutterDownloader.enqueue(
+    downloadTaskId = await FlutterDownloader.enqueue(
       url: fileUrl,
       fileName: fileName,
       savedDir: Preloader.songDir.path,
@@ -76,7 +78,8 @@ class Song {
       openFileFromNotification: false, // click on notification to open downloaded file (for Android)
     );
 
-    Preloader.downloadTasks[taskId] = downloadTask;
+    Preloader.downloadTasks[downloadTaskId] = downloadTask;
+    Preloader.downloadTaskProgress[downloadTaskId] = 0;
     return downloadTask.future;
   }
 
@@ -100,6 +103,7 @@ class Song {
   factory Song.fromResource(Resource resource, {included}) {
     return Song(
       id: resource.attributes['id'],
+      bpm: resource.attributes['bpm'],
       name: resource.attributes['name'],
       status: resource.attributes['status'],
       position: resource.attributes['position'],
@@ -112,6 +116,7 @@ class Song {
   factory Song.fromMap(Map<String, dynamic> json) {
     return Song(
       id: json['id'],
+      bpm: json['bpm'],
       name: json['name'],
       status: json['status'],
       position: json['position'],

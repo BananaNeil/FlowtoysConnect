@@ -10,9 +10,9 @@ class BaseMode {
   String name;
   num number;
   num speed;
+  String id;
   num page;
   num hue;
-  num id;
 
   BaseMode({
     this.saturation,

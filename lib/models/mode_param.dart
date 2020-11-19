@@ -44,7 +44,8 @@ class ModeParam {
       }[childType];
 
   List<ModeParam> get presentChildParams {
-      return List.generate(presentChildCount, (index) => childParamAt(index)).toList();
+    if (!multiValueEnabled) return [];
+    return List.generate(presentChildCount, (index) => childParamAt(index)).toList();
   }
 
   List<num> get presentChildValues =>
@@ -103,7 +104,7 @@ class ModeParam {
   }
 
   num get mostCommonChildValue {
-    var counted = presentChildParams.fold({}, (counts, param) {
+    var counted = childParams.fold({}, (counts, param) {
       counts[param.getValue()] = (counts[param.getValue()] ?? 0) + param.presentChildCount;
       return counts;
     }) as Map<dynamic, dynamic>;
@@ -144,8 +145,8 @@ class ModeParam {
   void setValue(newValue) {
     newValue = num.parse(newValue.toStringAsFixed(3));
     newValue = newValue.clamp(0.0, paramName == 'hue' ? 2.0 : 1.0);
-    childParams = presentChildParams;
     if (multiValueEnabled) {
+      childParams = presentChildParams;
       var delta = newValue - getValue();
       childParams.forEach((param) {
         param.setValue(param.getValue() + delta);

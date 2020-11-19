@@ -9,7 +9,7 @@ import 'package:app/client.dart';
 import 'dart:convert';
 
 class Mode {
-  Duration get endOffset => startOffset + duration;
+  bool get isPersisted => id != null;
 
   String get thumbnailPath => (images['club'] ?? {})['thumb'];
   String get imagePath => (images['club'] ?? {})['medium'];
@@ -21,19 +21,17 @@ class Mode {
 
   bool get hasTrailImage => trailImagePath != null;
 
-  Map<String, dynamic> images;
-  Duration startOffset;
+  Map<String, dynamic> get images => baseMode.images;
   String accessLevel;
-  Duration duration;
   String parentType;
+  String baseModeId;
   bool isAdjusting;
-  num baseModeId;
-  num parentId;
+  String parentId;
   num position;
   String name;
   num number;
+  String id;
   num page;
-  num id;
 
   ModeParam saturation;
   ModeParam brightness;
@@ -42,7 +40,6 @@ class Mode {
   ModeParam hue;
 
   Mode({
-    this.startOffset,
     this.accessLevel,
     this.isAdjusting,
     this.saturation,
@@ -51,10 +48,8 @@ class Mode {
     this.parentType,
     this.parentId,
     this.position,
-    this.duration,
     this.density,
     this.number,
-    this.images,
     this.speed,
     this.page,
     this.name,
@@ -92,7 +87,7 @@ class Mode {
   }
 
   void assignAttributesFromCopy(copy) {
-    var json = copy.toMap();
+    var json = copy.toFullMap();
 
     saturation = ModeParam.fromModeMap(json, 'saturation');
     brightness = ModeParam.fromModeMap(json, 'brightness');
@@ -100,7 +95,6 @@ class Mode {
     speed = ModeParam.fromModeMap(json, 'speed');
     hue = ModeParam.fromModeMap(json, 'hue');
     baseModeId = json['base_mode_id'];
-    images = json['images'];
   }
 
   Future<Map<dynamic, dynamic>> updateFromCopy(copy) {
@@ -133,7 +127,7 @@ class Mode {
   }
 
   Mode dup() {
-    var attributes = toMap();
+    var attributes = toFullMap();
     attributes['id'] = null;
     return Mode.fromMap(attributes);
   }
@@ -168,12 +162,14 @@ class Mode {
     return baseMode.getValue(param);
   }
 
+  Map<String, BaseMode> _baseMode = {};
   BaseMode get baseMode {
-    return Preloader.baseModes.firstWhere((bm) {
-      return baseModeId.toString() == bm.id.toString();
-    }, orElse: () {
-      return BaseMode.basic();
-    });
+    return _baseMode[baseModeId] ??=
+      Preloader.baseModes.firstWhere((bm) {
+        return baseModeId == bm.id;
+      }, orElse: () {
+        return BaseMode.basic();
+      });
   }
 
   ModeParam getParam(param, {groupIndex, propIndex}) {
@@ -191,22 +187,38 @@ class Mode {
 
     if (name == currentBaseMode.name) name = baseMode.name;
     if (!hue.multiValueActive) hue.setValue(baseMode.hue);
-    images = baseMode.images;
     number = baseMode.number;
     page = baseMode.page;
     baseModeId = id;
   }
 
   Map<String, dynamic> toMap() {
+    return Map.from(toFullMap())..removeWhere((k, v) {
+      return ![
+        'is_adjusting',
+        'base_mode_id',
+        'parent_type',
+        'parent_id',
+        'position',
+        'id',
+
+        'saturation',
+        'brightness',
+        'density',
+        'speed',
+        'hue',
+      ].contains(k);
+    });
+  }
+
+  Map<String, dynamic> toFullMap() {
     return {
-      'duration': duration?.inMilliseconds,
       'access_level': accessLevel,
       'is_adjusting': isAdjusting,
       'base_mode_id': baseModeId,
       'parent_type': parentType,
       'parent_id': parentId,
       'position': position,
-      'images': images,
       'number': number,
       'page': page,
       'name': name,
@@ -221,7 +233,7 @@ class Mode {
   }
 
   ResourceObject toResource() {
-    return ResourceObject('mode', id.toString(), attributes: toMap());
+    return ResourceObject('mode', id.toString(), attributes: toFullMap());
   }
 
   void setModeOnParams() {
@@ -238,11 +250,9 @@ class Mode {
       hue: ModeParam.fromModeMap(json, 'hue'),
       baseModeId: json['base_mode_id'],
 
-      duration: Duration(milliseconds: json['duration']?.floor() ?? 0),
       accessLevel: json['access_level'],
       isAdjusting: json['is_adjusting'],
       parentType: json['parent_type'],
-      images: json['images'] ?? {},
       parentId: json['parent_id'],
       position: json['position'],
       number: json['number'],

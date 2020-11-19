@@ -1,3 +1,4 @@
+import 'package:app/models/timeline_element.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
@@ -92,6 +93,41 @@ class Client {
 
     if (response['success']) {
       response['shows'] = Show.fromList(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> removeTimelineElement(element) async {
+    var response = await makeRequest('delete',
+      path: '/timeline_elements/${element.id}',
+    );
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateTimelineElement(attributes) async {
+    var id = attributes.remove('id');
+    var response = await makeRequest('put',
+      path: '/timeline_elements/$id',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['timelineElement'] = TimelineElement.fromMap(response['body']);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> createTimelineElement(attributes) async {
+    var response = await makeRequest('post',
+      path: '/timeline_elements',
+      body: attributes,
+    );
+
+    if (response['success']) {
+      response['timelineElement'] = TimelineElement.fromMap(response['body']);
     }
 
     return response;
@@ -216,6 +252,7 @@ class Client {
   }
 
   static Future<Map<dynamic, dynamic>> removeMode(mode) async {
+    if (mode == null) return null; 
     var response = await makeRequest('delete',
       path: "/modes/${mode.id}"
     );

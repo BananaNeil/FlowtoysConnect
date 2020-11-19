@@ -1,9 +1,12 @@
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:percent_indicator/percent_indicator.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:quiver/iterables.dart' hide max, min;
 import 'package:flutter/foundation.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/song.dart';
 
 import 'dart:async';
 import 'dart:math';
@@ -20,13 +23,16 @@ class WaveformController {
 
   int samplesPerSecond = 44410;
   Duration startOffset = Duration();
+  Duration duration = Duration();
   List<num> data = [];
-  Duration duration;
 
   Duration get endOffset => startOffset + duration;
 
 
   factory WaveformController.open(path) {
+    if (path == null)
+      return WaveformController();
+
     var controller = WaveformController(path: path);
     controller.analyzeSong();
     return controller;
@@ -76,6 +82,8 @@ class Waveform extends StatefulWidget {
   Waveform({
     @required this.startOffset,
     @required this.controller,
+    @required this.song,
+
     this.visibleDuration,
     this.visibleBands,
     this.futureScale,
@@ -90,6 +98,7 @@ class Waveform extends StatefulWidget {
   final double visibleBands;
   final double scale;
   final Color color;
+  final Song song;
 
   @override
   State<Waveform> createState() => new _WaveformState();
@@ -105,6 +114,7 @@ class _WaveformState extends State<Waveform> {
   double get scale => widget.scale ?? 1;
 
   WaveformController get controller => widget.controller;
+  Song get song => widget.song;
 
   List<int> get data => controller.data;
   double get visibleBands => widget.visibleBands ?? 1200;
@@ -211,11 +221,36 @@ class _WaveformState extends State<Waveform> {
     super.initState();
   }
 
+  @override dispose() {
+    timer?.cancel();
+    super.dispose();
+  }
+
   double scaleWas; 
   double futureScaleWas; 
 
+  Timer timer;
+
   @override
   Widget build(BuildContext context) {
+    if (controller == null)
+      if (song == null)
+        return Container();
+      else if (!song.isPersisted)
+        return SpinKitCircle(color: color, size: 30);
+      else {
+        timer = Timer.periodic(Duration(milliseconds: 300), (_) => setState(() {}));
+        return Center(child: CircularPercentIndicator(
+          radius: 35.0,
+          lineWidth: 4.0,
+          percent: song.downloadProgress / 100,
+          center: Text("${song.downloadProgress}%", style: TextStyle(fontSize: 11)),
+          progressColor: color,
+        ));
+      }
+
+    timer?.cancel();
+
     if (visibleMiliseconds <= 0)
       return Container();
 
@@ -229,15 +264,26 @@ class _WaveformState extends State<Waveform> {
     scaleWas = scale;
 
     computeOrGetVisibleData();
-    return  Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: (visibleData ?? []).map((value) {
-        return _WaveformBand(value);
-      }).toList(),
+
+
+    
+    return LayoutBuilder(
+      builder: (context, BoxConstraints constraints) {
+        return CustomPaint(
+          size: Size(
+            constraints.maxWidth,
+            constraints.maxHeight,
+          ),
+          foregroundPainter: WaveformPainter(
+            (visibleData ?? []).map((value) => visibleValueFor(value)).toList(),
+            color: Color(0xff3994DB),
+          ),
+        );
+      }
     );
   }
 
-  Widget _WaveformBand(value) {
+  double visibleValueFor(value) {
     double ratio;
     double minRatio;
     double visibleMedianRatio;
@@ -265,16 +311,59 @@ class _WaveformState extends State<Waveform> {
 
 
     visibleValue = visibleValue.clamp(0.01, 0.9);
+    return visibleValue;
+  }
+}
 
-    return Expanded(
-      child: FractionallySizedBox(
-        heightFactor: visibleValue,
-        child: Container(
-          decoration: BoxDecoration(
-            color: widget.color ?? Colors.blue,
-          )
-        )
-      )
-    );
+
+
+
+class WaveformPainter extends CustomPainter {
+  final List<double> data;
+  final double strokeWidth;
+  final Color color;
+  Paint painter;
+
+  WaveformPainter(this.data,
+      {this.strokeWidth = 1.0, this.color = Colors.blue}) {
+    painter = Paint()
+      ..style = PaintingStyle.fill
+      ..color = color
+      ..strokeWidth = this.strokeWidth
+      ..isAntiAlias = true;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data == null) return;
+
+    canvas.drawPath(generatePath(size), painter);
+  }
+
+	Path generatePath(size) {
+    final middle = size.height / 2;
+    final width = size.width / data.length;
+
+    final path = Path();
+    path.moveTo(0, middle);
+
+    eachWithIndex(data, (index, sample) {
+      path.lineTo(width * index, middle - middle * sample);
+    });
+    path.lineTo(size.width, middle);
+    eachWithIndex(data.reversed, (index, sample) {
+      path.lineTo(size.width - (width * index), middle + middle * sample);
+    });
+    path.lineTo(0, middle);
+    path.close();
+    return path;
+	}
+
+  @override
+  bool shouldRepaint(WaveformPainter oldDelegate) {
+    if (oldDelegate.data != data) {
+      return true;
+    }
+    return false;
   }
 }
