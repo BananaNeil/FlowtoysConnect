@@ -1,4 +1,5 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/components/mode_widget.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/show.dart';
@@ -80,7 +81,9 @@ class _ShowsPageState extends State<ShowsPage> {
                           onTap: () {
                             Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true, 'selectAction': 'Create Show'}).then((modes) {
                               if (modes != null)
-                                Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes});
+                                Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes}).then((_) {
+                                  fetchShows();
+                                });
                             });
                           }
                         )
@@ -122,7 +125,15 @@ class _ShowsPageState extends State<ShowsPage> {
               'show': show,
             });
           },
-          title: Text(show.name ?? 'null'),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(show.name ?? 'null'),
+              Text(show.durationString, style: TextStyle(
+                fontSize: 13,
+              )),
+            ]
+          )
         )
       );
     }).toList();

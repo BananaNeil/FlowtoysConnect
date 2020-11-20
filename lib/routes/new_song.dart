@@ -13,6 +13,7 @@ import 'package:app/models/show.dart';
 import 'package:app/models/mode.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 
 class NewSong extends StatelessWidget {
   @override
@@ -71,15 +72,21 @@ class _NewSongPageState extends State<NewSongPage> {
       'part': 'snippet,contentDetails',
       'id': id,
     });
-    return http.get(url, headers: {"Accept": "application/json"}).then((res) {
-      var jsonData = json.decode(res.body);
-      if (jsonData == null) return [];
-      return jsonData['items'].map<YT_API>((item) {
-        var video = YT_API(item, getTrendingVideo: true);
-        video.duration = getDuration(YT_VIDEO(item).duration);
-        return video;
-      }).toList();
-    });
+    try {
+      return http.get(url, headers: {"Accept": "application/json"}).timeout(Duration(seconds: 14),
+        onTimeout: () {
+        }).then((res) {
+        var jsonData = json.decode(res.body);
+        if (jsonData == null) return [];
+        return jsonData['items'].map<YT_API>((item) {
+          var video = YT_API(item, getTrendingVideo: true);
+          video.duration = getDuration(YT_VIDEO(item).duration);
+          return video;
+        }).toList();
+      });
+    } on TimeoutException catch (_) {
+    } on SocketException catch (_) {
+    }
   }
 
   @override
@@ -113,7 +120,7 @@ class _NewSongPageState extends State<NewSongPage> {
               ),
               Container(
                 margin: EdgeInsets.only(top: 50, bottom: 10),
-                child: Text("Download audio from YouTube:",
+                child: Text("Search the web for a song",
                   style: TextStyle(
                     fontSize: 22,
                   )
@@ -123,7 +130,7 @@ class _NewSongPageState extends State<NewSongPage> {
                 padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
                 child: TextFormField(
                   decoration: InputDecoration(
-                    labelText: 'Search YouTube or paste a video url',
+                    labelText: 'Search any artist, song, or paste a youtube url',
                   ),
                   onChanged: (text) {
                     updateSearchTimer?.cancel();

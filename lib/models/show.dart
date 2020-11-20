@@ -22,6 +22,8 @@ class Show {
     this.timelineElements,
   });
 
+  List<TimelineElement> get audioElements => songElements;
+
   List<TimelineElement> get songElements => timelineElements.where((element) {
     return element.timelineType == 'audio';
   }).toList()..sort((a, b) => a.position.compareTo(b.position));
@@ -63,6 +65,8 @@ class Show {
 
   List<String> get songIds => songElements.map((element) => element.objectId).toList();
   List<String> get modeIds => modeElements.map((element) => element.objectId).toList();
+
+  String get durationString => twoDigitString(duration);
 
   Duration get duration {
     if (songElements.length == 0 && modeElements.length == 0) return Duration(minutes: 1);

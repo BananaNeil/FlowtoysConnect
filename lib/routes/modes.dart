@@ -540,20 +540,21 @@ class _ModesPageState extends State<ModesPage> {
               )
             ),
             Container(
-                height: 30,
-                width: 30,
-                padding: EdgeInsets.only(top: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black,
-                ),
-                child: Text(icons[paramName],
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Colors.white,
-                    fontFamily: 'MaterialIcons',
-                    fontSize: 22,
-                  )
+              height: 30,
+              width: 30,
+              padding: EdgeInsets.only(top: 4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black,
+              ),
+              child: Text(icons[paramName],
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: Colors.white,
+                  fontFamily: 'MaterialIcons',
+                  fontSize: 22,
+                )
+              )
             )
           ]
         );

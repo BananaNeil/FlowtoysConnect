@@ -61,7 +61,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   bool isPlaying = false;
 
-  Duration duration = Duration(milliseconds: 1);
+  Duration duration;
   int get lengthInMiliseconds => duration.inMilliseconds;
   Duration get visibleDuration => duration * (1 / scale);
   Duration get futureVisibleDuration => duration * (1 / futureScale);
@@ -85,7 +85,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   double get milisecondsPerPixel => visibleMiliseconds / containerWidth;
 
   bool modesLoaded = false;
-  bool loading = true;
+  bool loading = false;
 
 
   double timelineGestureStartPointX;
@@ -148,11 +148,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     });
 
 
-
-    if (!loading)
+    if (duration != null)
       scale *= show.duration.inMilliseconds / duration.inMilliseconds;
     duration = show.duration;
-    scale = max(1, scale);
+    scale = scale.clamp(1, maxScale);
     futureScale = scale;
     setScrollBarWidth();
     setAnimationControllers();

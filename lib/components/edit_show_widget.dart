@@ -32,14 +32,22 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Map<String, WaveformController> waveforms = {};
 
 
+  String bpmError;
+  bool useBPM = false;
   double modeDurationInput = 0.1;
   double get acceleratedModeDurationInput => pow(modeDurationInput, 2);
+  int get chosenBeatsPerMode => max(1, (modeDurationInput * 20).floor());
   double get modeDurationRatio => (acceleratedModeDurationInput * (1 - minModeDurationRatio)) + minModeDurationRatio;
 
   Duration get minModeDuration => Duration(milliseconds: 500);
   double get minModeDurationRatio => (minModeDuration.inMicroseconds / show.duration.inMicroseconds);
 
-  Duration get modeDuration => Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
+  Duration get modeDuration {
+    if (!useBPM) return Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
+
+    var bpm = show.audioElements.first.object.bpm;
+    return Duration(milliseconds: (1000 * chosenBeatsPerMode / (bpm / 60)).floor());
+  }
   int get totalModeCount => (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
   Duration get lastModeDuration => Duration(microseconds: show.duration.inMicroseconds - ((totalModeCount-1) * modeDuration.inMicroseconds));
 
@@ -77,8 +85,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
         if (response['success'] && response['song'].status == 'failed')
           song.status = 'failed';
         else {
-          song.id = response['song'].id;
-          song.filePath = response['song'].filePath;
+          song.assignAttributesFromCopy(response['song']);
           element.save().then((response) {
             element = response['timelineElement'] ?? element;
             setState(() {});
@@ -105,6 +112,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (show.audioElements.isNotEmpty) bpmError = null;
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Center(
@@ -154,31 +162,71 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               )
             ),
             show.isPersisted ? Container() : Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                    margin: EdgeInsets.only(left: 20, top: 20),
-                  child: Text("Initial Mode Duration",
+                  margin: EdgeInsets.only(left: 20, top: 20, bottom: 5),
+                  child: Text("Generate Mode Sequence:",
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Color(0xFFBBBBBB),
-                      fontSize: 13,
+                      fontSize: 15,
                     ),
                   )
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Slider(
-                        value: modeDurationInput,
-                        onChanged: (value){
-                          setState(() {
-                            modeDurationInput = value;
-                          });
-                        }
-                      )
-                    ),
-                    Text(twoDigitString(modeDuration, includeMilliseconds: true), style: TextStyle(fontSize: 13)),
-                  ]
+                Visibility(
+                  visible: bpmError != null,
+                  child: Text(bpmError ?? "", style: TextStyle(color: Colors.red)),
+                ),
+                Container(
+                  margin: EdgeInsets.only(top: 5),
+                  decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+                  child: ToggleButtons(
+                    isSelected: [!useBPM, useBPM],
+                    onPressed: (int index) {
+                      if (index == 1 && show.audioElements.isEmpty)
+                        return setState(() => bpmError = "You must add an audio element to use BPM matching.");
+                      bpmError = null;
+                      useBPM = !useBPM;
+                      setState(() {});
+                    },
+                    children: [
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("By Duration"),
+                      ),
+                      Container(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("Match Audio BPM"),
+                      ),
+                    ]
+                  ),
+                ),
+                Align(
+                  alignment: FractionalOffset.topLeft,
+                  child: Container(
+                    margin: EdgeInsets.only(left: 20, top: 20),
+                    child: Text(
+                        useBPM ? "Change Mode Every ${chosenBeatsPerMode} Beats" :
+                        "Mode Durartion ${twoDigitString(modeDuration, includeMilliseconds: true)}",
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: Color(0xFFBBBBBB),
+                        fontSize: 13,
+                      ),
+                    )
+                  ),
+                ),
+                Align(
+                  alignment: FractionalOffset.topLeft,
+                  child: Slider(
+                    value: modeDurationInput,
+                    onChanged: (value){
+                      setState(() {
+                        modeDurationInput = value;
+                      });
+                    }
+                  )
                 ),
               ]
             ),
@@ -326,11 +374,16 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             Container(
               margin: EdgeInsets.only(right: 10, top: 2, bottom: 2),
               child: Column(
-                children: element.object.thumbnailUrl == null ? [] : [
+                children: [
                   Container(
                     height: 40,
+                    width: 70,
                     margin: EdgeInsets.only(bottom: 2),
-                    child: Image.network(element.object.thumbnailUrl),
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                    ),
+                    child: element.object?.thumbnailUrl == null ? null :
+                      Image.network(element.object?.thumbnailUrl),
                   ),
                 ]
               )
@@ -341,10 +394,17 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 children: [
                   Container(
                     margin: EdgeInsets.only(bottom: 2),
-                    child: Text(element.object.name, style: TextStyle(fontSize: 14))
+                    child: Text(element.object?.name ?? "Empty Space", style: TextStyle(fontSize: 14))
                   ),
-                  element.object.status == 'failed' ? Text("Failed! Something went wrong...", style: TextStyle(color: Colors.red, fontSize: 14))
-                  : Text(element.object.durationString, style: TextStyle(fontSize: 11)),
+                  element.object?.status == 'failed' ? Text("Failed! Something went wrong...", style: TextStyle(color: Colors.red, fontSize: 14))
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(element.durationString, style: TextStyle(fontSize: 11)),
+                        element.object?.bpm == null ? Container() :
+                          Text("${element.object.bpm.round()} BPM", style: TextStyle(fontSize: 11)),
+                      ]
+                  )
                 ]
               )
             )

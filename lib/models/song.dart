@@ -20,7 +20,6 @@ class Song {
   String youtubeUrl;
   String filePath;
   String status;
-  int position;
   String name;
   double bpm;
   String id;
@@ -31,13 +30,20 @@ class Song {
     this.name,
     this.status,
     this.filePath,
-    this.position,
     this.duration,
     this.youtubeUrl,
     this.thumbnailUrl,
   });
 
-  void assignAttributes(attributes) {
+  void assignAttributesFromCopy(copy) {
+    var attributes = copy.toMap();
+
+    id = attributes['id'];
+    bpm = attributes['bpm'];
+    name = attributes['name'];
+    status = attributes['status'];
+    filePath = attributes['file_path'];
+    thumbnailUrl = attributes['thumbnail_url'];
   }
 
   String get fileUrl {
@@ -92,13 +98,16 @@ class Song {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'bpm': bpm,
       'name': name,
-      'position': position,
+      'file_path': filePath,
       'youtube_url': youtubeUrl,
       'thumbnail_url': thumbnailUrl,
       'duration': duration.inMilliseconds,
     };
   }
+
+
 
   factory Song.fromResource(Resource resource, {included}) {
     return Song(
@@ -106,7 +115,6 @@ class Song {
       bpm: resource.attributes['bpm'],
       name: resource.attributes['name'],
       status: resource.attributes['status'],
-      position: resource.attributes['position'],
       filePath: resource.attributes['file_path'],
       thumbnailUrl: resource.attributes['thumbnail_url'],
       duration: Duration(milliseconds: resource.attributes['duration']),
@@ -119,7 +127,6 @@ class Song {
       bpm: json['bpm'],
       name: json['name'],
       status: json['status'],
-      position: json['position'],
       filePath: json['file_path'],
       thumbnailUrl: json['thumbnail_url'],
       duration: Duration(milliseconds: json['duration'] ?? 0),

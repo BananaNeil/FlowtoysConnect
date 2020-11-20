@@ -182,39 +182,42 @@ class _WaveformState extends State<Waveform> {
 
   void normalizeLocalData() {
     if (scale < 2) return;
-    var minimum = 1000000000;
-    var maximum = 0;
-    var sum = 0;
-    nearVisibleData.forEach((value) {
-      sum += value;
-      if (value < minimum)
-        minimum = value;
-      if (value > maximum)
-        maximum = value;
+    var data = analyzeData(nearVisibleData);
+
+    localMinValue = data['min'];
+    localMaxValue = data['max'];
+    localMedianValue = data['median'];
+  }
+
+  Map<String, int> analyzeData(dataSet, {minThreshold = 5, numOfOutliers = 10}) {
+    var minValues = [];
+    var maxValues = [];
+    dataSet.forEach((value) {
+      if (minValues.length < numOfOutliers || minValues.last >= value && value > minThreshold) { 
+        minValues.insert(0, value);
+        minValues.sort();
+        minValues = minValues.sublist(0, min(minValues.length, numOfOutliers));
+      }
+      if (maxValues.length < numOfOutliers || maxValues.last <= value) {
+        maxValues.insert(0, value);
+        maxValues.sort();
+        maxValues = maxValues.reversed.toList().sublist(0, min(maxValues.length, numOfOutliers));
+      }
     });
 
-    localMinValue = minimum.clamp(1, 1000000000);
-    localMaxValue = maximum.clamp(1, 1000000000);
-    if (nearVisibleData.length > 0)
-      localMedianValue = nearVisibleData[(nearVisibleData.length / 2).toInt()];
+    return {
+      'min': (minValues.isEmpty ? 1 : max(1, minValues.last)),
+      'max': (maxValues.isEmpty ? 1 : max(1, maxValues.last)),
+      'median': dataSet.isEmpty ? 1 : dataSet[(dataSet.length / 2).toInt()],
+    };
   }
 
   void normalizeData() {
-    var minimum = 1000000000;
-    var maximum = 0;
-    var sum = 0;
-    scaledData.forEach((value) {
-      sum += value;
-      if (value < minimum)
-        minimum = value;
-      if (value > maximum)
-        maximum = value;
-    });
+    var data = analyzeData(scaledData);
 
-    globalMinValue = minimum.clamp(1, 1000000000);
-    globalMaxValue = maximum.clamp(1, 1000000000);
-    if (scaledData.length > 0)
-      globalMedianValue = scaledData[(scaledData.length / 2).toInt()];
+    globalMinValue = data['min'];
+    globalMaxValue = data['max'];
+    globalMedianValue = data['median'];
   }
 
   @override initState() {
@@ -269,13 +272,46 @@ class _WaveformState extends State<Waveform> {
     
     return LayoutBuilder(
       builder: (context, BoxConstraints constraints) {
+
+        double ratio;
+        double minRatio;
+        double visibleValue;
+        double visibleMedianRatio;
+        double visibleMinRatio;
+        double maxRatio = 1;
+
+
+
+        if (scale >= 2) {
+          minRatio = localMinValue / localMaxValue.toDouble();
+          visibleMedianRatio = localMedianValue / localMaxValue.toDouble();
+        } else {
+          minRatio = globalMinValue / globalMaxValue.toDouble();
+          visibleMedianRatio = globalMedianValue / globalMaxValue.toDouble();
+        }
+
+        visibleMinRatio = max(0.01, minRatio);
+
+        print("MAX: ${maxRatio} .... MIN: ${visibleMinRatio} ... MED: ${visibleMedianRatio}");
         return CustomPaint(
           size: Size(
             constraints.maxWidth,
             constraints.maxHeight,
           ),
           foregroundPainter: WaveformPainter(
-            (visibleData ?? []).map((value) => visibleValueFor(value)).toList(),
+            (visibleData ?? []).map<double>((value) {
+              if (scale >= 2)
+                ratio = value / localMaxValue.toDouble();
+              else ratio = value / globalMaxValue.toDouble();
+
+              ratio = max(ratio, visibleMinRatio);
+              visibleValue = ((ratio - visibleMinRatio) / (maxRatio - visibleMinRatio));
+
+              if (scale < 100)
+                visibleValue = pow(visibleValue,  min(pow(visibleMedianRatio / visibleMinRatio, 0.8), 2));
+
+              return visibleValue.clamp(0.01, 0.9);
+            }).toList(),
             color: Color(0xff3994DB),
           ),
         );
@@ -283,36 +319,6 @@ class _WaveformState extends State<Waveform> {
     );
   }
 
-  double visibleValueFor(value) {
-    double ratio;
-    double minRatio;
-    double visibleMedianRatio;
-
-
-    if (scale >= 2) {
-      ratio = value / localMaxValue.toDouble();
-      minRatio = localMinValue / localMaxValue.toDouble();
-      visibleMedianRatio = localMedianValue / localMaxValue.toDouble();
-    } else {
-      ratio = value / globalMaxValue.toDouble();
-      minRatio = globalMinValue / globalMaxValue.toDouble();
-      visibleMedianRatio = globalMedianValue / globalMaxValue.toDouble();
-    }
-
-    double visibleMinRatio = max(0.01, minRatio);
-    double maxRatio = 1;
-
-    ratio = max(ratio, visibleMinRatio);
-    double visibleValue = ((ratio - visibleMinRatio) / (maxRatio - visibleMinRatio));
-
-
-    if (scale < 100)
-      visibleValue = pow(visibleValue,  min(pow(visibleMedianRatio / visibleMinRatio, 0.8), 15));
-
-
-    visibleValue = visibleValue.clamp(0.01, 0.9);
-    return visibleValue;
-  }
 }
 
 
@@ -324,13 +330,12 @@ class WaveformPainter extends CustomPainter {
   final Color color;
   Paint painter;
 
-  WaveformPainter(this.data,
-      {this.strokeWidth = 1.0, this.color = Colors.blue}) {
+  WaveformPainter(this.data, {this.strokeWidth = 1.0, this.color = Colors.blue}) {
     painter = Paint()
-      ..style = PaintingStyle.fill
       ..color = color
-      ..strokeWidth = this.strokeWidth
-      ..isAntiAlias = true;
+      ..isAntiAlias = true
+      ..style = PaintingStyle.fill
+      ..strokeWidth = this.strokeWidth;
   }
 
   @override

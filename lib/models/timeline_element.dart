@@ -1,3 +1,4 @@
+import 'package:app/helpers/duration_helper.dart';
 import 'package:app/models/mode_param.dart';
 // import 'package:app/models/base_mode.dart';
 // import 'package:app/app_controller.dart';
@@ -36,6 +37,7 @@ class TimelineElement {
 
   Duration get endOffset => startOffset + duration;
   Duration get midPoint => startOffset + (duration * 0.5);
+  String get durationString => twoDigitString(duration);
 
   String get objectId => object?.id;
   String get objectType => object?.runtimeType.toString();
