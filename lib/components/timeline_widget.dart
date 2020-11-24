@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:flutter/physics.dart';
 import 'package:app/models/show.dart';
@@ -55,8 +56,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }).expand((e) => e).toList();
 
 
-  double scale = 1;
-  double futureScale = 1;
+  double scale;
+  double futureScale;
   double get maxScale => max(1, duration.inSeconds / 5);
 
   bool isPlaying = false;
@@ -92,6 +93,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
 
   Map<TimelineElement, WaveformController> waveforms = {};
+  // List<Duration> get songDurations => waveforms.map((song) => song.duration).toList();
 
   Duration get windowStart => Duration(milliseconds: startOffset.value.toInt());
   Duration get windowEnd => windowStart + Duration(milliseconds: visibleMiliseconds.toInt());
@@ -141,6 +143,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   void loadModes({force}) {
     if (modesLoaded && force != true) return;
     modesLoaded = true;
+    show.reloadModeElements();
     Duration offset = Duration();
     show.modeElements.forEach((element) {
       element.startOffset = Duration() + offset;
@@ -150,37 +153,56 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
     if (duration != null)
       scale *= show.duration.inMilliseconds / duration.inMilliseconds;
+
     duration = show.duration;
+    scale = show.modeElements.length / 12.0;
     scale = scale.clamp(1, maxScale);
     futureScale = scale;
     setScrollBarWidth();
     setAnimationControllers();
 
     // timelineControllers = timelineControllers.isNotEmpty ? timelineControllers : [
-    modeTimelineControllers =  [
-      TimelineTrackController(
-        onSelectionUpdate: (() => setState(() {})),
-        selectMultiple: selectMultiple,
-        elements: show.modeElements,
-      )
-    ];
+    if (show.editMode == 'global')
+      modeTimelineControllers = [
+        TimelineTrackController(
+          onSelectionUpdate: (() => setState(() {})),
+          selectMultiple: selectMultiple,
+          elements: show.modeElements,
+        )
+      ];
+    else if (show.editMode == 'groups')
+      modeTimelineControllers = mapWithIndex(Group.currentGroups, (index, group) {
+        return TimelineTrackController(
+          elements: show.modeElementsFor(groupIndex: index),
+          onSelectionUpdate: (() => setState(() {})),
+          selectMultiple: selectMultiple,
+        );
+      }).toList();
+    else if (show.editMode == 'props')
+      modeTimelineControllers = mapWithIndex(Group.currentProps, (index, prop) {
+        return TimelineTrackController(
+          elements: show.modeElementsFor(propIndex: prop.index, groupIndex: prop.groupIndex),
+          onSelectionUpdate: (() => setState(() {})),
+          selectMultiple: selectMultiple,
+        );
+      }).toList();
 
   }
 
   void loadPlayers() {
     var waveformLengthWas = waveforms.keys.length;
     List.from(waveforms.keys).forEach((element) {
-      if (!show.songElements.contains(element))
+      if (!show.audioElements.contains(element))
         waveforms.remove(element);
     });
 
     if (waveformLengthWas == waveforms.keys.length)
-      if (waveforms.keys.length == show.songElements.length)
-        return;
+      if (waveforms.keys.length == show.audioElements.length)
+        return setState(() => loading = false);
 
-    waveformTimelineController.elements = show.songElements;
+    waveformTimelineController.elements = show.audioElements;
     var offset = Duration();
-    show.songElements.forEach((element) {
+    show.audioElements.forEach((element) {
       element.startOffset = Duration() + offset;
       offset += element.duration;
     });
@@ -188,13 +210,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     loadAudioPlayers().then((_) {
       var lengthInMiliseconds = 0.1;
       var index = 0;
-      mapWithIndex(show.songElements, (index, element) {
+      mapWithIndex(show.audioElements, (index, element) {
         waveforms[element].startOffset = element.startOffset;
       });
       waveformTimelineController = TimelineTrackController(
         onSelectionUpdate: (() => setState(() {})),
         selectMultiple: selectMultiple,
-        elements: show.songElements,
+        elements: show.audioElements,
       );
       setState(() {
         reloadModes();
@@ -208,13 +230,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return show.downloadSongs().then((_) {
       print("Okay, done downloading files... ");
       setState(() {
-        show.songElements.forEach((element) => waveforms[element] = WaveformController.open(element.object?.localPath));
+        show.audioElements.forEach((element) => waveforms[element] = WaveformController.open(element.object?.localPath));
         loading = false;
       });
 
       audioPlayers = {};
       AssetsAudioPlayer player;
-      return Future.wait(show.songElements.map((element) {
+      return Future.wait(show.audioElements.map((element) {
         player = AssetsAudioPlayer.newPlayer();
         audioPlayers[element] = player;
         if (element.object == null)
@@ -268,6 +290,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }
 
   void updatePlayIndicatorAnimation() {
+    if (currentAudioElement.object != null)
+      currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
+
     if (isPlaying) {
       currentPlayer.play();
       playOffset.animateTo(lengthInMiliseconds.toDouble(),
@@ -277,6 +302,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       audioPlayers.values.forEach((player) => player.pause());
       playOffset.stop();
     }
+
+    setState((){});
   }
 
   void removeSelected({growFrom, replaceWithBlack}) {
@@ -299,6 +326,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           if (index > 0)
             sibling = controller.elements[index - 1];
           else replaceWithBlack = true;
+        // else sibling = show.modes.last;
 
         setState(() {
           if (replaceWithBlack == true) {
@@ -328,7 +356,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     loadPlayers();
     loadModes();
 
-
+    show.editMode ??= 'global';
     return Center(
       child: Container(
         padding: EdgeInsets.only(bottom: 10),
@@ -392,9 +420,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   playOffset.value += offsetValue;
 
                   audioPlayers.values.forEach((player) => player.pause());
-                  if (currentAudioElement.object != null)
-                    currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
-                  // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
+                  setState((){});
                 },
                 onPanEnd: (details) {
                   updatePlayIndicatorAnimation();
@@ -450,15 +476,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       onPanStart: (details) {
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         audioPlayers.values.forEach((player) => player.pause());
-        if (currentAudioElement.object != null)
-          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
       },
       onPanUpdate: (details) {
+        // Attempt to animate it:
+        // var moveTo = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        // Tween<double>(begin: 0, end: moveTo).animate(playOffset);
+
         playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         audioPlayers.values.forEach((player) => player.pause());
-        if (currentAudioElement.object != null)
-          currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
-        // audioPlayer.currentPosition.value = Duration(milliseconds: playOffset.value.toInt());
+        setState((){});
       },
       onPanEnd: (details) {
         updatePlayIndicatorAnimation();
@@ -545,7 +571,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           windowStart: windowStart,
         );
         return Container(
-          height: 150,
+          height: show.editMode == 'global' ? 100 : (show.editMode == 'groups' ? 80 : 40),
           padding: EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
              color: Color(0xFF555555),
@@ -584,10 +610,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   void _stretchSelectedModes(stretchedValue, {overwrite, insertBlack, growFrom}) {
     timelineControllers.forEach((controller) {
       List<int> selectedIndexes = controller.selectedElementIndexes;
+      // List<Mode> selectedModes = controller.selectedObjects.map<Mode>((object) {
+      //   return object;
+      // }).toList();
       Duration selectedDuration = controller.selectedDuration;
       Duration newDuration = selectedDuration * stretchedValue;
       var durationDifference = newDuration - selectedDuration;
       if (insertBlack == 'right') {
+        // I don't think this is a thing anymore:
         var blackMode = controller.selectedElements.last.dup();
         blackMode.duration = durationDifference * -1;
         blackMode.object.setAsBlack();
@@ -595,6 +625,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         blackMode.save();
         show.timelineElements.add(blackMode);
       } else if (insertBlack == 'left') {
+        // I don't think this is a thing anymore:
         var blackMode = controller.selectedElements.first.dup();
         blackMode.duration = durationDifference * -1;
         blackMode.object.setAsBlack();
@@ -630,6 +661,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             Client.removeTimelineElement(element);
             show.timelineElements.remove(element);
           } else if (element.startOffset < newEnd) {
+            print("REDUCE DURATION(((((((((((((((");
             element.duration -= newEnd - element.startOffset;
             element.save();
           }
@@ -650,6 +682,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   void _afterStretch(side, value) {
     // if (stretchedValue == 0) return _afterDelete();
+    print("After Stretch ${side} - ${value}");
 
     if (slideModesWhenStretching)
       _stretchSelectedModes(value);
@@ -668,25 +701,27 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         'text': 'Replace with empty space',
         'color': Colors.white,
         'onPressed': () {
-          removeSelected(replaceWithBlack: true);
+          removeSelected(replaceWithBlack: true); 
         },
+                            // This logic needs to be re-written for controllers
       }, oneModeSelected && selectedModes == [show.modeElements.last] ? null : {
         'text': 'Expand from the right',
         'color': Colors.white,
         'onPressed': () {
-          removeSelected(growFrom: 'right');
+          removeSelected(growFrom: 'right'); 
         },
+                            // This logic needs to be re-written for controllers
       }, oneModeSelected && selectedModes == [show.modeElements.first] ? null : {
         'text': 'Expand from the left',
         'color': Colors.white,
         'onPressed': () {
-          removeSelected(growFrom: 'left');
+          removeSelected(growFrom: 'left'); 
         },
       }, {
         'text': 'Slide everything left',
         'color': Colors.red,
         'onPressed': () {
-          removeSelected();
+          removeSelected(); 
         },
       }]
     );
@@ -706,7 +741,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
 
     return Container(
-      height: 150,
+      height: 100,
       child: waveformTimelineController == null ? SpinKitCircle(color: Colors.blue) : SizedBox.expand(
         child: FractionallySizedBox(
           alignment: timelineContainsEnd && !timelineContainsStart ? FractionalOffset.centerRight : FractionalOffset.centerLeft,
@@ -732,10 +767,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 scale: scale * (element.duration.inMilliseconds / lengthInMiliseconds),
                 futureScale: futureScale * (element.duration.inMilliseconds / lengthInMiliseconds),
                 visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
-                color: [Colors.blue, Colors.red][waveforms.keys.toList().indexOf(element) % 2],
+                color: [Colors.red, Colors.red][waveforms.keys.toList().indexOf(element) % 2],
               );
             },
             onStretchUpdate: (side, value) {
+              // _afterStretch(side, value);
             }
           )
         )
@@ -819,6 +855,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }
 
   Widget _ScaleSlider() {
+    print("MAX SCALE: ${scale} : ${maxScale}");
     return Container(
       width: 150,
       decoration: BoxDecoration(
@@ -859,226 +896,429 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   Widget _Controls() {
     return Expanded(
-      child: Column(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        Visibility(
-          visible: timelineControllers.any((controller) => !controller.allElementsSelected),
-          child: Row(
+      child: Wrap(
+        // mainAxisAlignment: MainAxisAlignment.spaceAround,
+        // crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    timelineControllers.forEach((controller) => controller.selectAll());
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.all(2),
-                  child: Text("Select All"),
-                )
-              ),
-              GestureDetector(
-                onTap: () {
-                  AppController.openDialog("Select All", "",
-                    buttons: [{
-                      'text': 'After Playhead',
-                      'color': Colors.white,
-                      'onPressed': () {
-                        timelineControllers.forEach((controller) {
-                          controller.selectAll(after: playOffsetDuration);
-                        });
-                      },
-                    }, {
-                      'text': 'Before Playhead',
-                      'color': Colors.white,
-                      'onPressed': () {
-                        timelineControllers.forEach((controller) {
-                          controller.selectAll(before: playOffsetDuration);
-                        });
-                      },
-                    }]
-                  );
-                },
-                child: Container(
-                   padding: EdgeInsets.all(2),
-                   child: Icon(Icons.arrow_drop_down),
-                 )
-               )
+              _SelectAll(),
+              Container(width: 10),
+              _DeselectAll(),
             ]
-          )
-        ),
-        Visibility(
-          visible: selectedElements.isNotEmpty,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    timelineControllers.forEach((controller) => controller.deselectAll());
-                  });
-                },
-                child: Container(
-                  padding: EdgeInsets.all(2),
-                  child: Text("Deselect All"),
-                )
-              ),
-              GestureDetector(
-                onTap: () {
-                  AppController.openDialog("Deselect All", "",
-                    buttons: [{
-                      'text': 'After Playhead',
-                      'color': Colors.white,
-                      'onPressed': () {
-                        timelineControllers.forEach((controller) {
-                          controller.deselectAll(after: playOffsetDuration);
-                        });
-                      },
-                    }, {
-                      'text': 'Before Playhead',
-                      'color': Colors.white,
-                      'onPressed': () {
-                        timelineControllers.forEach((controller) {
-                          controller.deselectAll(before: playOffsetDuration);
-                        });
-                      },
-                    }]
-                  );
-                },
-                child: Container(
-                   padding: EdgeInsets.all(2),
-                   child: Icon(Icons.arrow_drop_down),
-                 )
-               )
-            ]
-          )
-        ),
-        GestureDetector(
-          onTap: () {
-            setState(() => slideModesWhenStretching = !slideModesWhenStretching);
-          },
-          child: Container(
-            padding: EdgeInsets.all(2),
-            child: Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Text("Push Mode "),
-                 Icon(slideModesWhenStretching ? Icons.check_circle : Icons.circle, size: 16),
-               ]
-             )
-           )
-        ),
-        GestureDetector(
-          onTap: () {
-            setState(() => showModeImages = !showModeImages);
-          },
-          child: Container(
-            padding: EdgeInsets.all(2),
-            child: Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Text("Show Mode Images "),
-                 Icon(showModeImages ? Icons.check_circle : Icons.circle, size: 16),
-               ]
-             )
-           )
-        ),
-        GestureDetector(
-          onTap: () {
-            timelineControllers.forEach((controller) {
-              if (controller.selectedElements.isNotEmpty)
-                controller.selectedElements = [controller.selectedElements.last];
-            });
-            setState(() => selectMultiple = !selectMultiple);
-            setState(() => timelineControllers.forEach((controller) => controller.toggleSelectMultiple()));
-          },
-          child: Container(
-            padding: EdgeInsets.all(2),
-            child: Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 Text("Select Multiple "),
-                 Icon(selectMultiple ? Icons.check_circle : Icons.circle, size: 16),
-               ]
-             )
-           )
-        ),
-        GestureDetector(
-          onTap: () {
-            timelineControllers.forEach((controller) {
-              var current = controller.elementAtTime(playOffsetDuration);
-              if (current.startOffset == playOffsetDuration) return;
-              var index = controller.elements.indexOf(current);
-              var newElement = current.dup();
-
-              controller.elements.sublist(index+1).forEach((element) => element.position += 1);
-
-              newElement.position += 1;
-              newElement.startOffset = playOffsetDuration;
-              newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
-              current.duration -= newElement.duration;
-              show.timelineElements.add(newElement);
-              newElement.save();
-              current.save();
-            });
-            reloadModes();
-            timelineControllers.forEach((controller) {
-              controller.deselectAll();
-              controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
-            });
-          },
-          child: Container(
-            padding: EdgeInsets.all(2),
-             child: Text("Split at playhead"),
-           )
-        ),
-        Visibility(
-          visible: selectedElements.isNotEmpty,
-          child: GestureDetector(
-            onTap: () {
-              _afterDelete();
-            },
-            child: Container(
-              padding: EdgeInsets.all(2),
-                child: Text("Delete (${selectedElements.length})"),
-             )
           ),
-        ),
-        Visibility(
-          visible: modeTimelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
-          child: GestureDetector(
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _EditModeControls(),
+            ]
+          ),
+          Container(
+            margin: EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _PushModeButtons(),
+                _MultiSelectButtons(),
+              ]
+            ),
+          ),
+          // GestureDetector(
+          //   onTap: () {
+          //     setState(() => showModeImages = !showModeImages);
+          //   },
+          //   child: Container(
+          //     padding: EdgeInsets.all(2),
+          //     child: Row(
+          //        mainAxisAlignment: MainAxisAlignment.center,
+          //        children: [
+          //          Text("Show Mode Images "),
+          //          Icon(showModeImages ? Icons.check_circle : Icons.circle, size: 16),
+          //        ]
+          //      )
+          //    )
+          // ),
+          Container(
+            margin: EdgeInsets.only(bottom: 5),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _SplitAtPlayHead(),
+                _DeleteButton(),
+                _EditButton(),
+              ]
+            ),
+          ),
+          _PlayHeadTimestamp(),
+        ]
+      )
+    );
+  }
+
+  Widget _PlayHeadTimestamp() {
+    return Container(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
             onTap: () {
-              var replacement = selectedElements.first.object.dup();
-              Navigator.pushNamed(context, "/modes/${replacement.id}",
-                arguments: {
-                  'mode': replacement,
-                  'autoUpdate': false,
-                  'saveMessage': oneModeSelected ? "SAVE" : "REPLACE (${selectedElements.length})"
-                }
-              ).then((saved) {
-                if (saved == true) {
-                  selectedElements.forEach((element) {
-                    element.object.updateFromCopy(replacement);
-                  });
-                }
+              playOffset.value = 0.0;
+              currentPlayer.pause();
+              updatePlayIndicatorAnimation();
+            },
+            child: Icon(Icons.skip_previous, size: 24),
+          ),
+          Container(
+            margin: EdgeInsets.all(5),
+            child: GestureDetector(
+              onTap: () {
+                setState(() => isPlaying = !isPlaying);
+                updatePlayIndicatorAnimation();
+              },
+              child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 24)
+            )
+          ),
+
+          AnimatedBuilder(
+            animation: playOffset,
+            builder: (ctx, w) {
+              var timestamp = twoDigitString(playOffsetDuration, includeMilliseconds: true);
+              var leadingZeros = timestamp.replaceAll(RegExp(r'[1-9].*$'), '');
+              timestamp = timestamp.replaceAll(RegExp(r'^[0:]+'), '');
+
+              return Row(
+                children: [
+                  Text(leadingZeros,
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 30,
+                    )
+                  ),
+                  Text(timestamp,
+                    style: TextStyle(
+                      fontSize: 30,
+                    )
+                  ),
+                ]
+              );
+            }
+          )
+        ]
+      )
+    );
+  }
+  Widget _MultiSelectButtons() {
+    return Container(
+      padding: EdgeInsets.all(2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(child: Text("Multi-Select"), margin: EdgeInsets.only(bottom: 6)),
+          // Icon(slideModesWhenStretching ? Icons.check_circle : Icons.circle, size: 16),
+          Container(
+            decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+            child: ToggleButtons(
+              isSelected: [selectMultiple, !selectMultiple],
+              onPressed: (int index) {
+                selectMultiple = (index == 1);
+
+                timelineControllers.forEach((controller) {
+                  if (controller.selectedElements.isNotEmpty)
+                    controller.selectedElements = [controller.selectedElements.last];
+                });
+
+                setState(() {});
+              },
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Off"),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("On"),
+                ),
+              ]
+            )
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget _PushModeButtons() {
+    return Container(
+      padding: EdgeInsets.all(2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(child: Text("Push Mode "), margin: EdgeInsets.only(bottom: 6)),
+          // Icon(slideModesWhenStretching ? Icons.check_circle : Icons.circle, size: 16),
+          Container(
+            decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+            child: ToggleButtons(
+              isSelected: [slideModesWhenStretching, !slideModesWhenStretching],
+              onPressed: (int index) {
+                slideModesWhenStretching = (index == 1);
+                show.save();
+                reloadModes();
+                setState(() {});
+              },
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Off"),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("On"),
+                ),
+              ]
+            )
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget _SelectAll() {
+    return Visibility(
+      visible: timelineControllers.any((controller) => !controller.allElementsSelected),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          RaisedButton(
+            onPressed: () {
+              setState(() {
+                timelineControllers.forEach((controller) => controller.selectAll());
               });
             },
             child: Container(
               padding: EdgeInsets.all(2),
-              child: Text(oneModeSelected ? "Edit Mode" : "Replace (${selectedElements.length})")
+              child: Text("Select All"),
             )
-          )
-        ),
-        GestureDetector(
-          onTap: () {
-            setState(() => isPlaying = !isPlaying);
-            updatePlayIndicatorAnimation();
+          ),
+          GestureDetector(
+            onTap: () {
+              AppController.openDialog("Select All", "",
+                buttons: [{
+                  'text': 'After Playhead',
+                  'color': Colors.white,
+                  'onPressed': () {
+                    timelineControllers.forEach((controller) {
+                      controller.selectAll(after: playOffsetDuration);
+                    });
+                  },
+                }, {
+                  'text': 'Before Playhead',
+                  'color': Colors.white,
+                  'onPressed': () {
+                    timelineControllers.forEach((controller) {
+                      controller.selectAll(before: playOffsetDuration);
+                    });
+                  },
+                }]
+              );
+            },
+            child: ClipRRect(
+               borderRadius: BorderRadius.circular(1.0),
+               child: Container(
+                 height: 36,
+                 padding: EdgeInsets.all(2),
+                 child: Icon(Icons.arrow_drop_down),
+                 decoration: BoxDecoration(
+                   color: Colors.blue,
+                 )
+               )
+             )
+           )
+        ]
+      )
+    );
+  }
+
+  Widget _DeselectAll() {
+    return Visibility(
+      visible: selectedElements.isNotEmpty,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          RaisedButton(
+            onPressed: () {
+              setState(() {
+                timelineControllers.forEach((controller) => controller.deselectAll());
+              });
+            },
+            child: Container(
+              padding: EdgeInsets.all(2),
+              child: Text("Deselect All"),
+            )
+          ),
+          GestureDetector(
+            onTap: () {
+              AppController.openDialog("Deselect All", "",
+                buttons: [{
+                  'text': 'After Playhead',
+                  'color': Colors.white,
+                  'onPressed': () {
+                    timelineControllers.forEach((controller) {
+                      controller.deselectAll(after: playOffsetDuration);
+                    });
+                  },
+                }, {
+                  'text': 'Before Playhead',
+                  'color': Colors.white,
+                  'onPressed': () {
+                    timelineControllers.forEach((controller) {
+                      controller.deselectAll(before: playOffsetDuration);
+                    });
+                  },
+                }]
+              );
+            },
+            child: ClipRRect(
+               borderRadius: BorderRadius.circular(1.0),
+               child: Container(
+                 height: 36,
+                 padding: EdgeInsets.all(2),
+                 child: Icon(Icons.arrow_drop_down),
+                 decoration: BoxDecoration(
+                   color: Colors.blue,
+                 )
+               )
+             )
+           )
+        ]
+      )
+    );
+  }
+
+  Widget _EditButton() {
+    return Visibility(
+      visible: modeTimelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
+      child: Container(
+        margin: EdgeInsets.all(5),
+        child: RaisedButton(
+          onPressed: () {
+            var replacement = selectedElements.first.object.dup();
+            Navigator.pushNamed(context, "/modes/${replacement.id}",
+              arguments: {
+                'mode': replacement,
+                'autoUpdate': false,
+                'saveMessage': oneModeSelected ? "SAVE" : "REPLACE (${selectedElements.length})"
+              }
+            ).then((saved) {
+              if (saved == true) {
+                selectedElements.forEach((element) {
+                  element.object.updateFromCopy(replacement);
+                });
+              }
+            });
           },
-          child: Text(isPlaying ? 'Pause' : 'Play')
+          child: Container(
+            padding: EdgeInsets.all(2),
+            child: Text(oneModeSelected ? "Edit (1)" : "Replace (${selectedElements.length})")
+          )
+        )
+      )
+    );
+  }
+
+  Widget _DeleteButton() {
+    return Visibility(
+      visible: selectedElements.isNotEmpty,
+      child: Container(
+        margin: EdgeInsets.all(5),
+        child: RaisedButton(
+          onPressed: () {
+            _afterDelete();
+          },
+          child: Container(
+            padding: EdgeInsets.all(2),
+              child: Text("Delete (${selectedElements.length})"),
+           )
         ),
-      ]
-    )
+      ),
+    );
+  }
+
+  Widget _SplitAtPlayHead() {
+    return Container(
+      margin: EdgeInsets.all(5),
+      child: RaisedButton(
+        onPressed: () {
+          modeTimelineControllers.forEach((controller) {
+            var current = controller.elementAtTime(playOffsetDuration);
+            if (current == null) return;
+            if (current.startOffset == playOffsetDuration) return;
+            var index = controller.elements.indexOf(current);
+            var newElement = current.dup();
+
+            controller.elements.sublist(index+1).forEach((element) => element.position += 1);
+
+            newElement.position += 1;
+            newElement.startOffset = playOffsetDuration;
+            newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
+            current.duration -= newElement.duration;
+            show.timelineElements.add(newElement);
+            newElement.save();
+            current.save();
+          });
+          reloadModes();
+          modeTimelineControllers.forEach((controller) {
+            controller.deselectAll();
+            controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
+          });
+        },
+        child: Container(
+          padding: EdgeInsets.all(2),
+           child: Text("Split at playhead"),
+         )
+      ),
+    );
+  }
+
+  Widget _EditModeControls() {
+    return Container(
+      padding: EdgeInsets.all(2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(child: Text("Edit As:"), margin: EdgeInsets.only(bottom: 6)),
+          Container(
+            margin: EdgeInsets.only(bottom: 15),
+            decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+            child: ToggleButtons(
+              isSelected: [
+                show.editMode == 'global',
+                show.editMode == 'groups',
+                show.editMode == 'props'
+              ],
+              onPressed: (int index) {
+                show.editMode = ['global', 'groups', 'props'][index];
+                show.save();
+                reloadModes();
+                setState(() {});
+              },
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Global"),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Groups"),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Props"),
+                ),
+              ]
+            ),
+          ),
+        ]
+      )
     );
   }
 

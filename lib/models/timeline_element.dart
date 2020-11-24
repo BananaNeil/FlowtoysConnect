@@ -12,6 +12,7 @@ import 'dart:convert';
 
 class TimelineElement {
 
+  Duration contentOffset;
   Duration startOffset;
   String timelineType;
 
@@ -25,6 +26,7 @@ class TimelineElement {
   TimelineElement({
     this.timelineIndex,
     this.timelineType,
+    this.contentOffset,
     this.startOffset,
     this.position,
     this.duration,
@@ -57,7 +59,8 @@ class TimelineElement {
 
   Map<String, dynamic> toObjectMap() {
     return {
-      'startOffset': startOffset?.inMilliseconds,
+      'content_offset': contentOffset?.inMilliseconds,
+      'start_offset': startOffset?.inMilliseconds,
       'duration': duration?.inMilliseconds,
       'timeline_index': timelineIndex,
       'timeline_type': timelineType,
@@ -70,11 +73,12 @@ class TimelineElement {
 
   Map<String, dynamic> toMap() {
     return {
-      'object_type': objectType,
-      'startOffset': startOffset?.inMilliseconds,
+      'content_offset': contentOffset?.inMilliseconds,
+      'start_offset': startOffset?.inMilliseconds,
       'duration': duration?.inMilliseconds,
       'timeline_index': timelineIndex,
       'timeline_type': timelineType,
+      'object_type': objectType,
       'object_id': object.id,
       'position': position,
       'show_id': showId,
@@ -114,6 +118,7 @@ class TimelineElement {
     }
 
     return TimelineElement(
+      contentOffset: Duration(milliseconds: resource.attributes['content_offset'] ?? 0),
       duration: Duration(milliseconds: resource.attributes['duration'] ?? 0),
       timelineIndex: resource.attributes['timeline_index'],
       timelineType: resource.attributes['timeline_type'],
@@ -126,7 +131,9 @@ class TimelineElement {
 
   factory TimelineElement.fromMap(Map<String, dynamic> json) {
     return TimelineElement(
+      contentOffset: Duration(milliseconds: json['content_offset'] ?? 0),
       duration: Duration(milliseconds: json['duration']?.floor() ?? 0),
+      startOffset: Duration(milliseconds: json['start_offset'] ?? 0),
       timelineIndex: json['timeline_index'],
       timelineType: json['timeline_type'],
       position: json['position'],

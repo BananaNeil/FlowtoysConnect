@@ -20,6 +20,7 @@ class Song {
   String youtubeUrl;
   String filePath;
   String status;
+  int byteSize;
   String name;
   double bpm;
   String id;
@@ -29,6 +30,7 @@ class Song {
     this.bpm,
     this.name,
     this.status,
+    this.byteSize,
     this.filePath,
     this.duration,
     this.youtubeUrl,
@@ -42,6 +44,7 @@ class Song {
     bpm = attributes['bpm'];
     name = attributes['name'];
     status = attributes['status'];
+    byteSize = attributes['byte_size'];
     filePath = attributes['file_path'];
     thumbnailUrl = attributes['thumbnail_url'];
   }
@@ -65,13 +68,15 @@ class Song {
   String get durationString => twoDigitString(duration);
   int get downloadProgress => downloadTaskId == null ? 0 : Preloader.downloadTaskProgress[downloadTaskId];
 
+  bool get isDownloaded => File(localPath).existsSync();
+
   Future<dynamic> downloadFile() async {
     print('Downloading ${fileUrl} into: '+ Preloader.songDir.path);
 
     if (fileDownloadPending)
       return downloadTask.future;
 
-    if (File(localPath).existsSync())
+    if (isDownloaded)
       return Future.value(true);
 
     fileDownloadPending = true;
@@ -89,6 +94,7 @@ class Song {
     return downloadTask.future;
   }
 
+
   Future<Map<dynamic, dynamic>> save() {
     var method = id == null ? Client.createSong : Client.updateSong;
     return method(toMap());
@@ -100,6 +106,7 @@ class Song {
       'id': id,
       'bpm': bpm,
       'name': name,
+      'byte_size': byteSize,
       'file_path': filePath,
       'youtube_url': youtubeUrl,
       'thumbnail_url': thumbnailUrl,
@@ -115,6 +122,7 @@ class Song {
       bpm: resource.attributes['bpm'],
       name: resource.attributes['name'],
       status: resource.attributes['status'],
+      byteSize: resource.attributes['byte_size'],
       filePath: resource.attributes['file_path'],
       thumbnailUrl: resource.attributes['thumbnail_url'],
       duration: Duration(milliseconds: resource.attributes['duration']),
@@ -127,6 +135,7 @@ class Song {
       bpm: json['bpm'],
       name: json['name'],
       status: json['status'],
+      byteSize: json['byte_size'],
       filePath: json['file_path'],
       thumbnailUrl: json['thumbnail_url'],
       duration: Duration(milliseconds: json['duration'] ?? 0),

@@ -28,6 +28,10 @@ class _ListsPageState extends State<ListsPage> {
   bool isTopLevelRoute;
   String errorMessage;
 
+  // Future<void> _deleteList(list) {
+  //   return Client.deleteList(list.id, append: selectedModes);
+  // }
+
   Future<void> requestFromCache() {
     return Preloader.getModeLists({'creation_type': 'user'}).then((modeLists) {
       setState(() => lists = modeLists);
@@ -111,7 +115,7 @@ class _ListsPageState extends State<ListsPage> {
             )
         ),
       ];
-    else return lists.map((list) {
+    else return (lists..removeWhere((value) => value == null)).map((list) {
       return Card(
         elevation: 8.0,
         child: ListTile(
@@ -119,6 +123,7 @@ class _ListsPageState extends State<ListsPage> {
           onTap: () {
             Navigator.pushNamed(context, "/lists/${list.id}", arguments: {
               'modeList': list,
+              'returnList': true,
             }).then((newList) {
               setState(() {
                 lists[lists.indexOf(list)] = newList;

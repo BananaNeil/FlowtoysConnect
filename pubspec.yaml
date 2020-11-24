@@ -24,7 +24,9 @@ dependencies:
     git: https://github.com/pq/osc
   flutter_siri_suggestions: #^1.0.2+hotfix1
     path: /Users/neil/Projects/flowtoys/flutter_siri_suggestions
-  flutter_reorderable_list: ^0.1.5
+  flutter_reorderable_list: #^0.1.5
+    # Patched to support a new version of flutter where the nullOk was deprecated on MediaQuery.of(...)
+    path: /Users/neil/Projects/flowtoys/flutter_reorderable_list
   youtube_player_flutter: ^7.0.0+7
 
   flutter_hsvcolor_picker: #^0.0.1
@@ -34,7 +36,7 @@ dependencies:
     #   url: https://github.com/BananaNeil/flutter_hsvcolor_picker
     #   ref: bceccc5bef521184f548608d6dcc90f8dc43280e
   flutter_secure_storage: ^3.3.5
-  assets_audio_player: #^2.0.10
+  assets_audio_player: #^2.0.13+1
     path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
   firebase_messaging: ^7.0.3
   firebase_analytics: ^5.0.16
@@ -50,10 +52,12 @@ dependencies:
   flutter_blue: ^0.7.2
   url_launcher: ^5.6.0
   fluttertoast: ^7.1.1
-  youtube_api: ^0.8.0
+  youtube_api: #^0.8.0
+    git: https://github.com/SahilKr24/youtube_api
   icon_shadow: ^1.0.1
   validators: ^2.0.1
   event_bus: ^1.1.1
+  filesize: ^1.0.4
   json_api: ^4.3.0
 
 

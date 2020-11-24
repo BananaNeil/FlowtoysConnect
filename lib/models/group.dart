@@ -44,6 +44,7 @@ class Group {
   }
 
   static List<Group> get currentGroups {
+    // I think this can be cached:
     var currentPropIds = currentQuickGroup.propIds;
     var groups = connectedGroups.map((group) {
       return Group(
@@ -60,28 +61,29 @@ class Group {
 
   static List<Group> get connectedGroups => possibleGroups;
 
+  static List<Group> _possibleGroups;
   static List<Group> get possibleGroups {
-    return [
+    return _possibleGroups ??= [
       Group(
           id: "1",
           name: "Neil's Clubs",
-          props: List.generate(3, (index) => Prop(id: index.toString(), index: index)),
+          props: List.generate(3, (index) => Prop(id: index.toString(), index: index, groupIndex: 0)),
       ),
       Group(
           id: "2",
           name: "Ben's Clubs",
-          props: List.generate(2, (index) => Prop(id: (200 + index).toString(), index: index)),
+          props: List.generate(2, (index) => Prop(id: (200 + index).toString(), index: index, groupIndex: 1)),
       ),
-      Group(
-          id: "3",
-          name: "Seans's Props",
-          props: List.generate(8, (index) => Prop(id: (300 + index).toString(), index: index)),
-      ),
-      Group(
-          id: "4",
-          name: "G's Props",
-          props: List.generate(4, (index) => Prop(id: (400 + index).toString(), index: index)),
-      ),
+      // Group(
+      //     id: "3",
+      //     name: "Seans's Props",
+      //     props: List.generate(8, (index) => Prop(id: (300 + index).toString(), index: index, groupIndex: 2)),
+      // ),
+      // Group(
+      //     id: "4",
+      //     name: "G's Props",
+      //     props: List.generate(4, (index) => Prop(id: (400 + index).toString(), index: index, groupIndex: 3)),
+      // ),
     ];
   }
 

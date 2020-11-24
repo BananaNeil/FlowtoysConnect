@@ -1,7 +1,11 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
+import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:app/components/reordable_list_simple.dart';
+import 'package:app/helpers/color_filter_generator.dart';
+import 'package:app/components/inline_mode_params.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_mode_widget.dart';
+import 'package:app/components/action_button.dart';
 import 'package:app/components/edit_groups.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
@@ -10,8 +14,10 @@ import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
+import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
+import 'dart:async';
 
 class Modes extends StatelessWidget {
   Modes({this.id});
@@ -37,6 +43,7 @@ class _ModesPageState extends State<ModesPage> {
 
   final String id;
 
+  bool returnList;
   bool isSelecting;
   String errorMessage;
   String selectAction;
@@ -47,8 +54,12 @@ class _ModesPageState extends State<ModesPage> {
   Mode currentlyEditingMode;
   List<Mode> selectedModes = [];
   bool awaitingResponse = false;
+  bool isAdjustingInlineParam = false;
   ModeList get firstList => modeLists.isEmpty ? null : modeLists[0];
   bool showExpandedActionButtons = false;
+
+  List<Mode> expandedModes = [];
+  bool isExpanded(mode) => expandedModes.contains(mode);
 
 
   List<String> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
@@ -76,6 +87,11 @@ class _ModesPageState extends State<ModesPage> {
       setState(() {
         if (response['success']) {
           awaitingResponse = false;
+
+
+          // There is bug where selected modes get overridden when the fetch finishes...
+
+
           var list = response['modeList'];
           if (list != null) modeLists = [list];
           else modeLists = response['modeLists'] ?? [];
@@ -93,13 +109,14 @@ class _ModesPageState extends State<ModesPage> {
 
   @override
   Widget build(BuildContext context) {
-    modeLists = modeLists ?? [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
-    isSelecting = isSelecting ?? AppController.getParams(context)['isSelecting'] ?? false;
-    selectAction = selectAction ?? AppController.getParams(context)['selectAction'];
+    modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
+    isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
+    selectAction ??= AppController.getParams(context)['selectAction'];
+    returnList ??= AppController.getParams(context)['returnList'];
     var propCount = Group.currentQuickGroup.props.length;
 
     return Scaffold(
-      floatingActionButton: _FloatingActionButton(),
+      floatingActionButton: _FloatingActionButton,
       backgroundColor: AppController.darkGrey,
       drawer: isTopLevelRoute ? AppController.drawer() : null,
       appBar: AppBar(
@@ -107,7 +124,7 @@ class _ModesPageState extends State<ModesPage> {
         leading: isTopLevelRoute ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, null);
+            Navigator.pop(context, returnList == true ? firstList : null);
           },
         ),
         actions: <Widget>[
@@ -126,19 +143,21 @@ class _ModesPageState extends State<ModesPage> {
             },
             child: Container(
               padding: EdgeInsets.all(15),
-              child: Text(
-                  propCount <= 0 ? "warning" :
-                 'filter_${propCount > 8 ? '9_plus': propCount}',
-                style: TextStyle(
-                  fontFamily: 'MaterialIcons',
-                  fontSize: 24,
-                )
+              child: Icon(
+                  propCount <= 0 ? Icons.warning : {
+                    1: Icons.filter_1,
+                    2: Icons.filter_2,
+                    3: Icons.filter_3,
+                    4: Icons.filter_4,
+                    5: Icons.filter_5,
+                    6: Icons.filter_6,
+                    7: Icons.filter_7,
+                    8: Icons.filter_8,
+									}[propCount] ?? Icons.filter_9_plus,
+                  size: 24,
               ),
             ),
           )
-          // IconButton(
-          //   icon: Icon(Icons.filter_7),
-          // ),
         ],
       ),
       body: Center(
@@ -151,6 +170,7 @@ class _ModesPageState extends State<ModesPage> {
                 child: Container(
                   decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
                   child: ReorderableListSimple(
+                    physics: BouncingScrollPhysics(),
                     childrenAlreadyHaveListener: true,
                     allowReordering: isEditing,
                     children: [
@@ -219,7 +239,7 @@ class _ModesPageState extends State<ModesPage> {
     }).expand((i) => i).toList();
   }
 
-  Widget _FloatingActionButton() {
+  Widget get _FloatingActionButton {
     if (isSelecting)
       return _SelectionButtons();
     else if (isEditing)
@@ -240,27 +260,27 @@ class _ModesPageState extends State<ModesPage> {
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _ActionButton(
+          ActionButton(
             visible: !isShowingMultipleLists,
             text: "Edit Modes",
             onPressed: () {
               setState(() { isEditing = true; });
             },
           ),
-          _ActionButton(
+          ActionButton(
             visible: !isShowingMultipleLists,
             text: "Create Show",
             onPressed: () {
               Navigator.pushNamed(context, '/shows/new', arguments: {'modes': firstList.modes});
             },
           ),
-          _ActionButton(
+          ActionButton(
             text: "Select Modes",
             onPressed: () {
               setState(() { isSelecting = true; });
             },
           ),
-          _ActionButton(
+          ActionButton(
             // visible: !isShowingMultipleLists,
             child: Icon(
               Icons.expand_more,
@@ -272,7 +292,7 @@ class _ModesPageState extends State<ModesPage> {
           ),
         ]
       );
-    else return _ActionButton(
+    else return ActionButton(
       // visible: !isShowingMultipleLists,
       child: Icon(
         Icons.more_horiz,
@@ -289,7 +309,7 @@ class _ModesPageState extends State<ModesPage> {
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        _ActionButton(
+        ActionButton(
           visible: selectedModes.length < allModes.length,
           text: "Select All",
           rightMargin: 25.0,
@@ -297,7 +317,7 @@ class _ModesPageState extends State<ModesPage> {
             setState(() => selectedModes = allModes);
           },
         ),
-        _ActionButton(
+        ActionButton(
           visible: !isShowingMultipleLists && selectedModes.length > 0,
           text: "Remove (${selectedModes.length})",
           rightMargin: 25.0,
@@ -316,13 +336,13 @@ class _ModesPageState extends State<ModesPage> {
               );
           },
         ),
-        _ActionButton(
+        ActionButton(
           visible: !isShowingMultipleLists && selectedModes.length > 0,
           text: "Duplicate (${selectedModes.length})",
           rightMargin: 25.0,
           onPressed: _duplicateSelected,
         ),
-        _ActionButton(
+        ActionButton(
           visible: selectedModes.length > 0,
           text: "Deselect All",
           rightMargin: 25.0,
@@ -335,13 +355,13 @@ class _ModesPageState extends State<ModesPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              selectAction != null ? _ActionButton(
+              selectAction != null ? ActionButton(
                 margin: EdgeInsets.only(bottom: 0),
                 text: selectAction,
                 onPressed: () {
                   Navigator.pop(context, selectedModes);
                 },
-              ) : _ActionButton(
+              ) : ActionButton(
                 margin: EdgeInsets.only(bottom: 0),
                 text: "Save (${selectedModes.length}) to list",
                 onPressed: () {
@@ -409,17 +429,9 @@ class _ModesPageState extends State<ModesPage> {
                     else selectedModes.add(mode);
                   });
                 else {
-                  var replacement = mode.dup();
-                  Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
-                    'mode': replacement,
-                  }).then((saved) {
-                    if (saved == true)
-                      setState(() {
-                        mode.updateFromCopy(replacement).then((_) {
-                          _fetchModes();
-                        });
-                      });
-                  });
+                  if (isAdjustingInlineParam) return;
+                  Group.currentProps.forEach((prop) => prop.currentMode = mode );
+                  setState(() {});
                 }
               },
               contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
@@ -443,10 +455,6 @@ class _ModesPageState extends State<ModesPage> {
                 ),
               )),
               trailing: _TrailingIcon(mode),
-              subtitle: isSelecting ? null : Container(
-                margin: EdgeInsets.only(top: 10),
-                child: _ModeTileParams(mode),
-              ),
               title: Column(
                 children: [
                   Row(
@@ -458,10 +466,36 @@ class _ModesPageState extends State<ModesPage> {
                           size: 30.0,
                         )
                       ),
-                      Column(
-                        children: [
-                          Text(mode.name),
-                        ]
+                      GestureDetector(
+                        onTap: () {
+                          if (isExpanded(mode))
+                            expandedModes.remove(mode);
+                          else expandedModes.add(mode);
+                          setState(() {});
+                        },
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(mode.name),
+                                Container(
+                                  child: isSelecting ? null :
+                                    isExpanded(mode) ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                                )
+                              ]
+                            ),
+                            Container(
+                              child: !Prop.connectedModeIds.contains(mode.id) ? null : Text(
+                                "${Prop.connectedModeIds.where((id) => mode.id == id).length} props activated",
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppController.purple,
+                                )
+                              ),
+                            ),
+                          ]
+                        )
                       )
                     ]
                   ),
@@ -469,96 +503,101 @@ class _ModesPageState extends State<ModesPage> {
               )
             ),
           ),
+          Container( child:
+            !isExpanded(mode) || isSelecting ? null : Stack(
+              children: [
+                Positioned.fill(
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.matrix(
+                      ColorFilterGenerator.brightnessAdjustMatrix(
+                        initialValue: 0.5,
+                        value: 0.56,
+                      )
+                    ),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage("assets/images/dark-texture.jpg"),
+                          fit: BoxFit.fill,
+                        ),
+                      )
+                    )
+                  ),
+                ),
+                //TODO: turn the following container into a:
+                //   HorizontalLineShadow(spreadRadius: 2.0, blurRadius: 2.0),
+                Container(
+                  decoration: BoxDecoration(
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0xAA000000),
+                        spreadRadius: 2.0,
+                        blurRadius: 2.0,
+                      ),
+                    ]
+                  ),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    )
+                  )
+                ),
+                Container(
+                  child: Container(
+                    margin: EdgeInsets.only(top: 12, bottom: 14, right: 26, left: 10),
+                    child: _ModeTileParams(mode),
+                  ),
+                  // decoration: BoxDecoration(
+                  //   boxShadow: [
+                  //     const BoxShadow(
+                  //       color: Color(0xAA000000),
+                  //     ),
+                  //     const BoxShadow(
+                  //       color: Color(0xFF888888),
+                  //       offset: Offset(0.0, 2),
+                  //       spreadRadius: -2.0,
+                  //       blurRadius: 8.0,
+                  //     ),
+                  //   ],
+                  // ),
+                ),
+              ]
+            )
+          ),
           Container(
             height: 15,
+            decoration: BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0xAA000000),
+                  spreadRadius: 2.0,
+                  blurRadius: 2.0,
+                ),
+              ]
+            ),
             child: ModeRow(
               mode: mode,
               showImages: true,
               fit: BoxFit.fill,
             ),
-          )
+          ),
         ]
       ),
     );
   }
 
-  List<Color> get hueColors {
-    var color = HSVColor.fromColor(Colors.blue);
-    return List<int>.generate(7, (int index) => index * 60 % 360).map((degree) {
-      return color.withHue(1.0 * degree).toColor();
-    }).toList();
-  }
-
+  Timer _adjustingInlineParamTimer;
   Widget _ModeTileParams(mode) {
-    var color = mode.getHSVColor();
-    var colors = {
-      'hue': color.withSaturation(1.0).withValue(1.0).toColor(),
-      'saturation': color.withValue(1.0).toColor(),
-      'brightness': color.toColor(),
-    };
-
-    Map<String, List<Color>> gradients = {
-      'hue': hueColors,
-      'saturation': [color.withValue(1.0).withSaturation(0.0).toColor(), color.withValue(1.0).withSaturation(1.0).toColor()],
-      'brightness': [color.withValue(0.0).toColor(), color.withValue(1.0).toColor()],
-    };
-    var icons = {
-      'brightness': 'brightness_medium',
-      'saturation': 'opacity',
-      'speed': 'fast_forward',
-      'hue': 'color_lens',
-      'density': 'waves',
-    };
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
-      children: [
-        null,
-        'hue',
-        'saturation',
-        'brightness',
-        'density',
-        'speed',
-      ].map<Widget>((paramName) {
-        if (paramName == null)
-          return Container(width: 0);
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Container(
-              height: 37,
-              width: 37,
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Color(0xFF333333),
-                    spreadRadius: 2.0,
-                    blurRadius: 2.0,
-                  ),
-                ],
-                color: color.toColor(),
-                shape: BoxShape.circle,
-              )
-            ),
-            Container(
-              height: 30,
-              width: 30,
-              padding: EdgeInsets.only(top: 4),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black,
-              ),
-              child: Text(icons[paramName],
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white,
-                  fontFamily: 'MaterialIcons',
-                  fontSize: 22,
-                )
-              )
-            )
-          ]
-        );
-      }).toList()
+    return InlineModeParams(
+      onTouchDown: () {
+        _adjustingInlineParamTimer?.cancel();
+        isAdjustingInlineParam = true;
+      },
+      onTouchUp: () {
+        _adjustingInlineParamTimer = Timer(Duration(seconds: 1), () => isAdjustingInlineParam = false);
+        setState(() {});
+      },
+      mode: mode,
     );
   }
 
@@ -582,15 +621,25 @@ class _ModesPageState extends State<ModesPage> {
     else if (isSelecting)
       return null;
     else return GestureDetector(
-      child: Icon(Icons.donut_small),
       onTap: () {
-        currentlyEditingMode = mode;
-
-        showModalBottomSheet(
-          context: context,
-          builder: (context) => _editModeWidget(mode),
-        );
+        var replacement = mode.dup();
+        Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
+          'mode': replacement,
+        }).then((saved) {
+          if (saved == true)
+            setState(() {
+              mode.updateFromCopy(replacement).then((_) {
+                _fetchModes();
+              });
+            });
+        });
       },
+      child: Column(
+        children: [
+          // Icon(Icons.edit),
+          Text("EDIT", style: TextStyle(fontSize: 12)),
+        ]
+      )
     );
   }
 
@@ -603,20 +652,6 @@ class _ModesPageState extends State<ModesPage> {
         borderRadius: BorderRadius.circular(20),
       ),
       child: EditGroups(),
-    );
-  }
-
-  Widget _editModeWidget(mode) {
-    return Container(
-      height: mode.accessLevel == 'frozen' ? 300 : 450,
-      child: EditModeWidget(
-        editDetails: true,
-        onChange: (mode) {
-           setState((){}); 
-        },
-        sliderHeight: 20.0,
-        mode: mode,
-      )
     );
   }
 
@@ -653,32 +688,6 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   bool get isShowingMultipleLists => modeLists.length > 1;
-
-  Widget _ActionButton({text, child, onPressed, visible, margin, rightMargin}) {
-    return Visibility(
-      visible: visible ?? true,
-      child: Container(
-        height: 40,
-        width: child != null ? 40 : null,
-        margin: margin ?? EdgeInsets.only(top: 10, right: rightMargin ?? 0),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.white, width: 2),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: child != null ? FloatingActionButton(
-          backgroundColor: AppController.darkGrey,
-          onPressed: onPressed,
-          heroTag: "icon child",
-          child: child,
-        ) : FloatingActionButton.extended(
-          backgroundColor: AppController.darkGrey,
-          label: Text(text, style: TextStyle(color: Colors.white)),
-          heroTag: text,
-          onPressed: onPressed,
-        ),
-      )
-    );
-  }
 
 }
 

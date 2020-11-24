@@ -354,7 +354,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                     width: end >= visibleDuration ? 0 : 30,
                     child: Transform.translate(
                       offset: Offset(-12, 0),
-                      child: Icon(Icons.arrow_right, size: 40),
+                      child: Icon(slideWhenStretching ? Icons.double_arrow : Icons.arrow_right, size: 40),
                     )
                   )
                 )
@@ -425,6 +425,21 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   }
 
   Map<Type, GestureRecognizerFactory> get timelineGestures => {
+    DoubleTapGestureRecognizer: GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(() => new DoubleTapGestureRecognizer(),
+      (DoubleTapGestureRecognizer instance) {
+        instance
+          ..onDoubleTap = () {
+            print("DOUBLE TAP");
+            // var element = elementAtTime(windowStart + visibleDuration * (details.localPosition.dx / containerWidth));
+            // toggleSelected(element);
+            // // onDoubleTap();
+            // setState(() {
+            //   dragDelta = Duration();
+            //   isReordering = false;
+            // });
+      };
+      }
+    ),
     ForcePressGestureRecognizer: GestureRecognizerFactoryWithHandlers<ForcePressGestureRecognizer>(() => new ForcePressGestureRecognizer(),
       (ForcePressGestureRecognizer instance) {
         instance..onStart = (details) {
@@ -611,7 +626,7 @@ class TimelineTrackController {
     return elements.firstWhere((element) {
        return element.startOffset <= time &&
            element.endOffset > time;
-    });
+    }, orElse: () => null);
   }
 }
 

@@ -46,6 +46,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     if (!useBPM) return Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
 
     var bpm = show.audioElements.first.object.bpm;
+    print("AUDIO: ${show.audioElements.first.object.bpm}");
     return Duration(milliseconds: (1000 * chosenBeatsPerMode / (bpm / 60)).floor());
   }
   int get totalModeCount => (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
@@ -86,6 +87,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
           song.status = 'failed';
         else {
           song.assignAttributesFromCopy(response['song']);
+          // song.id = response['song'].id;
+          // song.filePath = response['song'].filePath;
           element.save().then((response) {
             element = response['timelineElement'] ?? element;
             setState(() {});
@@ -103,7 +106,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Future<dynamic> loadSongs() {
     return show.downloadSongs().then((_) {
       setState(() {
-        show.songElements.forEach((element) {
+        show.audioElements.forEach((element) {
           waveforms[element.id ?? element.hashCode.toString()] = WaveformController.open(element.object.localPath);
         });
       });
@@ -130,6 +133,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   margin: EdgeInsets.only(top: 20, right: 20),
                   child: GestureDetector(
                     onTap: _saveAndFinish,
+                    // Add a spinner here!!
                     child: Text('SAVE',
                       style: TextStyle(
                         color: (show.name ?? '').isEmpty ? Colors.grey : Colors.blue,
@@ -143,6 +147,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
               child: TextFormField(
                 initialValue: show.name,
+                   textCapitalization: TextCapitalization.sentences,
+
                 decoration: InputDecoration(
                   labelText: 'Name your show...',
                 ),
@@ -153,8 +159,9 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 }
               )
             ),
+            ..._SongsListWidgets,
             Container(
-              margin: EdgeInsets.only(top: 20, bottom: 10),
+              margin: EdgeInsets.only(top: 50, bottom: 10),
               child: Text("Timeline Preview",
                 style: TextStyle(
                   fontSize: 22,
@@ -165,7 +172,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
-                  margin: EdgeInsets.only(left: 20, top: 20, bottom: 5),
+                  margin: EdgeInsets.only(left: 20, top: 0, bottom: 5),
                   child: Text("Generate Mode Sequence:",
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -184,8 +191,11 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   child: ToggleButtons(
                     isSelected: [!useBPM, useBPM],
                     onPressed: (int index) {
-                      if (index == 1 && show.audioElements.isEmpty)
-                        return setState(() => bpmError = "You must add an audio element to use BPM matching.");
+                      if (index == 1)
+                        if (show.audioElements.isEmpty)
+                          return setState(() => bpmError = "You must add an audio element to use BPM matching.");
+                        else if (show.audioElements.first.object?.bpm == null)
+                          return setState(() => bpmError = "Wait a moment, we are anazlying to song to determine the BPM");
                       bpmError = null;
                       useBPM = !useBPM;
                       setState(() {});
@@ -262,7 +272,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               )
             ),
             Container(
-              height: show.songElements.isEmpty ? 0 : 50,
+              height: show.audioElements.isEmpty ? 0 : 50,
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(color: Colors.white),
@@ -272,7 +282,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               ),
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
-                children: mapWithIndex(show.songElements, (index, element) {
+                children: mapWithIndex(show.audioElements, (index, element) {
                   var waveform = waveforms[element.id ?? element.hashCode.toString()];
                   var color = [Colors.blue, Colors.red][index % 2];
                   return Flexible(
@@ -293,48 +303,6 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 Text(twoDigitString(show.duration)),
               ]
             ),
-            Container(
-              margin: EdgeInsets.only(top: 20, bottom: 10),
-              child: Text("Songs",
-                style: TextStyle(
-                  fontSize: 22,
-                )
-              )
-            ),
-            Flexible(
-              child: ReorderableListSimple(
-                allowReordering: true,
-                childrenAlreadyHaveListener: true,
-                onReorder: (int start, int current) {
-                  var elements = show.songElements;
-                  var element = elements[start];
-                  elements.remove(element);
-                  elements.insert(min(elements.length, current), element);
-                  elements.asMap().forEach((index, other) {
-                    other.position = index + 1;
-                    other.save();
-                  });
-                  if (show.isPersisted) show.save();
-                  setState((){});
-                },
-                children: [
-                  ...show.songElements.map((element) {
-                    return _SongCard(element);
-                  }),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/songs/new').then(_addNewSong);
-              },
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text("+ Add a song")
-                ]
-              ),
-            )
           ],
         ),
       ),
@@ -401,8 +369,9 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(element.durationString, style: TextStyle(fontSize: 11)),
-                        element.object?.bpm == null ? Container() :
-                          Text("${element.object.bpm.round()} BPM", style: TextStyle(fontSize: 11)),
+                        element.object == null ? Container() :
+                          element.object.bpm == null ? SpinKitCircle(color: Colors.white, size: 12) :
+                            Text("${element.object.bpm.round()} BPM", style: TextStyle(fontSize: 11)),
                       ]
                   )
                 ]
@@ -414,6 +383,53 @@ class _EditShowWidgetState extends State<EditShowWidget> {
         },
       )
     );
+  }
+
+  List<Widget> get _SongsListWidgets {
+    return [
+      Container(
+        margin: EdgeInsets.only(top: 20, bottom: 10),
+        child: Text("Audio",
+          style: TextStyle(
+            fontSize: 22,
+          )
+        )
+      ),
+      Flexible(
+        child: ReorderableListSimple(
+          allowReordering: true,
+          childrenAlreadyHaveListener: true,
+          onReorder: (int start, int current) {
+            var elements = show.audioElements;
+            var element = elements[start];
+            elements.remove(element);
+            elements.insert(min(elements.length, current), element);
+            elements.asMap().forEach((index, other) {
+              other.position = index + 1;
+              other.save();
+            });
+            if (show.isPersisted) show.save();
+            setState((){});
+          },
+          children: [
+            ...show.audioElements.map((element) {
+              return _SongCard(element);
+            }),
+          ],
+        ),
+      ),
+      GestureDetector(
+        onTap: () {
+          Navigator.pushNamed(context, '/songs/new').then(_addNewSong);
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text("+ Add a song", style: TextStyle(color: Colors.blue))
+          ]
+        ),
+      )
+    ];
   }
 
 }

@@ -75,6 +75,7 @@ class _NewSongPageState extends State<NewSongPage> {
     try {
       return http.get(url, headers: {"Accept": "application/json"}).timeout(Duration(seconds: 14),
         onTimeout: () {
+          print("youtube ON TIMEOUT...........");
         }).then((res) {
         var jsonData = json.decode(res.body);
         if (jsonData == null) return [];
@@ -85,7 +86,9 @@ class _NewSongPageState extends State<NewSongPage> {
         }).toList();
       });
     } on TimeoutException catch (_) {
+      print("youtube TIMEOUT EXCEPTION ===========================================");
     } on SocketException catch (_) {
+      print("youtube SOCKET EXCEPTION ===========================================");
     }
   }
 

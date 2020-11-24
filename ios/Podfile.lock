@@ -74,6 +74,8 @@ PODS:
     - Protobuf (~> 3.11.4)
   - flutter_downloader (0.0.1):
     - Flutter
+  - flutter_inappwebview (0.0.1):
+    - Flutter
   - flutter_secure_storage (3.3.1):
     - Flutter
   - flutter_siri_suggestions (0.0.1):
@@ -134,6 +136,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_blue (from `.symlinks/plugins/flutter_blue/ios`)
   - flutter_downloader (from `.symlinks/plugins/flutter_downloader/ios`)
+  - flutter_inappwebview (from `.symlinks/plugins/flutter_inappwebview/ios`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - flutter_siri_suggestions (from `.symlinks/plugins/flutter_siri_suggestions/ios`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
@@ -178,6 +181,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_blue/ios"
   flutter_downloader:
     :path: ".symlinks/plugins/flutter_downloader/ios"
+  flutter_inappwebview:
+    :path: ".symlinks/plugins/flutter_inappwebview/ios"
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
   flutter_siri_suggestions:
@@ -211,6 +216,7 @@ SPEC CHECKSUMS:
   Flutter: 0e3d915762c693b495b44d77113d4970485de6ec
   flutter_blue: eeb381dc4727a0954dede73515f683865494b370
   flutter_downloader: 058b9c41564a90500f67f3e432e3524613a7fd83
+  flutter_inappwebview: 69dfbac46157b336ffbec19ca6dfd4638c7bf189
   flutter_secure_storage: 7953c38a04c3fdbb00571bcd87d8e3b5ceb9daec
   flutter_siri_suggestions: 2c0bc235516b5b51a86a641d0f39dba3cd336ac3
   fluttertoast: 6122fa75143e992b1d3470f61000f591a798cc58
@@ -226,6 +232,6 @@ SPEC CHECKSUMS:
   url_launcher: 6fef411d543ceb26efce54b05a0a40bfd74cbbef
   youtube_api: 3e3c2faa0cf3f296204bcc93284cdb097f42cdd6
 
-PODFILE CHECKSUM: 239660d0a6a9129f28fd8b2fc7df69e75eb9e0c4
+PODFILE CHECKSUM: aafe91acc616949ddb318b77800a7f51bffa2a4c
 
 COCOAPODS: 1.9.3

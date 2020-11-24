@@ -71,16 +71,30 @@ class ModeImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      radius: size.toDouble(),
-      backgroundColor: Colors.black,
-      child: ModeImageFilter(
-        mode: mode,
-        child: CircleAvatar(
-        radius: size - (size > 20 ? 5.0 : size * 0.2),
-          backgroundColor: Colors.transparent,
-          backgroundImage: NetworkImage(mode.image),
-        ),
+    return Container(
+      // This is a shadow, but it looks pretty bad:
+      //
+      // decoration: BoxDecoration(
+      //   shape: BoxShape.circle,
+      //   boxShadow: [
+      //     BoxShadow(
+      //       color: Color(0xFF000000),
+      //       spreadRadius: 1.0,
+      //       blurRadius: 1.0,
+      //     ),
+      //   ]
+      // ),
+      child: CircleAvatar(
+        radius: size.toDouble(),
+        backgroundColor: Colors.black,
+        child: ModeImageFilter(
+          mode: mode,
+          child: CircleAvatar(
+            radius: size - (size > 20 ? 5.0 : size * 0.2),
+            backgroundColor: Colors.transparent,
+            backgroundImage: NetworkImage(mode.image),
+          ),
+        )
       )
     );
   }
@@ -169,16 +183,28 @@ Widget ModeImageFilter({mode, hsvColor, child}) {
 
 List<HSVColor> hsvColorsForProps(mode, {multiprop, multigroup}) {
   List<HSVColor> params = [];
-  if (multiprop == true)
-    eachWithIndex(Group.currentGroups, (groupIndex, group) {
-      eachWithIndex(group.props, (propIndex, prop) {
-        params.add(mode.getHSVColor(groupIndex: groupIndex, propIndex: propIndex));
+  if (multiprop == true) {
+    if (mode.childType == null)
+      params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: mode.propIndex));
+    else if (mode.childType == 'prop')
+      List.generate(mode.childCount, (childIndex) {
+        params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: childIndex));
       });
-    });
-  else if (multigroup == true)
-    eachWithIndex(Group.currentGroups, (groupIndex, group) {
-      params.add(mode.getHSVColor(groupIndex: groupIndex));
-    });
+    else
+      eachWithIndex(Group.currentGroups, (groupIndex, group) {
+        eachWithIndex(group.props, (propIndex, prop) {
+          params.add(mode.getHSVColor(groupIndex: groupIndex, propIndex: propIndex));
+        });
+      });
+  } else if (multigroup == true)
+    if (mode.childType == null)
+      params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: mode.propIndex));
+    else if (mode.childType == 'prop')
+      params.add(mode.getHSVColor(groupIndex: mode.groupIndex));
+    else
+      eachWithIndex(Group.currentGroups, (groupIndex, group) {
+        params.add(mode.getHSVColor(groupIndex: groupIndex));
+      });
   if (params.isEmpty)
     params = [mode.getHSVColor()];
   return params;
@@ -206,7 +232,10 @@ List<Widget> widgetsForProps(mode) {
 }
 
 List<Widget> imagesForProps(mode, {size, fit, vertical}) {
-  var colors = hsvColorsForProps(mode, multiprop: mode.isMultivalue);
+  // var colors = hsvColorsForProps(mode, multiprop: mode.isMultivalue);
+  var colors = hsvColorsForProps(mode, multiprop: true);
+  if (!mode.isMultivalue)
+    colors = colors.sublist(0, min(colors.length, 6));
   vertical = vertical ?? false;
   return colors.map((color) {
     return Expanded(

@@ -20,6 +20,7 @@ class ReorderableListSimple extends StatefulWidget {
     this.backgroundColor,
     this.headerBuilder,
     this.handleIcon,
+    this.physics,
     this.padding,
   });
 
@@ -31,6 +32,7 @@ class ReorderableListSimple extends StatefulWidget {
   final Icon handleIcon;
   final List<Widget> children;
   final ReorderCallback onReorder;
+  final ScrollPhysics physics;
   final EdgeInsets padding;
 
   @override
@@ -79,6 +81,7 @@ class _ReorderableListSimpleState extends State<ReorderableListSimple> {
       child: ListView.builder(
         shrinkWrap: true,
         padding: widget.padding,
+        physics: widget.physics,
         itemCount: _children.length,
         itemBuilder: (BuildContext context, int index) {
           return _buildReorderableItem(context, index);

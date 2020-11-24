@@ -394,19 +394,21 @@ class Client {
           'code':  401,
           'body': { },
         };
-      } else if (genericErrorCodes.contains(response.statusCode)) {
-        return {
-          'success': false,
-          'message': "Something went wrong, please try again later",
-          'body': { },
-        };
+      // } else if (genericErrorCodes.contains(response.statusCode)) {
+      //   return {
+      //     'success': false,
+      //     'message': "Something went wrong, please try again later",
+      //     'code': response.statusCode,
+      //     'body': { },
+      //   };
       } else return {
         'success': response.statusCode == 200,
         'message': humanize(message ?? ""),
         'body': responseBody,
         'code':  200,
       };
-    } on SocketException catch (_) {
+    } on SocketException catch (a) {
+      print("SOCKET EXCEPTION: ${a}");
       return {
         'message': 'Not connected to the internet',
         'success': false,

@@ -1,40 +1,159 @@
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/models/timeline_element.dart';
+import 'package:app/models/nested_timeline.dart';
+import "package:collection/collection.dart";
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:json_api/document.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/song.dart';
+import 'package:app/models/group.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
 
 class Show {
   List<TimelineElement> timelineElements = [];
+  String editMode = 'global';
+  List<int> propCounts;
+  int audioByteSize;
   String name;
   String id;
 
   Show({
     this.id,
     this.name,
+    this.editMode,
+    this.propCounts,
+    this.audioByteSize,
     this.timelineElements,
   });
 
-  List<TimelineElement> get audioElements => songElements;
+  int get groupCount => propCounts.length;
+  int get propCount => propCounts.reduce((a, b) => a + b);
 
-  List<TimelineElement> get songElements => timelineElements.where((element) {
+  bool get audioDownloadedPending {
+    return audioElements.any((element) {
+      return element.objectType == 'Song' && element.object.fileDownloadPending;
+    });
+  }
+
+  bool get audioDownloaded {
+    return audioElements.every((element) {
+      return element.objectType != 'Song' || element.object.isDownloaded;
+    });
+  }
+
+  List<TimelineElement> get audioElements => timelineElements.where((element) {
     return element.timelineType == 'audio';
   }).toList()..sort((a, b) => a.position.compareTo(b.position));
 
-  List<TimelineElement> get modeElements => timelineElements.where((element) {
-    return element.timelineType == 'modes';
-  }).toList()..sort((a, b) => a.position.compareTo(b.position));
+  List<TimelineElement> _modeElements;
+  List<TimelineElement> reloadModeElements() {
+    // if (editMode == 'global')
+    //   _modeElements = timelineElements.where((element) {
+    //     return element.timelineType == 'modes';
+    //   }).toList()..sort((a, b) => a.position.compareTo(b.position));
+    // else if (editMode == 'groups')
+    // return _modeElements;
+
+
+    _modeElements = timelineElements.where((element) {
+      return element.timelineType == 'modes';
+    }).toList()..sort((a, b) => a.position.compareTo(b.position));
+    return _modeElements;
+  }
+
+  List<TimelineElement> get globalModeElements {
+    // List<TimelineElement> timelines = groupBy(timelineElements, (element) => element.timelineIndex).values();
+    List<TimelineElement> globalTimeline = [];
+    if (editMode == 'global')
+      return modeElements;
+    else {
+      Map<String, List<TimelineElement>> elementsByTimeRange = {};
+      List<TimelineElement> siblings;
+      int childCount;
+
+      if (editMode == 'groups') 
+        childCount = groupCount;
+      else childCount = propCount;
+
+
+      // Group by similarities
+      elementsByTimeRange = groupBy(modeElements, (element) {
+        return [
+          element.objectType == 'Mode' ?
+              element.object.baseModeId : null,
+          element.startOffset,
+          element.duration,
+        ].toString();
+      });
+
+
+      // Move identical siblings into global timeline
+      elementsByTimeRange.keys.forEach((key) {
+        if (elementsByTimeRange[key].length == childCount) {
+          siblings = elementsByTimeRange.remove(key);
+          var newElement = siblings.first.dup();
+          newElement.object = Mode.fromSiblings(
+            siblings.map((element) => element.object).toList()
+          );
+          globalTimeline.add(newElement);
+        }
+      });
+
+      List<List<TimelineElement>> elementsToBeSubGrouped = elementsByTimeRange.values;
+      globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+
+
+      // Create TimelineElements that fill the incongruent spaces
+      var offset = duration;
+      eachWithIndex(globalTimeline.reversed, (index, element) {
+        if (element.endOffset < offset)
+          globalTimeline.insert(globalTimeline.length - index, TimelineElement(
+            startOffset: element.endOffset,
+            duration: offset - element.endOffset,
+          ));
+        offset = element.startOffset;
+      });
+
+
+      // Attach remaining elements to their sub-timeline chunks:
+      elementsToBeSubGrouped.forEach((elements) {
+        var element = globalTimeline.firstWhere((globalElement) {
+          return globalElement.startOffset <= elements.first.startOffset &&
+              globalElement.endOffset >= elements.first.endOffset;
+        });
+        element.object ??= NestedTimeline();
+        element.object.addElements(elements);
+      });
+
+      // Save global timeline
+      eachWithIndex(globalTimeline, (index, element) => element.position = index);
+      // saveAndOverwrite();
+
+      return globalTimeline;
+
+    }
+  }
+
+  List<TimelineElement> get modeElements => _modeElements ?? reloadModeElements();
+
+  List<TimelineElement> modeElementsFor({groupIndex, propIndex}) {
+    return modeElements.map((element) {
+      var dup = element.dup();
+      dup.object.setAsSubMode(groupIndex: groupIndex, propIndex: propIndex);
+      print("OBJ SET: ${dup.object.childType}");
+      return dup;
+    }).toList();
+  }
 
   TimelineElement addAudioElement(song) {
     var element = TimelineElement(
-      position: songElements.isEmpty ? 1 : songElements.last.position + 1,
+      position: audioElements.isEmpty ? 1 : audioElements.last.position + 1,
       duration: song.duration,
       timelineType: 'audio',
       timelineIndex: 0,
@@ -55,6 +174,7 @@ class Show {
         object: mode,
       );
     }).toList());
+    reloadModeElements();
   }
 
   void clearModes() {
@@ -63,19 +183,19 @@ class Show {
     }).toList();
   }
 
-  List<String> get songIds => songElements.map((element) => element.objectId).toList();
+  List<String> get songIds => audioElements.map((element) => element.objectId).toList();
   List<String> get modeIds => modeElements.map((element) => element.objectId).toList();
 
   String get durationString => twoDigitString(duration);
 
   Duration get duration {
-    if (songElements.length == 0 && modeElements.length == 0) return Duration(minutes: 1);
+    if (audioElements.length == 0 && modeElements.length == 0) return Duration(minutes: 1);
     if (songDuration == Duration() && modeDuration == Duration()) return Duration(minutes: 1);
     return maxDuration(songDuration, modeDuration);
   }
 
   Duration get songDuration {
-    var songDurations = songElements.map((song) => song.duration);
+    var songDurations = audioElements.map((song) => song.duration);
     if (songDurations.length == 0) return Duration();
     return songDurations.reduce((a, b) => a+b); 
   }
@@ -87,7 +207,7 @@ class Show {
   }
 
   Future<void> downloadSongs() {
-    return Future.wait(songElements.map((element) {
+    return Future.wait(audioElements.map((element) {
       return element.object?.downloadFile() ?? Future.value(true);
     }));
   }
@@ -123,11 +243,17 @@ class Show {
       timelineElements: elements,
       id: resource.attributes['id'],
       name: resource.attributes['name'],
+      editMode: resource.attributes['edit_mode'],
+      propCounts: resource.attributes['propCounts'],
+      audioByteSize: resource.attributes['audio_byte_size'],
     );
   }
 
   void updateFromCopy(copy) {
+    audioByteSize = copy.audioByteSize;
     timelineElements = copy.timelineElements;
+    propCounts = copy.propCounts;
+    editMode = copy.editMode;
     name = copy.name;
     id = copy.id;
   }
@@ -142,13 +268,18 @@ class Show {
     return {
       'id': id,
       'name': name,
+      'edit_mode': editMode,
+      'prop_counts': propCounts,
+      'audio_byte_size': audioByteSize,
       'timeline_element_ids': timelineElements.map((element) => element.id).toList(),
     };
   }
 
   factory Show.create() {
     return Show(
+      editMode: 'global',
       timelineElements: [],
+      propCounts: Group.currentGroups.map((group) => group.props.length).toList(),
     );
   }
 

@@ -1,3 +1,4 @@
+import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
@@ -23,6 +24,37 @@ class AppController extends StatefulWidget {
   static Future<void> setEnv(String env) async {
     final contents = await rootBundle.loadString('assets/config/${env ?? 'dev'}.json');
     config = jsonDecode(contents);
+  }
+
+  static void initSiriSuggestions() async {
+    FlutterSiriSuggestions.instance.configure(onLaunch: (Map<String, dynamic> message) async {
+      //Awaken from Siri Suggestion
+      ///// TO DO : do something!
+      var arguments = message["key"].split(":");
+
+      if (arguments[0] == "openPath") {
+        Timer(Duration(milliseconds: 1000), () {
+          Navigator.pushNamed(getCurrentContext(), arguments[1]);
+        });
+      }
+    });
+
+    await Preloader.getCachedLists().then((lists) {
+      lists.forEach((list) {
+        list.modes.forEach((mode) async {
+          await FlutterSiriSuggestions.instance.buildActivity(FlutterSiriActivity("Set Mode To ${mode.name}",
+            "openPath:/modes/${mode.id}",
+            isEligibleForSearch: true,
+            isEligibleForPrediction: true,
+            contentDescription: "Sets props to the mode: ${mode.name}",
+            suggestedInvocationPhrase: "Set my props to ${mode.name}")
+          );
+        });
+      }); 
+    }).then((_) {
+      FlutterSiriSuggestions.instance.retryLaunchWithActivity();
+    });
+
   }
 
   static BaseMode getBaseMode(id) {
@@ -77,13 +109,23 @@ class AppController extends StatefulWidget {
               },
             ),
             ListTile(
-              title: Text('My Props',
+              title: Text('Props',
                 style: TextStyle(
                   fontSize: 18,
                 )
               ),
               onTap: () {
                 Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/props', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
+              title: Text("Research",
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/research', (Route<dynamic> route) => false);
               },
             ),
             ListTile(
@@ -137,8 +179,8 @@ class AppController extends StatefulWidget {
   }
 
   static Color yellow = Color(0xFFcfa015);
-  static Color purple = Color(0xFF8c5ca6);
-  static Color green = Color(0xFF1a8e5a);
+  static Color purple = Color(0xFFffaaaaff);
+  static Color green = Color(0xFFffCCffCC);
   static Color blue = Color(0xFF7EB3DC);
   static Color red = Colors.red;
   static Color clear = Color(0x00FFFFFF);

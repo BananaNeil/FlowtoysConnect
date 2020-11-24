@@ -26,15 +26,10 @@ class ModeParam {
     this.mode,
   });
 
-  setMode(Mode newMode) {
-    mode = newMode;
-    presentChildParams.forEach((param) => param.setMode(newMode));
-  }
-
   Group get currentGroup =>
-      Group.currentGroupAt(groupIndex);
+    Group.currentGroupAt(groupIndex);
 
-  int get presentChildCount => {
+  int get childCount => {
         'prop': currentGroup?.props?.length,
         'group': Group.currentGroups.length,
       }[childType] ?? 0;
@@ -45,7 +40,7 @@ class ModeParam {
 
   List<ModeParam> get presentChildParams {
     if (!multiValueEnabled) return [];
-    return List.generate(presentChildCount, (index) => childParamAt(index)).toList();
+    return List.generate(childCount, (index) => childParamAt(index)).toList();
   }
 
   List<num> get presentChildValues =>
@@ -105,7 +100,7 @@ class ModeParam {
 
   num get mostCommonChildValue {
     var counted = childParams.fold({}, (counts, param) {
-      counts[param.getValue()] = (counts[param.getValue()] ?? 0) + param.presentChildCount;
+      counts[param.getValue()] = (counts[param.getValue()] ?? 0) + param.childCount;
       return counts;
     }) as Map<dynamic, dynamic>;
 
@@ -155,8 +150,8 @@ class ModeParam {
       value = max(0.0, newValue);
   }
 
-  factory ModeParam.fromModeMap(dynamic data, paramName) {
-    return ModeParam.fromMap(data[paramName], childType: 'group', paramName: paramName);
+  factory ModeParam.fromModeMap(dynamic data, paramName, mode) {
+    return ModeParam.fromMap(data[paramName], childType: 'group', paramName: paramName, mode: mode);
   }
 
   factory ModeParam.fromMap(dynamic data, {childType, paramName, mode}) {

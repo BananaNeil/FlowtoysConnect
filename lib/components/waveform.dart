@@ -242,6 +242,7 @@ class _WaveformState extends State<Waveform> {
       else if (!song.isPersisted)
         return SpinKitCircle(color: color, size: 30);
       else {
+        timer?.cancel();
         timer = Timer.periodic(Duration(milliseconds: 300), (_) => setState(() {}));
         return Center(child: CircularPercentIndicator(
           radius: 35.0,

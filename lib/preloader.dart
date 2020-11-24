@@ -26,13 +26,17 @@ class Preloader {
 
 
   static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+    print("DOWN CALLBACK: ${[id, status, progress]} ===> ${status} == ${DownloadTaskStatus.complete} => ${status == DownloadTaskStatus.complete}");
+
     final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
     send.send([id, status, progress]);
   }
 
 
   static void initDownloader() async {
-    await FlutterDownloader.initialize(debug: false);
+    await FlutterDownloader.initialize(
+      debug: true // optional: set false to disable printing logs to console
+    );
 
     IsolateNameServer.registerPortWithName(_port.sendPort, 'downloader_send_port');
     _port.listen((dynamic data) {
@@ -42,6 +46,8 @@ class Preloader {
 
       downloadTaskProgress[id] = progress;
       if (status == DownloadTaskStatus.complete) {
+        print("Trigger complete!!!!");
+        print("Trigger complete on ${id} ${downloadTasks[id]}");
         downloadTasks[id].complete(true);
       }
     });
@@ -49,6 +55,9 @@ class Preloader {
     FlutterDownloader.registerCallback(downloadCallback);
   }
 
+  // This will probably request permissions,
+  // and we should probably find a way to move it
+  // so it's not the first thing that the user sees.
   static ensureSongDir() async {
     Directory appDocDirectory = await getApplicationDocumentsDirectory();
     return Directory("${appDocDirectory.path}/songs/")

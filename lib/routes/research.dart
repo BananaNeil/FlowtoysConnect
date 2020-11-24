@@ -11,10 +11,13 @@ import 'package:app/pagemodegrid.dart';
 import 'package:app/blemanager.dart';
 import 'package:app/oscmanager.dart';
 
+
+import 'package:app/app_controller.dart';
+
 class Research extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ResearchPage(title: 'Research');
+    return ResearchPage(title: "Ben's Research");
   }
 }
 
@@ -165,6 +168,7 @@ class _ResearchPageState extends State<ResearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        drawer: AppController.drawer(),
         backgroundColor: Color(0xff333333),
         appBar: AppBar(
             title: Text(widget.title), backgroundColor: Color(0xff222222)),

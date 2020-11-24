@@ -10,8 +10,10 @@ import 'package:app/native_storage.dart'
 
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
+  env = 'prod';
 
   AppController.setEnv(env).then((_) {
+    AppController.initSiriSuggestions();
     Preloader.ensureSongDir();
     Preloader.downloadData();
     Preloader.initDownloader();

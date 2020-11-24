@@ -65,6 +65,11 @@ class Mode {
     };
   }
 
+  String get childType => brightness.childType;
+  int get childCount => brightness.childCount;
+  int get groupIndex => brightness.groupIndex;
+  int get propIndex => brightness.propIndex;
+
   Map<String, ModeParam> get modeParams {
     return {
       'saturation': saturation,
@@ -86,14 +91,22 @@ class Mode {
     });
   }
 
+  void setAsSubMode({propIndex, groupIndex}) {
+    saturation = getParam('saturation', propIndex: propIndex, groupIndex: groupIndex);
+    brightness = getParam('brightness', propIndex: propIndex, groupIndex: groupIndex);
+    density = getParam('density', propIndex: propIndex, groupIndex: groupIndex);
+    speed = getParam('speed', propIndex: propIndex, groupIndex: groupIndex);
+    hue = getParam('hue', propIndex: propIndex, groupIndex: groupIndex);
+  }
+
   void assignAttributesFromCopy(copy) {
     var json = copy.toFullMap();
 
-    saturation = ModeParam.fromModeMap(json, 'saturation');
-    brightness = ModeParam.fromModeMap(json, 'brightness');
-    density = ModeParam.fromModeMap(json, 'density');
-    speed = ModeParam.fromModeMap(json, 'speed');
-    hue = ModeParam.fromModeMap(json, 'hue');
+    saturation = ModeParam.fromModeMap(json, 'saturation', this);
+    brightness = ModeParam.fromModeMap(json, 'brightness', this);
+    density = ModeParam.fromModeMap(json, 'density', this);
+    speed = ModeParam.fromModeMap(json, 'speed', this);
+    hue = ModeParam.fromModeMap(json, 'hue', this);
     baseModeId = json['base_mode_id'];
   }
 
@@ -144,6 +157,8 @@ class Mode {
 
   HSVColor getHSVColor({groupIndex, propIndex}) {
     HSVColor color = HSVColor.fromColor(Colors.blue);
+    if (childType == 'prop') groupIndex = null;
+
     var hue = getValue('hue', groupIndex: groupIndex, propIndex: propIndex);
     var saturation = getValue('saturation', groupIndex: groupIndex, propIndex: propIndex);
     var brightness = getValue('brightness', groupIndex: groupIndex, propIndex: propIndex);
@@ -236,18 +251,21 @@ class Mode {
     return ResourceObject('mode', id.toString(), attributes: toFullMap());
   }
 
-  void setModeOnParams() {
-    modeParams.values.forEach((param) => param.setMode(this));
+  factory Mode.fromSiblings(siblings) {
+    var attributes = siblings.first.toFullMap();
+    siblings.first.modeParams.keys.forEach((param) {
+      attributes[param];
+    });
+    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
+    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
+    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
+    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
+    return Mode.fromMap(attributes);
   }
 
   factory Mode.fromMap(Map<String, dynamic> body) {
     var json = body;
     var mode = Mode(
-      saturation: ModeParam.fromModeMap(json, 'saturation'),
-      brightness: ModeParam.fromModeMap(json, 'brightness'),
-      density: ModeParam.fromModeMap(json, 'density'),
-      speed: ModeParam.fromModeMap(json, 'speed'),
-      hue: ModeParam.fromModeMap(json, 'hue'),
       baseModeId: json['base_mode_id'],
 
       accessLevel: json['access_level'],
@@ -260,8 +278,12 @@ class Mode {
       name: json['name'],
       id: json['id'],
     );
+    mode.saturation = ModeParam.fromModeMap(json, 'saturation', mode);
+    mode.brightness = ModeParam.fromModeMap(json, 'brightness', mode);
+    mode.density = ModeParam.fromModeMap(json, 'density', mode);
+    mode.speed = ModeParam.fromModeMap(json, 'speed', mode);
+    mode.hue = ModeParam.fromModeMap(json, 'hue', mode);
 
-    mode.setModeOnParams();
 
     return mode;
   }

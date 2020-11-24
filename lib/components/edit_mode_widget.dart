@@ -185,6 +185,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   }
 
   Widget ParamSlider(param, {title, children, onReset, margin}) {
+    print("SLIDER FOR ${title} ${param.paramName} ::: ${param.multiValueEnabled}");
     return Container(
       margin: margin ?? EdgeInsets.only(bottom: 10),
       child: Column(
@@ -276,6 +277,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           _updateMode();
         },
         children: !param.multiValueEnabled ? emptyList : mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
+          print("RENDER GROUPS: ${childParam.mode} ------------- ${groupIndex}");
           Group group = Group.currentGroups[groupIndex];
           return ParamSlider(childParam,
             title: "${group.name} (${group.props.length})",

@@ -8,6 +8,7 @@ class Storage {
 
   static Future<void> write(String key, String value) async {
     final storage = FlutterSecureStorage();
+    print("Attempting to write: ${key} => ${value}");
     return await storage.write(key: key, value: value);
   }
 
