@@ -106,7 +106,7 @@ class TimelineElement {
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
 
     print("duration: ${duration}");
-    print("(use local: ${useLocalOffsets}) globalTimeline: ${globalTimeline.map((t) => [t.timelineType, t.startOffset, t.nestedStartOffset, t.endOffset, t.objectType, t.objectId])}");
+    print("globalTimeline (without nested): ${globalTimeline.map((t) => [t.timelineType, t.startOffset, t.endOffset, t.objectType, t.objectId])}");
 
     // Create TimelineElements that fill the incongruent spaces
     var offset = duration;
@@ -269,10 +269,37 @@ class TimelineElement {
     return TimelineElement.fromMap(jsonDecode(body));
   }
 
+  static List<TimelineElement> fromData(List<dynamic> data, {objects}) {
+    return audioTimeline.map((element) {
+      var object = objects.firstWhere((obj) {
+        return obj.runtimeType.toString() == element['object_type'] &&
+          obj.id == element['object_id']
+      }, orElse: null);
+
+      return TimelineElement(
+        duration: Duration(milliseconds: element['duration']),
+        object: object
+      );
+    }).toList();
+  }
+
   static List<TimelineElement> fromList(List<dynamic> objects) {
     return objects.map((object) {
       return TimelineElement.fromObject(object);
     }).toList();
+  }
+
+  Map<String, dynamic> asJson() {
+    Map<String, dynamic> json = {
+      'object_type': objectType,
+      'duration': duration.inMilliseconds,
+    };
+    if (['Mode', 'Song'].contains(objectType))
+      json['object_id'] = objectId;
+    else if (objectType == 'Show')
+      json['timeline'] = object.timelineAsJson(); 
+
+    return json;
   }
 }
 

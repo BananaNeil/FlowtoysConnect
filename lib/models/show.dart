@@ -14,8 +14,12 @@ import 'dart:async';
 import 'dart:math';
 
 class Show {
-  List<TimelineElement> timelineElements = [];
-  String editMode = 'global';
+  List<Map<String, dynamic>> audioTimeline;
+  List<Map<String, dynamic>> modeTimeline;
+  List<Mode> modes;
+  List<Song> songs;
+
+  String trackType = 'global';
   List<dynamic> propCounts;
   int audioByteSize;
   String name;
@@ -24,10 +28,14 @@ class Show {
   Show({
     this.id,
     this.name,
-    this.editMode,
+    this.trackType,
     this.propCounts,
+    this.modeTimeline,
+    this.audioTimeline,
     this.audioByteSize,
-    this.timelineElements,
+
+    this.songs,
+    this.modes,
   });
 
   int get groupCount => propCounts.length;
@@ -45,9 +53,19 @@ class Show {
     });
   }
 
-  List<TimelineElement> get audioElements => timelineElements.where((element) {
-    return element.timelineType == 'audio';
-  }).toList()..sort((a, b) => a.position.compareTo(b.position));
+  List<TimelineElement> _audioElements;
+  List<TimelineElement> get audioElements {
+    if (_audioElements != null) return _audioElements;
+    _audioElements = TimelineElement.fromData(audioTimeline, objects: songs);
+    return _audioElements;
+  }
+
+  // List<TimelineElement> _modeElements;
+  // List<TimelineElement> get modeElements {
+  //   if (_modeElements != null) return _modeElements;
+  //   _modeElements = TimelineElement.fromData(modeTimeline, objects: modes);
+  //   return _modeElements;
+  // }
 
   List<TimelineElement> _modeElements;
   List<TimelineElement> reloadModeElements() {
@@ -73,18 +91,18 @@ class Show {
   }
 
   List<TimelineElement> recompileModeElements() {
-    if (editMode == 'global') return null;
+    if (trackType == 'global') return null;
     else {
       List<TimelineElement> elements;
       int childCount;
 
-      elements = (editMode == 'groups' ? groupElements : propElements).expand((el) => el).toList();
-      childCount = editMode == 'groups' ? groupCount : propCount;
+      elements = (trackType == 'groups' ? groupElements : propElements).expand((el) => el).toList();
+      childCount = trackType == 'groups' ? groupCount : propCount;
 
       var globalTimeline = TimelineElement.groupIntoSingleTrack(elements,
         childCount: childCount,
         propCounts: propCounts,
-        childType: editMode,
+        childType: trackType,
         duration: duration,
       );
 
@@ -94,28 +112,29 @@ class Show {
         ..._modeElements,
         ...globalTimeline,
       ]);
-      print("Compared elements: ${elementComparison.values.map((v) => v.length).toList()}");
-      print("..._modeElements: ${_modeElements.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
-      print("...globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
-      elementComparison.values.forEach((matches) {
-        // TODO: Check on changes to the object and potentially save it as well.
-        //       Imagine two identical global mode timeline elements, split into props.
-        //       Adjust the hue of one prop within one timeline element. When stiching
-        //       back together, the mode needs to be updated, and the object ID should
-        //       sholud be changed.
-        if (matches.length == 1) {
-          var element = matches.first;
-          if (globalTimeline.contains(element)) {
-            element.showId = id;
-            print("Saving EL: ${[element.position, element.startOffset, element.endOffset, element.objectType, element.objectId, element.showId]}");
-            element.save();
-            timelineElements.add(element);
-          } else {
-            Client.removeTimelineElement(element);
-            timelineElements.remove(element);
+      // print("Compared elements: ${elementComparison.values.map((v) => v.length).toList()}");
+      // print("..._modeElements: ${_modeElements.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
+      // print("...globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
+      if (false)
+        elementComparison.values.forEach((matches) {
+          // TODO: Check on changes to the object and potentially save it as well.
+          //       Imagine two identical global mode timeline elements, split into props.
+          //       Adjust the hue of one prop within one timeline element. When stiching
+          //       back together, the mode needs to be updated, and the object ID should
+          //       sholud be changed.
+          if (matches.length == 1) {
+            var element = matches.first;
+            if (globalTimeline.contains(element)) {
+              element.showId = id;
+              // print("Saving EL: ${[element.position, element.startOffset, element.endOffset, element.objectType, element.objectId, element.showId]}");
+              element.save();
+              timelineElements.add(element);
+            } else {
+              Client.removeTimelineElement(element);
+              timelineElements.remove(element);
+            }
           }
-        }
-      });
+        });
 
       _modeElements = globalTimeline;
       _groupElements = null;
@@ -251,43 +270,56 @@ class Show {
   }
 
   factory Show.fromResource(Resource resource, {included}) {
-    var elements = resource.toMany['timeline_elements'].map((element) {
+    var songs = resource.toMany['songs'].map((element) {
       var elementData = (included ?? []).firstWhere((item) => item.id == element.id);
-      return TimelineElement.fromResource(elementData.unwrap(), included: included);
+      return Song.fromResource(elementData.unwrap(), included: included);
+    }).toList();
+
+    var modes = resource.toMany['modes'].map((element) {
+      var elementData = (included ?? []).firstWhere((item) => item.id == element.id);
+      return Mode.fromResource(elementData.unwrap(), included: included);
     }).toList();
 
 
     Show show = Show(
-      timelineElements: elements,
+      songs: songs,
+      modes: modes,
+
       id: resource.attributes['id'],
       name: resource.attributes['name'],
-      editMode: resource.attributes['edit_mode'],
+      trackType: resource.attributes['edit_mode'],
       propCounts: resource.attributes['prop_counts'],
+      modeTimeline: resource.attributes['mode_timeline'],
+      audioTimeline: resource.attributes['audio_timeline'],
       audioByteSize: resource.attributes['audio_byte_size'],
     );
 
-    show.reloadModeElements();
-    show.attachNestedElements();
+      audioByteSize: resource.attributes['audio_byte_size'],
+    );
+
+    // show.reloadModeElements();
+    // show.attachNestedElements();
     return show;
   }
 
-  void attachNestedElements() {
-    timelineElements.forEach((element) {
-      if (element.objectType == 'NestedTimeline')
-        element.object.addElements(
-          nestedElements.where((el) {
-            return element.object.timelineElementIds.contains(el.id);
-          }).toList(),
-          startOffset: element.startOffset
-        );
-    });
-  }
+  // void attachNestedElements() {
+  //   timelineElements.forEach((element) {
+  //     if (element.objectType == 'NestedTimeline')
+  //       element.object.addElements(
+  //         nestedElements.where((el) {
+  //           return element.object.timelineElementIds.contains(el.id);
+  //         }).toList(),
+  //         startOffset: element.startOffset
+  //       );
+  //   });
+  // }
 
   void updateFromCopy(copy) {
     audioByteSize = copy.audioByteSize;
-    timelineElements = copy.timelineElements;
+    audioTimeline = copy.audioTimeline;
+    modeTimeline = copy.modeTimeline;
     propCounts = copy.propCounts;
-    editMode = copy.editMode;
+    trackType = copy.trackType;
     name = copy.name;
     id = copy.id;
   }
@@ -302,22 +334,43 @@ class Show {
     return {
       'id': id,
       'name': name,
-      'edit_mode': editMode,
+      'track_type': trackType,
       'prop_counts': propCounts,
+      'audio_timeline': audioTimeline,
       'audio_byte_size': audioByteSize,
-      'timeline_element_ids': timelineElements.map((element) => element.id).toList(),
+      'mode_timeline': modeTimelineAsJson,
     };
   }
 
   factory Show.create() {
     return Show(
-      editMode: 'global',
-      timelineElements: [],
+      timeline: [],
+      trackType: 'global',
       propCounts: Group.currentGroups.map((group) => group.props.length).toList(),
     );
   }
 
   bool get isPersisted => id != null;
+
+  List<Map<String, dynamic>> get modeTimelineAsJson {
+    List<TimelineElement> elements;
+    int childCount;
+
+    // if (trackType == 'global')
+
+    elements = (trackType == 'groups' ? groupElements : propElements).expand((el) => el).toList();
+    childCount = trackType == 'groups' ? groupCount : propCount;
+    var globalTimeline = TimelineElement.groupIntoSingleTrack(elements,
+      childCount: childCount,
+      propCounts: propCounts,
+      childType: trackType,
+      duration: duration,
+    );
+
+    return globalTimeline.map((element) {
+      return element.asJson();
+    }).toList();
+  }
 
   Future<Map<dynamic, dynamic>> save({modeDuration}) {
     var method = isPersisted ? Client.updateShow : Client.createShow;

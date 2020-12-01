@@ -142,7 +142,6 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   // }
 
   Widget _Elements() {
-    print("TIMELINE TRACK ENDPOINTS: ${elements.map((e) => [e.position, e.startOffset, e.endOffset])}");
     return RawGestureDetector(
       gestures: timelineGestures,
       child:  Row(
