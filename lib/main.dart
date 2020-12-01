@@ -10,17 +10,17 @@ import 'package:app/native_storage.dart'
 
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  env = 'prod';
+  // env = 'prod';
 
   AppController.setEnv(env).then((_) {
     AppController.initSiriSuggestions();
     Preloader.ensureSongDir();
     Preloader.downloadData();
     Preloader.initDownloader();
-  });
-  Authentication.checkForAuth().then((isAuthenticated) {
-    FluroRouter.setupRouter();
-    runApp(FlowtoysConnect(isAuthenticated));
+    Authentication.checkForAuth().then((isAuthenticated) {
+      AppRouter.setupRouter();
+      runApp(FlowtoysConnect(isAuthenticated));
+    });
   });
 }
 
@@ -46,7 +46,7 @@ class FlowtoysConnect extends StatelessWidget {
 
       return MaterialApp(
         initialRoute: isAuthenticated ? '/modes' : '/login',
-        onGenerateRoute: FluroRouter.router.generator,
+        onGenerateRoute: AppRouter.router.generator,
         navigatorKey: AppController.globalKey,
         title: 'Flowtoys Connect',
         theme: theme,

@@ -43,7 +43,7 @@ class _ListsPageState extends State<ListsPage> {
       errorMessage = null;
       awaitingResponse = true;
     });
-    return Client.getModeLists(creationType: 'custom').then((response) {
+    return Client.getModeLists(creationType: 'user').then((response) {
       setState(() {
         awaitingResponse = false;
         if (response['success'])

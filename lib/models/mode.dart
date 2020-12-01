@@ -11,15 +11,13 @@ import 'dart:convert';
 class Mode {
   bool get isPersisted => id != null;
 
-  String get thumbnailPath => (images['club'] ?? {})['thumb'];
-  String get imagePath => (images['club'] ?? {})['medium'];
-  String get thumbnail => "${Client.host}${thumbnailPath}";
-  String get image => "${Client.host}${imagePath}";
+  String get image => (images['club'] ?? {})['medium'] ?? defaultImage;
+  String get thumbnail => (images['club'] ?? {})['thumb'] ?? defaultImage;
+  String get defaultImage => baseMode.defaultImage;
 
-  String get trailImagePath => (images['trail'] ?? {})['medium'];
-  String get trailImage => "${Client.host}${trailImagePath}";
+  String get trailImage => (images['trail'] ?? {})['medium'];
 
-  bool get hasTrailImage => trailImagePath != null;
+  bool get hasTrailImage => trailImage != null;
 
   Map<String, dynamic> get images => baseMode.images;
   String accessLevel;
@@ -130,6 +128,7 @@ class Mode {
       if (response['success']) {
         this.id = id ?? response['mode'].id;
         // assignAttributesFromCopy(response['mode']); // This isn't really necessary, but seems right for good measure?
+        response['id'] = id;
         response['mode'] = this;
       } else {
         print("FAIL SAVE MODE: ${response['message']}");
@@ -252,6 +251,7 @@ class Mode {
   }
 
   factory Mode.fromSiblings(siblings) {
+    if (siblings.first == null) return null;
     var attributes = siblings.first.toFullMap();
     siblings.first.modeParams.keys.forEach((param) {
       attributes[param];

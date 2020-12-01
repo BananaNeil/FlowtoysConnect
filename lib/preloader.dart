@@ -134,8 +134,8 @@ class Preloader {
 
           // Preload images:
           var configuration = createLocalImageConfiguration(context);
-          NetworkImage(mode.thumbnail)..resolve(configuration);
-          NetworkImage(mode.image)..resolve(configuration);
+          NetworkImage(mode.thumbnail ?? mode.defaultImage)..resolve(configuration);
+          NetworkImage(mode.image ?? mode.defaultImage)..resolve(configuration);
         });
       }
     });

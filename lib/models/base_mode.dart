@@ -27,13 +27,12 @@ class BaseMode {
     this.id,
   });
 
-  String get thumbnailPath => (images['club'] ?? {})['thumb'];
-  String get imagePath => (images['club'] ?? {})['medium'];
-  String get thumbnail => "${Client.host}${thumbnailPath}";
-  String get image => "${Client.host}${imagePath}";
+  String get thumbnail => (images['club'] ?? {})['thumb'] ?? defaultImage;
+  String get image => (images['club'] ?? {})['medium'] ?? defaultImage;
+  // ..... change this later?
+  String get defaultImage => "https://s3-us-west-1.amazonaws.com/storage.flowtoys.com/doowplovojvzrswvadqxy16o6g7a";
 
-  String get trailImagePath => (images['trail'] ?? {})['medium'];
-  String get trailImage => "${Client.host}${trailImagePath}";
+  String get trailImage => (images['trail'] ?? {})['medium'];
 
   num getValue(param) {
     return {

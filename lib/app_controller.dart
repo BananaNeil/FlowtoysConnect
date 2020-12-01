@@ -295,6 +295,10 @@ class AppControllerState extends State<AppController> {
   }
 }
 
+int sumList(list) {
+  if (list.isEmpty) return 0;
+  return list.reduce((a, b) => a + b);
+}
 
 
 Iterable<E> mapWithIndex<E, T>(

@@ -154,6 +154,24 @@ class ModeRow extends StatelessWidget {
 
 Widget ModeImageFilter({mode, hsvColor, child}) {
   hsvColor = hsvColor ?? mode.getHSVColor();
+
+
+  // return ColorFiltered(
+  //   colorFilter: ColorFilter.matrix(
+  //     ColorFilterGenerator.brightnessAdjustMatrix(
+  //       initialValue: mode.initialValue('brightness'),
+  //       value: hsvColor.value,
+  //     )
+  //   ),
+  //   child: child
+  // );
+
+
+
+  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
   return ColorFiltered(
     colorFilter: ColorFilter.matrix(
       ColorFilterGenerator.brightnessAdjustMatrix(

@@ -135,10 +135,10 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           margin: EdgeInsets.only(bottom: 20, top: 5),
           child: DropdownButton(
             isExpanded: true,
-            value: (mode.baseModeId ?? baseModes.elementAt(0)?.id)?.toString(),
+            value: mode.baseModeId ?? baseModes.elementAt(0)?.id,
             items: baseModes.map((BaseMode baseMode) {
               return DropdownMenuItem<String>(
-                value: baseMode.id.toString(),
+                value: baseMode.id,
                 child: Row(
                   children: [
                     Container(

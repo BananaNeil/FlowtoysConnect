@@ -1,0 +1,214 @@
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/models/mode_list.dart';
+import 'package:app/app_controller.dart';
+import 'package:flutter/material.dart';
+import 'package:app/models/mode.dart';
+import 'package:app/client.dart';
+
+class Modes extends StatelessWidget {
+  Modes({this.id});
+
+  final String id; 
+
+  @override
+  Widget build(BuildContext context) {
+    return ModesPage(id: id);
+  }
+}
+
+class ModesPage extends StatefulWidget {
+  ModesPage({Key key, this.id}) : super(key: key);
+  final String id;
+
+  @override
+  _ModesPageState createState() => _ModesPageState(id);
+}
+
+class _ModesPageState extends State<ModesPage> {
+  _ModesPageState(this.id);
+
+  final String id;
+
+  String errorMessage;
+  List<Mode> modes = [];
+  List<ModeList> modeLists = [];
+  List<Mode> selectedModes = [];
+  bool awaitingResponse = false;
+  bool isSelecting = false;
+  // String title = 'Modes';
+
+  Future<void> _fetchModes() {
+    setState(() { awaitingResponse = true; });
+    return Client.getModeList(id ?? 'default').then((response) {
+      setState(() {
+        awaitingResponse = false;
+        modeLists = response['modeLists'] ?? [response['modeList']];
+      });
+    });
+  }
+
+  @override initState() {
+    super.initState();
+    _fetchModes();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      floatingActionButton: isSelecting ?  Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.extended(
+            backgroundColor: AppController.green,
+            label: Text("Save (${selectedModes.length}) to list"),
+            heroTag: "save_list",
+            onPressed: () {
+              Navigator.pushNamed(context, '/lists/new', arguments: {
+                'selectedModes': selectedModes,
+              });
+            },
+          ),
+          Container(
+            height: 20,
+            width: 20,
+            child: FloatingActionButton.extended(
+              backgroundColor: AppController.red,
+              label: Text("X"),
+              heroTag: "cancel",
+              onPressed: () {
+                setState(() {
+                  isSelecting = false;
+                  selectedModes = [];
+                });
+              },
+            )
+          )
+        ]
+      ) :
+      FloatingActionButton(
+        onPressed: () {
+          setState(() { isSelecting = true; });
+        },
+        child: Icon(Icons.playlist_add),
+        backgroundColor: AppController.blue,
+      ),
+      backgroundColor: Color(0xff333333),
+			drawer: Drawer(
+				// Add a ListView to the drawer. This ensures the user can scroll
+				// through the options in the drawer if there isn't enough vertical
+				// space to fit everything.
+				child: ListView(
+					padding: EdgeInsets.zero,
+					children: <Widget>[
+						DrawerHeader(
+							child: Text('Drawer Header'),
+							decoration: BoxDecoration(
+								color: Colors.blue,
+							),
+						),
+						ListTile(
+							title: Text('My Props'),
+							onTap: () { },
+						),
+						ListTile(
+							title: Text('Modes'),
+							onTap: () { },
+						),
+						ListTile(
+							title: Text('My Lists'),
+							onTap: () { },
+						),
+					],
+				),
+			),
+      appBar: AppBar(
+        title: Text(_getTitle()), backgroundColor: Color(0xff222222),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.content_paste),
+          ),
+        ],
+      ),
+			body: Center(
+				child: Column(
+					mainAxisAlignment: MainAxisAlignment.center,
+					children: <Widget>[
+						Expanded(
+              child: RefreshIndicator(
+                onRefresh: _fetchModes,
+                child: ListView(
+                  // padding: EdgeInsets.zero,
+                  children: _ModeList()
+                ),
+              ),
+						),
+					],
+				),
+			),
+		);
+  }
+
+  List<Widget> _ModeList() {
+    if (errorMessage != null)
+      return [Text(errorMessage, textAlign: TextAlign.center, style: TextStyle(color: AppController.red))];
+    else if (modeLists == null || modeLists[0].modes.length == 0)
+      return [
+        Container(
+          margin: EdgeInsets.only(top: 20, bottom: 20),
+          child: awaitingResponse ?
+            SpinKitCircle(color: AppController.blue) :
+            Text("No modes here.", textAlign: TextAlign.center),
+        )
+      ];
+    else return modeLists[0].modes.map((mode) {
+      return _ModeItem(mode);
+		}).toList();
+
+  }
+
+  Widget _ModeItem(mode) {
+      var index = selectedModes.indexOf(mode) + 1;
+			return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+        onTap: () {
+          setState(() {
+            if (selectedModes.contains(mode))
+              selectedModes.removeWhere((item) => item == mode);
+            else selectedModes.add(mode);
+          });
+        },
+        child: Container(
+          padding: EdgeInsets.all(20.0),
+          child: Row(
+            children: [
+              Visibility(
+                maintainSize: isSelecting, 
+                maintainAnimation: true,
+                maintainState: true,
+                visible: index > 0,
+                child: Container(
+                  width: 20,
+                  margin: EdgeInsets.only(right: 20),
+                  child: Text(
+                    index.toString(),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              ),
+              Text(mode.name),
+            ]
+          )
+        )
+      );
+  }
+
+  String _getTitle() {
+    if (isSelecting)
+      return "${selectedModes.length} item selected";
+    else if (modeLists.length == 1)
+      return modeLists[0].name;
+    else return "Modes";
+  }
+
+}
+

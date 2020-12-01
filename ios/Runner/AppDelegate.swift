@@ -16,6 +16,8 @@ import flutter_downloader
     FlutterDownloaderPlugin.setPluginRegistrantCallback({ registry in
       FlutterDownloaderPlugin.register(with: registry.registrar(forPlugin: "vn.hunghd.flutter_downloader")!)
     })
+    UIApplication.shared.setMinimumBackgroundFetchInterval(TimeInterval(60*15))
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 

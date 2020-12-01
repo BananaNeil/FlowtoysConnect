@@ -1,6 +1,5 @@
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/models/timeline_element.dart';
-import 'package:app/models/nested_timeline.dart';
 import "package:collection/collection.dart";
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
@@ -10,7 +9,6 @@ import 'package:app/models/song.dart';
 import 'package:app/models/group.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
-import 'dart:collection';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
@@ -18,7 +16,7 @@ import 'dart:math';
 class Show {
   List<TimelineElement> timelineElements = [];
   String editMode = 'global';
-  List<int> propCounts;
+  List<dynamic> propCounts;
   int audioByteSize;
   String name;
   String id;
@@ -53,102 +51,122 @@ class Show {
 
   List<TimelineElement> _modeElements;
   List<TimelineElement> reloadModeElements() {
-    // if (editMode == 'global')
-    //   _modeElements = timelineElements.where((element) {
-    //     return element.timelineType == 'modes';
-    //   }).toList()..sort((a, b) => a.position.compareTo(b.position));
-    // else if (editMode == 'groups')
-    // return _modeElements;
-
-
     _modeElements = timelineElements.where((element) {
       return element.timelineType == 'modes';
     }).toList()..sort((a, b) => a.position.compareTo(b.position));
+
+    Duration offset = Duration();
+    modeElements.forEach((element) {
+      if (element.duration != null) {
+        element.startOffset = Duration() + offset;
+        offset += element.duration;
+      } // otherwise, the show has almost certainly not been created
+    });
+
     return _modeElements;
   }
 
-  List<TimelineElement> get globalModeElements {
-    // List<TimelineElement> timelines = groupBy(timelineElements, (element) => element.timelineIndex).values();
-    List<TimelineElement> globalTimeline = [];
-    if (editMode == 'global')
-      return modeElements;
+  List<TimelineElement> get nestedElements {
+    return timelineElements.where((element) {
+      return element.timelineType == 'nested';
+    }).toList();
+  }
+
+  List<TimelineElement> recompileModeElements() {
+    if (editMode == 'global') return null;
     else {
-      Map<String, List<TimelineElement>> elementsByTimeRange = {};
-      List<TimelineElement> siblings;
+      List<TimelineElement> elements;
       int childCount;
 
-      if (editMode == 'groups') 
-        childCount = groupCount;
-      else childCount = propCount;
+      elements = (editMode == 'groups' ? groupElements : propElements).expand((el) => el).toList();
+      childCount = editMode == 'groups' ? groupCount : propCount;
 
+      var globalTimeline = TimelineElement.groupIntoSingleTrack(elements,
+        childCount: childCount,
+        propCounts: propCounts,
+        childType: editMode,
+        duration: duration,
+      );
 
-      // Group by similarities
-      elementsByTimeRange = groupBy(modeElements, (element) {
-        return [
-          element.objectType == 'Mode' ?
-              element.object.baseModeId : null,
-          element.startOffset,
-          element.duration,
-        ].toString();
-      });
-
-
-      // Move identical siblings into global timeline
-      elementsByTimeRange.keys.forEach((key) {
-        if (elementsByTimeRange[key].length == childCount) {
-          siblings = elementsByTimeRange.remove(key);
-          var newElement = siblings.first.dup();
-          newElement.object = Mode.fromSiblings(
-            siblings.map((element) => element.object).toList()
-          );
-          globalTimeline.add(newElement);
+      // Compare timeline elements to the original timeline,
+      // and save the ones that have been changed
+      var elementComparison = TimelineElement.groupSimilar([
+        ..._modeElements,
+        ...globalTimeline,
+      ]);
+      print("Compared elements: ${elementComparison.values.map((v) => v.length).toList()}");
+      print("..._modeElements: ${_modeElements.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
+      print("...globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
+      elementComparison.values.forEach((matches) {
+        // TODO: Check on changes to the object and potentially save it as well.
+        //       Imagine two identical global mode timeline elements, split into props.
+        //       Adjust the hue of one prop within one timeline element. When stiching
+        //       back together, the mode needs to be updated, and the object ID should
+        //       sholud be changed.
+        if (matches.length == 1) {
+          var element = matches.first;
+          if (globalTimeline.contains(element)) {
+            element.showId = id;
+            print("Saving EL: ${[element.position, element.startOffset, element.endOffset, element.objectType, element.objectId, element.showId]}");
+            element.save();
+            timelineElements.add(element);
+          } else {
+            Client.removeTimelineElement(element);
+            timelineElements.remove(element);
+          }
         }
       });
 
-      List<List<TimelineElement>> elementsToBeSubGrouped = elementsByTimeRange.values;
-      globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
-
-
-      // Create TimelineElements that fill the incongruent spaces
-      var offset = duration;
-      eachWithIndex(globalTimeline.reversed, (index, element) {
-        if (element.endOffset < offset)
-          globalTimeline.insert(globalTimeline.length - index, TimelineElement(
-            startOffset: element.endOffset,
-            duration: offset - element.endOffset,
-          ));
-        offset = element.startOffset;
-      });
-
-
-      // Attach remaining elements to their sub-timeline chunks:
-      elementsToBeSubGrouped.forEach((elements) {
-        var element = globalTimeline.firstWhere((globalElement) {
-          return globalElement.startOffset <= elements.first.startOffset &&
-              globalElement.endOffset >= elements.first.endOffset;
-        });
-        element.object ??= NestedTimeline();
-        element.object.addElements(elements);
-      });
-
-      // Save global timeline
-      eachWithIndex(globalTimeline, (index, element) => element.position = index);
-      // saveAndOverwrite();
-
-      return globalTimeline;
-
+      _modeElements = globalTimeline;
+      _groupElements = null;
+      _propElements = null;
     }
   }
 
   List<TimelineElement> get modeElements => _modeElements ?? reloadModeElements();
 
-  List<TimelineElement> modeElementsFor({groupIndex, propIndex}) {
-    return modeElements.map((element) {
-      var dup = element.dup();
-      dup.object.setAsSubMode(groupIndex: groupIndex, propIndex: propIndex);
-      print("OBJ SET: ${dup.object.childType}");
-      return dup;
-    }).toList();
+  List<List<TimelineElement>> _groupElements;
+  List<List<TimelineElement>> get groupElements => _groupElements = List.generate(groupCount, (index) {
+    return modeElementsFor(groupIndex: index, timelineIndex: index);
+  }).toList();
+
+  List<List<TimelineElement>> _propElements;
+  List<List<TimelineElement>> get propElements {
+    var indexOffset = 0;
+    if (_propElements != null) return _propElements;
+    _propElements = [];
+    eachWithIndex(propCounts, (groupIndex, count) {
+      var list = List.generate(count, (propIndex) {
+        return modeElementsFor(groupIndex: groupIndex, propIndex: propIndex, timelineIndex: indexOffset + propIndex);
+      }).toList();
+      indexOffset += count;
+      _propElements.addAll(list);
+    });
+    return _propElements;
+  }
+
+  List<TimelineElement> modeElementsFor({groupIndex, propIndex, timelineIndex}) {
+    List<TimelineElement> elements = [];
+    modeElements.forEach((element) {
+      print("ELEMENT FOR: ${groupIndex}, ${propIndex}, ${timelineIndex}");
+      if (element.objectType == 'NestedTimeline')
+        element.object.elementsAt(groupIndex, propIndex, timelineIndex).forEach((trackElement) {
+          trackElement.timelineIndex = timelineIndex;
+          // if (!trackElement.isPersisted)
+          trackElement.startOffset = element.startOffset + trackElement.nestedStartOffset;
+          print("Adding nested timeline element: ${trackElement.startOffset} -> ${trackElement.duration}");
+          elements.add(trackElement);
+        });
+      else {
+        var dup = element.dup();
+        dup.timelineIndex = timelineIndex;
+        dup.object?.setAsSubMode(groupIndex: groupIndex, propIndex: propIndex);
+        print("Adding mode timeline element: ${element.startOffset} -> ${element.duration}");
+        elements.add(dup);
+      }
+    });
+    print("\nThese are the elements for (${groupIndex} ${propIndex}):\n${elements.map((element) => [element.objectType, element.startOffset, element.duration]).join("\n")}\n\n");
+    return elements;
   }
 
   TimelineElement addAudioElement(song) {
@@ -239,14 +257,30 @@ class Show {
     }).toList();
 
 
-    return Show(
+    Show show = Show(
       timelineElements: elements,
       id: resource.attributes['id'],
       name: resource.attributes['name'],
       editMode: resource.attributes['edit_mode'],
-      propCounts: resource.attributes['propCounts'],
+      propCounts: resource.attributes['prop_counts'],
       audioByteSize: resource.attributes['audio_byte_size'],
     );
+
+    show.reloadModeElements();
+    show.attachNestedElements();
+    return show;
+  }
+
+  void attachNestedElements() {
+    timelineElements.forEach((element) {
+      if (element.objectType == 'NestedTimeline')
+        element.object.addElements(
+          nestedElements.where((el) {
+            return element.object.timelineElementIds.contains(el.id);
+          }).toList(),
+          startOffset: element.startOffset
+        );
+    });
   }
 
   void updateFromCopy(copy) {

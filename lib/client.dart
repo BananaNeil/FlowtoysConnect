@@ -1,4 +1,5 @@
 import 'package:app/models/timeline_element.dart';
+import 'package:app/models/nested_timeline.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
@@ -106,6 +107,17 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> updateTimelineElements(elements, {object}) async {
+    var response = await makeRequest('put',
+      path: '/timeline_elements',
+      body: {
+        'timeline_element_ids': elements.map((element) => element.id),
+      },
+    );
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> updateTimelineElement(attributes) async {
     var id = attributes.remove('id');
     var response = await makeRequest('put',
@@ -128,6 +140,7 @@ class Client {
 
     if (response['success']) {
       response['timelineElement'] = TimelineElement.fromMap(response['body']);
+    print("after FROM MAP: ${response['timelineElement'].id}  - ${response['timelineElement'].duration}");
     }
 
     return response;
@@ -179,6 +192,7 @@ class Client {
 
     if (response['success']) {
       response['song'] = Song.fromMap(response['body']['data']['attributes']);
+      response['id'] = response['song'].id;
     }
 
     return response;
@@ -193,6 +207,7 @@ class Client {
 
     if (response['success']) {
       response['song'] = Song.fromMap(response['body']['data']['attributes']);
+      response['id'] = response['song'].id;
     }
 
     return response;
@@ -260,6 +275,20 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> createNestedTimeline(nestedTimeline) async {
+    var response = await makeRequest('post',
+      path: "/nested_timelines",
+      body: {
+        'nested_timeline': nestedTimeline.toMap(),
+      },
+    );
+
+    if (response['success'])
+      response['nestedTimeline'] = NestedTimeline.fromMap(response['body']['data']['attributes']);
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> createMode(mode) async {
     var response = await makeRequest('post',
       path: "/modes",
@@ -273,6 +302,21 @@ class Client {
       response['mode'] = Mode.fromMap(response['body']['data']['attributes']);
       if (mode.parentType == 'ModeList')
         getModeList(mode.parentId);
+    }
+
+    return response;
+  }
+
+  static Future<Map<dynamic, dynamic>> updateNestedTimeline(nestedTimeline) async {
+    var response = await makeRequest('put',
+      path: "/nested_timelines/${nestedTimeline.id}",
+      body: {
+        'nested_timeline': nestedTimeline.toMap(),
+      },
+    );
+
+    if (response['success']) {
+      response['nestedTimeline'] = NestedTimeline.fromMap(response['body']);
     }
 
     return response;
@@ -334,7 +378,7 @@ class Client {
 
   static Future<Map<dynamic, dynamic>> makeRequest(method, {path, uri, headers, body, requireAuth, basicAuth, unauthorized, genericErrorCodes}) async {
     try {
-      print("Request: $host$path");
+      // print("\nRequest: $host$path");
       http.Request request = http.Request(method, uri ?? Uri.parse('$host$path'));
       if (genericErrorCodes == null) genericErrorCodes = [500];
 
@@ -348,19 +392,19 @@ class Client {
         });
         return json;
       });
-      print("encodeed: ${request.body}");
+      // print("encodeed: ${request.body}");
       (headers ?? {}).forEach((key, value) {
         request.headers[key] = value;
       });
 
-      print("Is authed: ${Authentication.isAuthenticated()}");
+      // print("Is authed: ${Authentication.isAuthenticated()}");
       if (Authentication.isAuthenticated())
         Authentication.token.forEach((key, value) {
           request.headers[key] = value;
         });
       print("SENDING REQUEST");
 
-      print(">>>>>>>>>>:\nTYPE: ${method}\nURL: $host$path\nHEADERS: ${request.headers}\nBODY: ${request.body}\n=======");
+      print("\n>>>>>>>>>>:\nTYPE: ${method}\nURL: $host$path\nHEADERS: ${request.headers}\nBODY: ${request.body}\n=======\n");
       http.StreamedResponse streamedResponse = await http.Client().send(request);
       http.Response response = await http.Response.fromStream(streamedResponse);
 
@@ -368,7 +412,7 @@ class Client {
       var responseHeaders = response.headers;
       var code = response.statusCode;
 
-      print("<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======");
+      print("\n<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======\n");
 
       var errors = responseBody['errors'] ?? {};
       var message;

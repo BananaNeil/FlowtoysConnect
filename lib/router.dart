@@ -17,8 +17,8 @@ import 'package:app/routes/modes.dart';
 import 'package:app/routes/lists.dart';
 import 'package:app/routes/props.dart';
 
-class FluroRouter {
-  static Router router = Router();
+class AppRouter {
+  static FluroRouter router = FluroRouter();
 
   static newHandler(klass, [key]) {
     return Handler(handlerFunc: (BuildContext context, Map<String, dynamic> params) {

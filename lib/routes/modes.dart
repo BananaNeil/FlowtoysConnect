@@ -50,10 +50,13 @@ class _ModesPageState extends State<ModesPage> {
   bool isTopLevelRoute;
   List<Mode> modes = [];
   bool isEditing = false;
+  List<ModeList> allLists;
   List<ModeList> modeLists;
   Mode currentlyEditingMode;
+  bool canChangeCurrentList;
   List<Mode> selectedModes = [];
   bool awaitingResponse = false;
+  bool isFetchingAllLists = false;
   bool isAdjustingInlineParam = false;
   ModeList get firstList => modeLists.isEmpty ? null : modeLists[0];
   bool showExpandedActionButtons = false;
@@ -79,8 +82,21 @@ class _ModesPageState extends State<ModesPage> {
     });
   }
 
+  Future<void> _fetchAllLists({initialRequest}) {
+    setState(() { isFetchingAllLists = true; });
+    return Client.getModeLists().then((response) {
+      isFetchingAllLists = false;
+      setState(() {
+        if (response['success']) {
+          allLists = response['modeLists'] ?? [];
+        } else if (initialRequest != true || modeLists.isEmpty)
+          errorMessage = response['message'];
+      });
+    });
+  }
+
   Future<void> _fetchModes({initialRequest}) {
-    print("authed? ${Authentication.isAuthenticated()} **** lists: ${modeLists.length}");
+    print("Fetching Modes ------- ");
     if (!Authentication.isAuthenticated() && modeLists.length > 0) return Future.value(null);
     setState(() { awaitingResponse = true; });
     return _makeRequest().then((response) {
@@ -110,6 +126,8 @@ class _ModesPageState extends State<ModesPage> {
   @override
   Widget build(BuildContext context) {
     modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
+    print("PARAMS: ${AppController.getParams(context)}");
+    canChangeCurrentList ??= AppController.getParams(context)['canChangeCurrentList'] ?? false;
     isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
     selectAction ??= AppController.getParams(context)['selectAction'];
     returnList ??= AppController.getParams(context)['returnList'];
@@ -174,6 +192,7 @@ class _ModesPageState extends State<ModesPage> {
                     childrenAlreadyHaveListener: true,
                     allowReordering: isEditing,
                     children: [
+                      _SelectCurrentList,
                       ..._ListItems,
                       _AddMoreModes,
                     ],
@@ -226,6 +245,42 @@ class _ModesPageState extends State<ModesPage> {
           margin: EdgeInsets.only(top: 10, bottom: 15),
           child: Text("+ Add more modes"),
         )
+      )
+    );
+  }
+
+  Widget get _SelectCurrentList {
+    if (!canChangeCurrentList) return Container();
+    if (allLists == null && !isFetchingAllLists) _fetchAllLists();
+    if (isFetchingAllLists)
+      return SpinKitCircle(size: 14, color: Colors.white);
+
+    print("ALLLL????????? ${allLists.length}");
+    return Container(
+      margin: EdgeInsets.all(5),
+      child: DropdownButton(
+        isExpanded: true,
+        value: firstList?.id,
+        items: allLists.map((ModeList list) {
+          return DropdownMenuItem<String>(
+            value: list.id,
+                child: Wrap(
+                  children: [
+                    Text(list.name),
+                    ...list.modes.map((mode) {
+                      return Container(
+                        margin: EdgeInsets.only(right: 4, bottom: 4),
+                        child: ModeImage(mode: mode, size: 12)
+                      );
+                    }).toList(),
+                  ]
+                )
+          );
+        }).toList(),
+        onChanged: (value) {
+          modeLists = [allLists.firstWhere((list) => list.id == value)];
+          setState(() {});
+        },
       )
     );
   }

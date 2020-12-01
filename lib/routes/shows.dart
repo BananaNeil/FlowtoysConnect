@@ -95,7 +95,13 @@ class _ShowsPageState extends State<ShowsPage> {
                         child: GestureDetector(
                           child: Text("CREATE A NEW SHOW", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
                           onTap: () {
-                            Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true, 'selectAction': 'Create Show'}).then((modes) {
+                            Navigator.pushNamed(context, '/modes',
+                              arguments: {
+                                'isSelecting': true,
+                                'canChangeCurrentList': true,
+                                'selectAction': 'Create Show',
+                              }
+                            ).then((modes) {
                               if (modes != null)
                                 Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes}).then((_) {
                                   fetchShows();
@@ -160,7 +166,11 @@ class _ShowsPageState extends State<ShowsPage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(child: Text(show.name), margin: EdgeInsets.only(right: 6)),
+                          Flexible(
+                            child: Container(child: Text(show.name,
+                              overflow: TextOverflow.ellipsis,
+                            ), margin: EdgeInsets.only(right: 6)),
+                          ),
                           // Don't forget to remove this minimum byte size after you figure out show json size
                           Text("${show.durationString}  -  (${filesize(max(1500, show.audioByteSize))})", style: TextStyle(
                             fontSize: 12,
