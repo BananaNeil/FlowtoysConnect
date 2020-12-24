@@ -87,6 +87,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                         ),
                         TextFormField(
                           controller: email,
+                          autofillHints: [AutofillHints.password],
                           decoration: InputDecoration(
                             labelText: 'Email'
                           ),
@@ -94,6 +95,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                             if (value.isEmpty) return 'Please enter some text';
                             else if (!EmailValidator.validate(value.trim()))
                               return "That doesn't look like an email address";
+                          },
+                          onFieldSubmitted: (value) {
+                            _submitForm();
                           },
                         ),
                         Container(

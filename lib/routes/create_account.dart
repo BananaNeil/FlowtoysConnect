@@ -126,6 +126,7 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
             ),
             TextFormField(
               controller: email,
+              autofillHints: [AutofillHints.username],
               decoration: InputDecoration(
                 labelText: 'Email'
               ),
@@ -134,10 +135,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 else if (!EmailValidator.validate(value.trim()))
                   return "That doesn't look like an email address";
               },
+              onFieldSubmitted: (value) {
+                _submitForm();
+              },
             ),
             TextFormField(
               obscureText: true,
               controller: password,
+              autofillHints: [AutofillHints.password],
               decoration: InputDecoration(
                 labelText: 'Password'
               ),
@@ -146,15 +151,22 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
                 else if (confirmPassword.text != value)
                   return 'Passwords do not match.';
               },
+              onFieldSubmitted: (value) {
+                _submitForm();
+              },
             ),
             TextFormField(
               obscureText: true,
+              autofillHints: [AutofillHints.password],
               controller: confirmPassword,
               decoration: InputDecoration(
                 labelText: 'Re-type Password'
               ),
               validator: (value) {
                 if (value.isEmpty) return 'Please enter some text';
+              },
+              onFieldSubmitted: (value) {
+                _submitForm();
               },
             ),
           ],

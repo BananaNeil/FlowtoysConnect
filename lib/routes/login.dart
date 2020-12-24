@@ -97,6 +97,7 @@ class _LoginPageState extends State<LoginPage> {
               style: TextStyle(color: AppController.red),
             ),
             TextFormField(
+              autofillHints: [AutofillHints.username],
               controller: email,
               decoration: InputDecoration(
                 labelText: 'Email'
@@ -106,15 +107,22 @@ class _LoginPageState extends State<LoginPage> {
                 else if (!EmailValidator.validate(value.trim()))
                   return "That doesn't look like an email address";
               },
+              onFieldSubmitted: (value) {
+                _submitForm();
+              },
             ),
             TextFormField(
               obscureText: true,
               controller: password,
+              autofillHints: [AutofillHints.password],
               decoration: InputDecoration(
                 labelText: 'Password',
               ),
               validator: (value) {
                 if (value.isEmpty) return 'Please enter some text';
+              },
+              onFieldSubmitted: (value) {
+                _submitForm();
               },
             ),
           ],

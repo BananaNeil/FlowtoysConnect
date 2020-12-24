@@ -31,7 +31,9 @@ class Modes extends StatelessWidget {
 }
 
 class ModesPage extends StatefulWidget {
-  ModesPage({Key key, this.id}) : super(key: key);
+  ModesPage({Key key, this.id, this.hideNavigation, this.canShowDefaultLists}) : super(key: key);
+  bool canShowDefaultLists = true;
+  bool hideNavigation = false;
   final String id;
 
   @override
@@ -40,6 +42,7 @@ class ModesPage extends StatefulWidget {
 
 class _ModesPageState extends State<ModesPage> {
   _ModesPageState(this.id);
+  bool get hideNavigation => widget.hideNavigation ?? false;
 
   final String id;
 
@@ -64,19 +67,21 @@ class _ModesPageState extends State<ModesPage> {
   List<Mode> expandedModes = [];
   bool isExpanded(mode) => expandedModes.contains(mode);
 
+  bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
+
 
   List<String> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
 
   List<Mode> get allModes => modeLists.map((list) => list.modes).expand((m) => m).toList();
 
   Future<Map<dynamic, dynamic>> _makeRequest() {
-    if (id == null)
+    if (showDefaultLists)
       return Client.getModeLists(creationType: 'auto');
     else return Client.getModeList(id);
   }
 
   Future<void> requestFromCache() async {
-    var query = id == null ? {'creation_type': 'auto'} : {'id': id};
+    var query = showDefaultLists ? {'creation_type': 'auto'} : {'id': id};
     return Preloader.getModeLists(query).then((lists) {
       setState(() => modeLists = lists);
     });
@@ -96,23 +101,21 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   Future<void> _fetchModes({initialRequest}) {
-    print("Fetching Modes ------- ");
     if (!Authentication.isAuthenticated() && modeLists.length > 0) return Future.value(null);
     setState(() { awaitingResponse = true; });
-    return _makeRequest().then((response) {
-      setState(() {
-        if (response['success']) {
-          awaitingResponse = false;
+    return Preloader.downloadData().then((_) {
+      return _makeRequest().then((response) {
+        setState(() {
+          if (response['success']) {
+            awaitingResponse = false;
 
 
-          // There is bug where selected modes get overridden when the fetch finishes...
-
-
-          var list = response['modeList'];
-          if (list != null) modeLists = [list];
-          else modeLists = response['modeLists'] ?? [];
-        } else if (initialRequest != true || modeLists.isEmpty)
-          errorMessage = response['message'];
+            var list = response['modeList'];
+            if (list != null) modeLists = [list];
+            else modeLists = response['modeLists'] ?? [];
+          } else if (initialRequest != true || modeLists.isEmpty)
+            errorMessage = response['message'];
+        });
       });
     });
   }
@@ -126,7 +129,6 @@ class _ModesPageState extends State<ModesPage> {
   @override
   Widget build(BuildContext context) {
     modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
-    print("PARAMS: ${AppController.getParams(context)}");
     canChangeCurrentList ??= AppController.getParams(context)['canChangeCurrentList'] ?? false;
     isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
     selectAction ??= AppController.getParams(context)['selectAction'];
@@ -136,7 +138,7 @@ class _ModesPageState extends State<ModesPage> {
     return Scaffold(
       floatingActionButton: _FloatingActionButton,
       backgroundColor: AppController.darkGrey,
-      drawer: isTopLevelRoute ? AppController.drawer() : null,
+      drawer: !hideNavigation && isTopLevelRoute ? AppController.drawer() : null,
       appBar: AppBar(
         title: Text(_getTitle()), backgroundColor: Color(0xff222222),
         leading: isTopLevelRoute ? null : IconButton(
@@ -145,7 +147,7 @@ class _ModesPageState extends State<ModesPage> {
             Navigator.pop(context, returnList == true ? firstList : null);
           },
         ),
-        actions: <Widget>[
+        actions: hideNavigation ? [] : <Widget>[
           GestureDetector(
             onTap: () {
               showDialog(context: context,
@@ -179,37 +181,50 @@ class _ModesPageState extends State<ModesPage> {
         ],
       ),
       body: Center(
-        child: Column(
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _fetchModes,
-                child: Container(
-                  decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
-                  child: ReorderableListSimple(
-                    physics: BouncingScrollPhysics(),
-                    childrenAlreadyHaveListener: true,
-                    allowReordering: isEditing,
-                    children: [
-                      _SelectCurrentList,
-                      ..._ListItems,
-                      _AddMoreModes,
-                    ],
-                    onReorder: (int start, int current) {
-                      if (isShowingMultipleLists) return;
-                      var list = firstList;
-                      var mode = list.modes[start];
-                      list.modes.remove(mode);
-                      list.modes.insert(current, mode);
-                      list.modes.asMap().forEach((index, other) => other.position = index + 1);
-                      Client.updateMode(mode);
-                    }
-                  ),
-                )
-              ),
+          children: _ModeLists,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> get _ModeLists {
+    if (AppController.screenWidth < 300 * modeLists.length)
+      return [_ModeList(modeLists)];
+    else return modeLists.map<Widget>((list) {
+      return _ModeList([list]);
+    }).toList();
+  }
+
+  Widget _ModeList(lists) {
+    return Container(
+      width: AppController.screenWidth > 600 && modeLists.length == 1 ? 600 : null,
+      child: Expanded(
+        child: RefreshIndicator(
+          onRefresh: _fetchModes,
+          child: Container(
+            decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
+            child: ReorderableListSimple(
+              physics: BouncingScrollPhysics(),
+              childrenAlreadyHaveListener: true,
+              allowReordering: isEditing,
+              children: [
+                _SelectCurrentList,
+                ..._ListItems(lists),
+                _AddMoreModes,
+              ],
+              onReorder: (int start, int current) {
+                if (isShowingMultipleLists) return;
+                var list = firstList;
+                var mode = list.modes[start];
+                list.modes.remove(mode);
+                list.modes.insert(current, mode);
+                list.modes.asMap().forEach((index, other) => other.position = index + 1);
+                Client.updateMode(mode);
+              }
             ),
-          ],
+          )
         ),
       ),
     );
@@ -285,8 +300,8 @@ class _ModesPageState extends State<ModesPage> {
     );
   }
 
-  List<Widget> get _ListItems {
-    return modeLists.map((list) {
+  List<Widget> _ListItems(List<ModeList> lists) {
+    return lists.map((list) {
       var items = list.modes.map(_ModeItem).toList();
       if (isShowingMultipleLists)
         items.insert(0, _ListTitle(list));
@@ -533,7 +548,9 @@ class _ModesPageState extends State<ModesPage> {
                           children: [
                             Row(
                               children: [
-                                Text(mode.name),
+                                Container(child: Text(mode.name,
+                                  overflow: TextOverflow.ellipsis,
+                                )),
                                 Container(
                                   child: isSelecting ? null :
                                     isExpanded(mode) ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),

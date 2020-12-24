@@ -3,6 +3,7 @@ import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/routes/modes.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 
@@ -24,6 +25,8 @@ class ListsPage extends StatefulWidget {
 class _ListsPageState extends State<ListsPage> {
 
   bool awaitingResponse = false;
+  ModeList selectedList = null;
+  bool singlePageMode = false;
   List<ModeList> lists = [];
   bool isTopLevelRoute;
   String errorMessage;
@@ -64,6 +67,8 @@ class _ListsPageState extends State<ListsPage> {
 
   @override
   Widget build(BuildContext context) {
+    singlePageMode = AppController.screenWidth > 600;
+
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -74,18 +79,25 @@ class _ListsPageState extends State<ListsPage> {
           backgroundColor: Color(0xff222222),
         ),
         body: Center(
-          child: Column(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: fetchLists,
-                  child: ListView(
-                    padding: EdgeInsets.only(top: 5),
-                    children: _Lists()
+              Container(
+                child: Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: fetchLists,
+                    child: ListView(
+                      padding: EdgeInsets.only(top: 5),
+                      children: _Lists()
+                    ),
                   ),
-                ),
-              )
+                )
+              ),
+              Container(
+                child: singlePageMode ? Expanded(
+                  child: ModesPage(id: selectedList?.id, hideNavigation: true, canShowDefaultLists: false),
+                ) : null
+              ),
             ],
           ),
         ),
@@ -121,6 +133,13 @@ class _ListsPageState extends State<ListsPage> {
         child: ListTile(
           trailing: Icon(Icons.arrow_forward),
           onTap: () {
+            if (singlePageMode) {
+              setState(() {
+                selectedList = (selectedList == list) ? [] : list;
+              });
+              return; 
+            }
+
             Navigator.pushNamed(context, "/lists/${list.id}", arguments: {
               'modeList': list,
               'returnList': true,
