@@ -52,9 +52,23 @@ class ModeParam {
     return values.every((val) => val.toStringAsFixed(2) == values[0].toStringAsFixed(2)) ||
       values.every((val) => val.toStringAsFixed(3) == values[0].toStringAsFixed(3));
   }
+  bool get childValuesAreEqual {
+    var values = childParams.map((param) => param.value).toList();
+
+    return values.every((val) => val.toStringAsFixed(2) == values[0].toStringAsFixed(2)) ||
+      values.every((val) => val.toStringAsFixed(3) == values[0].toStringAsFixed(3));
+  }
+
+  void recursivelySetMultiValue() {
+    childParams.forEach((param) => param.recursivelySetMultiValue());
+    multiValueEnabled = !recurisiveChildValuesAreEqual;
+  }
 
   bool get multiValueActive =>
-      multiValueEnabled && (!presentChildValuesAreEqual || presentChildParams.map((param) => param.presentChildValuesAreEqual).contains(false));
+      multiValueEnabled && (!recurisiveChildValuesAreEqual);
+
+  bool get recurisiveChildValuesAreEqual =>
+    childValuesAreEqual && !childParams.map((param) => param.childValuesAreEqual).contains(false);
 
   bool hasMultiValueChildren() {
     return multiValueEnabled &&
@@ -133,6 +147,8 @@ class ModeParam {
     if (indexes.length == 0)
       return getMultiValueAverage();
 
+    if (childType == 'prop' && indexes.length == 2)
+      indexes.removeAt(0);
     var childParam = presentChildParams[indexes[0]];
     return childParam.getValue(indexes: indexes.sublist(1));
   }

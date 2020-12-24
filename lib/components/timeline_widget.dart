@@ -6,6 +6,7 @@ import 'package:app/components/timeline_track.dart';
 import 'package:app/models/timeline_element.dart';
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/show_widget.dart';
 import 'package:app/components/waveform.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/foundation.dart';
@@ -34,6 +35,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   _TimelineState(this.show);
 
   Show show;
+  String editMode;
   Timer computeDataTimer;
 
   Map<TimelineElement, AssetsAudioPlayer> audioPlayers = {};
@@ -56,6 +58,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return controller.selectedElements;
   }).expand((e) => e).toList();
 
+  List<int> get selectedElementTimelineIndexes => timelineControllers.where((controller) {
+    return controller.selectedElements.isNotEmpty;
+  }).map((controller) => controller.timelineIndex).toList();
 
   double scale;
   double futureScale;
@@ -123,6 +128,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     startOffset = AnimationController(vsync: this);
     playOffset = AnimationController(vsync: this);
 
+    editMode = 'global';
     super.initState();
   }
 
@@ -135,19 +141,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return audioPlayers[currentAudioElement];
   }
 
-  void saveElementIfGlobal(element, {controller}) {
-    if (element.duration == Duration()) {
-      if (show.editMode == 'global') {
-        Client.removeTimelineElement(element);
-        show.timelineElements.remove(element);
-      } else controller._elements.remove(element);
-    } else {
-      if (show.editMode == 'global')
-        element.save();
-      else show.recompileModeElements();
-    }
-  }
-
   void reloadModes() {
     setState(() {
       loadModes(force: true);
@@ -157,41 +150,27 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   void loadModes({force}) {
     if (modesLoaded && force != true) return;
     modesLoaded = true;
-    show.reloadModeElements();
-
 
     if (duration != null)
       scale *= show.duration.inMilliseconds / duration.inMilliseconds;
 
     duration = show.duration;
     if (scale == null)
-      scale = show.modeElements.length / 12.0;
+      scale = show.modeTracks.length / 12.0;
     scale = scale.clamp(1.0, maxScale);
     futureScale = scale;
     setScrollBarWidth();
     setAnimationControllers();
 
-    // timelineControllers = timelineControllers.isNotEmpty ? timelineControllers : [
-    if (show.editMode == null || show.editMode == 'global')
-      modeTimelineControllers = [
-        TimelineTrackController(
-          onSelectionUpdate: (() => setState(() {})),
-          selectMultiple: selectMultiple,
-          elements: show.modeElements,
-        )
-      ];
-    else {
-      // show.recompileModeElements();
-      var trackElements = show.editMode == 'groups' ? show.groupElements : show.propElements;
-      trackElements.forEach((e) => print("AAAAA: ${e.map((a) => a.duration)}"));
-      modeTimelineControllers = trackElements.map((trackElements) {
-        return TimelineTrackController(
-          onSelectionUpdate: (() => setState(() {})),
-          selectMultiple: selectMultiple,
-          elements: trackElements,
-        );
-      }).toList();
-    }
+    show.modeTracks.forEach((e) => print("Creating new controller with element durations: ${e.map((a) => a.duration)}"));
+    modeTimelineControllers = mapWithIndex(show.modeTracks, (index, trackElements) {
+      return TimelineTrackController(
+        onSelectionUpdate: (() => setState(() {})),
+        selectMultiple: selectMultiple,
+        elements: trackElements,
+        timelineIndex: index,
+      );
+    }).toList();
   }
 
   void loadPlayers() {
@@ -337,31 +316,29 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           if (replaceWithBlack == true) {
             replacedIndexes.add(index);
             element.object = null;
-            saveElementIfGlobal(element);
           } else {
             sibling?.duration += element.duration;
             print("Removing ${element}");
             controller.elements.remove(element);
-            show.timelineElements.remove(element);
-            Client.removeTimelineElement(element);
-
-            // Maybe do something here to make sure this succeeds?
-            sibling?.save();
+            show.modeTracks[controller.timelineIndex].remove(element);
           }
         });
       });
       controller.selectedElements = [];
     });
+    show.ensureStartOffsets();
+    show.ensureFilledEndSpace();
+    show.save();
     reloadModes();
   }
 
   @override
   Widget build(BuildContext context) {
     show ??= (ModalRoute.of(context).settings.arguments as Map)['show']; 
+    editMode = show.trackType;
     loadPlayers();
     loadModes();
 
-    show.editMode ??= 'global';
     return Center(
       child: Container(
         padding: EdgeInsets.only(bottom: 10),
@@ -576,7 +553,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           windowStart: windowStart,
         );
         return Container(
-          height: show.editMode == 'global' ? 100 : (show.editMode == 'groups' ? 80 : 40),
+          height: editMode == 'global' ? 100 : (editMode == 'groups' ? 80 : 40),
           padding: EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
              color: Color(0xFF555555),
@@ -594,19 +571,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 },
                 onReorder: () {
                   eachWithIndex(controller.elements, (index, element) => element.position = index + 1);
-                  controller.selectedElements.forEach((element) => saveElementIfGlobal(element));
+                  show.save();
                   reloadModes();
                 },
                 slideWhenStretching: slideModesWhenStretching,
                 buildElement: (element) {
                   if (element.objectType == 'Mode')
-                    return _ModeColumn(mode: element.object);
-                  else if (element.objectType == 'NestedTimeline')
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                      )
+                    return _ModeColumn(
+                      mode: element.object,
+                      timelineIndex: controller.timelineIndex,
                     );
+                  else if (element.objectType == 'Show')
+                    return ShowPreview(
+                      show: element.object,
+                      duration: element.duration,
+                      contentOffset: element.contentOffset,
+                    );
+                  else if (element.object == null)
+                    return Container(decoration: BoxDecoration(color: Colors.black));
                 },
                 onStretchUpdate: (side, value) {
                   _afterStretch(side, value);
@@ -629,22 +611,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       Duration selectedDuration = controller.selectedDuration;
       Duration newDuration = selectedDuration * stretchedValue;
       var durationDifference = newDuration - selectedDuration;
+      var index;
+
       if (insertBlack == 'right') {
         // I don't think this is a thing anymore:
         var blackElement = controller.selectedElements.last.dup();
+        index = controller.elements.indexOf(selectedElements.last);
+
         blackElement.duration = durationDifference * -1;
         blackElement.object = null;
-        blackElement.position += 1;
-        saveElementIfGlobal(blackElement);
-        show.timelineElements.add(blackElement);
+        show.modeTracks[controller.timelineIndex].insert(index + 1, blackElement);
       } else if (insertBlack == 'left') {
         // I don't think this is a thing anymore:
         var blackElement = controller.selectedElements.first.dup();
+        index = controller.elements.indexOf(selectedElements.first);
+
         blackElement.duration = durationDifference * -1;
         blackElement.object.setAsBlack();
-        blackElement.position -= 1;
-        saveElementIfGlobal(blackElement);
-        show.timelineElements.add(blackElement);
+        show.modeTracks[controller.timelineIndex].insert(index - 1, blackElement);
       } else if (growFrom != null) {
         var sibling;
         if (growFrom == 'left')
@@ -654,29 +638,22 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         // There is some sort of bug here where the first visible mode won't show a resize and another bug where it's dropping to zero if stretch < 1
 
         sibling.duration -= durationDifference;
-        sibling.save();
       } else if (overwrite == 'left') {
         controller.elements.sublist(0, controller.selectedElementIndexes.first).reversed.forEach((element) {
           var newStart = controller.selectedElements.first.startOffset - durationDifference;
           if (element.startOffset >= newStart) {
-            Client.removeMode(element.object);
-            Client.removeTimelineElement(element);
-            show.timelineElements.remove(element);
+            controller.elements.remove(element);
           } else if (element.endOffset > newStart)
             element.duration -= element.endOffset - newStart;
-            saveElementIfGlobal(element);
         });
       } else if (overwrite == 'right') {
         controller.elements.sublist(controller.selectedElementIndexes.last + 1).forEach((element) {
           var newEnd = controller.selectedElements.last.endOffset + durationDifference;
           if (element.endOffset <= newEnd) {
-            Client.removeMode(element.object);
-            Client.removeTimelineElement(element);
-            show.timelineElements.remove(element);
+            controller.elements.remove(element);
+            show.modeTracks[controller.timelineIndex].remove(element);
           } else if (element.startOffset < newEnd) {
-            print("REDUCE DURATION(((((((((((((((");
             element.duration -= newEnd - element.startOffset;
-            saveElementIfGlobal(element);
           }
         });
       }
@@ -690,17 +667,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         offset += element.duration;
       });
 
-      controller.selectedElements.forEach((element) {
-        saveElementIfGlobal(element, controller: controller);
+      controller.selectedElements.removeWhere((element) {
+        return element.duration == Duration();
       });
-      controller.selectedElements.removeWhere((element) => element.duration == Duration());
+      show.save();
       reloadModes();
     });
   }
 
   void _afterStretch(side, value) {
     // if (stretchedValue == 0) return _afterDelete();
-    print("After Stretch ${slideModesWhenStretching} ${side} - ${value}");
 
     if (slideModesWhenStretching)
       _stretchSelectedModes(value);
@@ -722,14 +698,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           removeSelected(replaceWithBlack: true); 
         },
                             // This logic needs to be re-written for controllers
-      }, oneModeSelected && selectedModes == [show.modeElements.last] ? null : {
+      }, oneModeSelected && selectedModes == [show.modeTracks.last] ? null : {
         'text': 'Expand from the right',
         'color': Colors.white,
         'onPressed': () {
           removeSelected(growFrom: 'right'); 
         },
                             // This logic needs to be re-written for controllers
-      }, oneModeSelected && selectedModes == [show.modeElements.first] ? null : {
+      }, oneModeSelected && selectedModes == [show.modeTracks.first] ? null : {
         'text': 'Expand from the left',
         'color': Colors.white,
         'onPressed': () {
@@ -773,7 +749,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             },
             onReorder: () {
               eachWithIndex(waveformTimelineController.elements, (index, element) => element.position = index + 1);
-              waveformTimelineController.selectedElements.forEach((element) => saveElementIfGlobal(element));
+              show.save();
             },
             slideWhenStretching: slideModesWhenStretching,
             buildElement: (element) {
@@ -1220,6 +1196,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         child: RaisedButton(
           onPressed: () {
             var replacement = selectedElements.first.object.dup();
+            if (selectedElementTimelineIndexes.toSet().length == 1) {
+              var index = selectedElementTimelineIndexes.first;
+              if (editMode == 'groups')
+                replacement.setAsSubMode(groupIndex: index);
+              else if (editMode == 'props')
+                replacement.setAsSubMode(
+                  groupIndex: show.groupIndexFromGlobalPropIndex(index),
+                  propIndex: show.localPropIndexFromGlobalPropIndex(index),
+                );
+            }
             Navigator.pushNamed(context, "/modes/${replacement.id}",
               arguments: {
                 'mode': replacement,
@@ -1228,15 +1214,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               }
             ).then((saved) {
               if (saved == true) {
+                if (replacement.groupIndex != null) {
+                  var partialReplacement = replacement;
+                  replacement = selectedElements.first.object.dup();
+                  replacement.modeParams.keys.forEach((paramName) {
+                    replacement.setParam(paramName, partialReplacement.modeParams[paramName],
+                      groupIndex: partialReplacement.groupIndex,
+                      propIndex: partialReplacement.propIndex,
+                    );
+                  });
+                  replacement.recursivelySetMultiValue();
+                }
                 selectedElements.forEach((element) => element.object = replacement);
                 // setState(() {});
                 replacement.save().then((response) {
-                  if (response['success'])
+                  if (!response['success'])
                     print("WARNING:     Object failed to save!!!!!!");
                   else if (response['id'] == null)
-                    print("WARNING:     Timeline Element's object was successfully saved, but no ID was returned in the response. Please add an ID so timeline elements can be ");
-                  else
-                    Client.updateTimelineElements(selectedElements, object: replacement);
+                    print("WARNING:     Object was successfully saved, but no ID was returned in the response. Please add an ID so timeline elements can be created");
                 });
               }
             });
@@ -1280,15 +1275,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             var index = controller.elements.indexOf(current);
             var newElement = current.dup();
 
-            controller.elements.sublist(index+1).forEach((element) => element.position += 1);
 
-            newElement.position += 1;
             newElement.startOffset = playOffsetDuration;
             newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
             current.duration -= newElement.duration;
-            show.timelineElements.add(newElement);
-            saveElementIfGlobal(newElement);
-            current.save();
+            newElement.contentOffset = current.duration;
+            show.modeTracks[controller.timelineIndex].insert(index+1, newElement);
+            show.save();
           });
           reloadModes();
           modeTimelineControllers.forEach((controller) {
@@ -1316,15 +1309,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             decoration: BoxDecoration(color: Color(0x22FFFFFF)),
             child: ToggleButtons(
               isSelected: [
-                show.editMode == 'global',
-                show.editMode == 'groups',
-                show.editMode == 'props'
+                editMode == 'global',
+                editMode == 'groups',
+                editMode == 'props'
               ],
               onPressed: (int index) {
-                show.editMode = ['global', 'groups', 'props'][index];
+                editMode = ['global', 'groups', 'props'][index];
+                show.setEditMode(editMode);
                 // show.save();
                 reloadModes();
-                print("NOW: ${show.editMode}");
                 setState(() {});
               },
               children: [
@@ -1348,11 +1341,22 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
-  Widget _ModeColumn({mode}) {
-    return ModeColumn(
-      showImages: showModeImages,
-      mode: mode,
-    ); 
+  Widget _ModeColumn({mode, timelineIndex}) {
+    if (editMode == 'groups')
+      return ModeColumn(
+        showImages: showModeImages,
+        groupIndex: timelineIndex,
+        mode: mode,
+      );
+    else if (editMode == 'props') {
+      return ModeColumn(
+        showImages: showModeImages,
+        groupIndex: show.groupIndexFromGlobalPropIndex(timelineIndex),
+        propIndex: show.localPropIndexFromGlobalPropIndex(timelineIndex),
+        mode: mode,
+      );
+    }
+    else return ModeColumn(mode: mode, showImages: showModeImages);
   }
 
 

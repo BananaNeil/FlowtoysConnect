@@ -1,5 +1,4 @@
 import 'package:app/models/timeline_element.dart';
-import 'package:app/models/nested_timeline.dart';
 import 'package:basic_utils/basic_utils.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
@@ -140,7 +139,6 @@ class Client {
 
     if (response['success']) {
       response['timelineElement'] = TimelineElement.fromMap(response['body']);
-    print("after FROM MAP: ${response['timelineElement'].id}  - ${response['timelineElement'].duration}");
     }
 
     return response;
@@ -275,19 +273,6 @@ class Client {
     return response;
   }
 
-  static Future<Map<dynamic, dynamic>> createNestedTimeline(nestedTimeline) async {
-    var response = await makeRequest('post',
-      path: "/nested_timelines",
-      body: {
-        'nested_timeline': nestedTimeline.toMap(),
-      },
-    );
-
-    if (response['success'])
-      response['nestedTimeline'] = NestedTimeline.fromMap(response['body']['data']['attributes']);
-
-    return response;
-  }
 
   static Future<Map<dynamic, dynamic>> createMode(mode) async {
     var response = await makeRequest('post',
@@ -307,20 +292,6 @@ class Client {
     return response;
   }
 
-  static Future<Map<dynamic, dynamic>> updateNestedTimeline(nestedTimeline) async {
-    var response = await makeRequest('put',
-      path: "/nested_timelines/${nestedTimeline.id}",
-      body: {
-        'nested_timeline': nestedTimeline.toMap(),
-      },
-    );
-
-    if (response['success']) {
-      response['nestedTimeline'] = NestedTimeline.fromMap(response['body']);
-    }
-
-    return response;
-  }
 
   static Future<Map<dynamic, dynamic>> updateMode(mode) async {
     var response = await makeRequest('put',
@@ -376,6 +347,12 @@ class Client {
   static String get domain => AppController.config['domain'];
   static String get host => "${protocol}://${domain}";
 
+  static String url(String path) {
+    if (path == null) return null;
+    if (path.contains("://")) return path;
+    else return "$host$path";
+  }
+
   static Future<Map<dynamic, dynamic>> makeRequest(method, {path, uri, headers, body, requireAuth, basicAuth, unauthorized, genericErrorCodes}) async {
     try {
       // print("\nRequest: $host$path");
@@ -412,7 +389,6 @@ class Client {
       var responseHeaders = response.headers;
       var code = response.statusCode;
 
-      print("\n<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======\n");
 
       var errors = responseBody['errors'] ?? {};
       var message;

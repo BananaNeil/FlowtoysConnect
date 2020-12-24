@@ -276,16 +276,20 @@ class _EditModeWidgetState extends State<EditModeWidget> {
           onChange(mode);
           _updateMode();
         },
-        children: !param.multiValueEnabled ? emptyList : mapWithIndex(param.presentChildParams, (groupIndex, childParam) {
-          print("RENDER GROUPS: ${childParam.mode} ------------- ${groupIndex}");
-          Group group = Group.currentGroups[groupIndex];
-          return ParamSlider(childParam,
-            title: "${group.name} (${group.props.length})",
-            children: !childParam.multiValueEnabled ? emptyList : mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
-              return ParamSlider(propParam, title: "Prop #${propIndex + 1}");
-            }).toList(),
-          );
-        }).toList(),
+        children: param.childType == null ? null : (!param.multiValueEnabled ? emptyList : mapWithIndex(param.presentChildParams, (childIndex, childParam) {
+          if (param.childType == 'group') {
+            Group group = Group.currentGroups[childIndex];
+            return ParamSlider(childParam,
+              title: "${group.name} (${group.props.length})",
+              children: !childParam.multiValueEnabled ? emptyList : mapWithIndex(childParam.presentChildParams, (propIndex, propParam) {
+                return ParamSlider(propParam, title: "Prop #${propIndex + 1}");
+              }).toList(),
+            );
+          } else if (param.childType == 'prop') {
+            return ParamSlider(childParam, title: "Prop #${childIndex + 1}");
+          }
+
+        }).toList()),
       ); 
     }).toList();
   }

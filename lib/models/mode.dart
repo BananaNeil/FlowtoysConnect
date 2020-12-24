@@ -11,11 +11,11 @@ import 'dart:convert';
 class Mode {
   bool get isPersisted => id != null;
 
-  String get image => (images['club'] ?? {})['medium'] ?? defaultImage;
-  String get thumbnail => (images['club'] ?? {})['thumb'] ?? defaultImage;
+  String get image => Client.url((images['club'] ?? {})['medium'] ?? defaultImage);
+  String get thumbnail => Client.url((images['club'] ?? {})['thumb'] ?? defaultImage);
   String get defaultImage => baseMode.defaultImage;
 
-  String get trailImage => (images['trail'] ?? {})['medium'];
+  String get trailImage => Client.url((images['trail'] ?? {})['medium']) ?? defaultImage;
 
   bool get hasTrailImage => trailImage != null;
 
@@ -141,6 +141,9 @@ class Mode {
   Mode dup() {
     var attributes = toFullMap();
     attributes['id'] = null;
+    attributes['accessLevel'] = 'editable';
+    attributes['parentType'] = null;
+    attributes['parentId'] = null;
     return Mode.fromMap(attributes);
   }
 
@@ -153,6 +156,10 @@ class Mode {
   }
 
   bool get isMultivalue => colorModeParams.values.any((param) => !!param.multiValueActive);
+
+  void recursivelySetMultiValue() {
+    modeParams.values.forEach((param) => param.recursivelySetMultiValue());
+  }
 
   HSVColor getHSVColor({groupIndex, propIndex}) {
     HSVColor color = HSVColor.fromColor(Colors.blue);
@@ -193,6 +200,16 @@ class Mode {
     }
     if (propIndex != null) modeParam = modeParam.childParamAt(propIndex);
     return modeParam;
+  }
+
+  void setParam(paramName, newParam, {groupIndex, propIndex}) {
+    var param = getParam(paramName);
+    if (groupIndex == null)
+      modeParams[paramName] = newParam;
+    else if (propIndex == null)
+      param.childParams[groupIndex] = newParam;
+    else
+      param.childParams[groupIndex].childParams[propIndex] = newParam;
   }
 
   void updateBaseModeId(id) {
@@ -250,17 +267,26 @@ class Mode {
     return ResourceObject('mode', id.toString(), attributes: toFullMap());
   }
 
-  factory Mode.fromSiblings(siblings) {
+  factory Mode.fromSiblings(siblings, {show}) {
     if (siblings.first == null) return null;
+
+
+
     var attributes = siblings.first.toFullMap();
-    siblings.first.modeParams.keys.forEach((param) {
-      attributes[param];
+    var mode = Mode.fromMap(attributes);
+    siblings.first.modeParams.keys.forEach((paramName) {
+      eachWithIndex(siblings, (index, sibling) {
+        var groupIndex = show.groupIndexFromGlobalPropIndex(index);
+        var propIndex = show.localPropIndexFromGlobalPropIndex(index);
+        var value = sibling.getValue(paramName, groupIndex: groupIndex, propIndex: propIndex);
+        mode.getParam(paramName,
+          groupIndex: groupIndex,
+          propIndex: propIndex,
+        ).setValue(value);
+      });
+      mode.modeParams[paramName].recursivelySetMultiValue();
     });
-    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
-    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
-    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
-    // There is more to do here!!!!!!!!!!!!!!!!!!!!!!!1
-    return Mode.fromMap(attributes);
+    return mode;
   }
 
   factory Mode.fromMap(Map<String, dynamic> body) {

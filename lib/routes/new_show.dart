@@ -31,9 +31,10 @@ class _NewShowState extends State<NewShowState> {
   Widget build(BuildContext context) {
     show = show ?? Show.create();
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
+    var modes;
     if (arguments != null) {
-      if (show.modeElements.isEmpty && !arguments['modes'].isEmpty)
-        show.modes = arguments['modes'];
+      if (show.modeTracks.isEmpty && !arguments['modes'].isEmpty)
+        modes = arguments['modes'];
     }
 
     return Scaffold(
@@ -42,7 +43,7 @@ class _NewShowState extends State<NewShowState> {
         title: Text("Create New Show"),
         backgroundColor: Color(0xff222222),
       ),
-      body: EditShowWidget(show: show)
+      body: EditShowWidget(show: show, modes: modes)
     );
   }
 

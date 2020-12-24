@@ -14,8 +14,8 @@ import 'dart:async';
 import 'dart:math';
 
 class Show {
-  List<Map<String, dynamic>> audioTimeline;
-  List<Map<String, dynamic>> modeTimeline;
+  List<dynamic> audioTimeline;
+  List<dynamic> modeTimeline;
   List<Mode> modes;
   List<Song> songs;
 
@@ -41,6 +41,22 @@ class Show {
   int get groupCount => propCounts.length;
   int get propCount => propCounts.reduce((a, b) => a + b);
 
+  int groupIndexFromGlobalPropIndex(index) {
+    int groupIndex = 0;
+    int totalPropCount = 0;
+    propCounts.forEach((propCount) {
+      totalPropCount += propCount;
+      if (index + 1 > totalPropCount)
+        groupIndex += 1;
+    });
+    return groupIndex;
+  }
+
+  int localPropIndexFromGlobalPropIndex(index) {
+    int groupIndex = groupIndexFromGlobalPropIndex(index);
+    return index - sumList(propCounts.sublist(0, groupIndex));
+  }
+
   bool get audioDownloadedPending {
     return audioElements.any((element) {
       return element.objectType == 'Song' && element.object.fileDownloadPending;
@@ -56,177 +72,189 @@ class Show {
   List<TimelineElement> _audioElements;
   List<TimelineElement> get audioElements {
     if (_audioElements != null) return _audioElements;
-    _audioElements = TimelineElement.fromData(audioTimeline, objects: songs);
+    _audioElements = TimelineElement.fromData(audioTimeline ?? [], objects: songs);
     return _audioElements;
   }
 
-  // List<TimelineElement> _modeElements;
-  // List<TimelineElement> get modeElements {
-  //   if (_modeElements != null) return _modeElements;
-  //   _modeElements = TimelineElement.fromData(modeTimeline, objects: modes);
-  //   return _modeElements;
-  // }
 
-  List<TimelineElement> _modeElements;
-  List<TimelineElement> reloadModeElements() {
-    _modeElements = timelineElements.where((element) {
-      return element.timelineType == 'modes';
-    }).toList()..sort((a, b) => a.position.compareTo(b.position));
-
-    Duration offset = Duration();
-    modeElements.forEach((element) {
-      if (element.duration != null) {
-        element.startOffset = Duration() + offset;
-        offset += element.duration;
-      } // otherwise, the show has almost certainly not been created
-    });
-
-    return _modeElements;
-  }
-
-  List<TimelineElement> get nestedElements {
-    return timelineElements.where((element) {
-      return element.timelineType == 'nested';
+  List<List<TimelineElement>> _modeTracks;
+  List<List<TimelineElement>> get modeTracks {
+    if (_modeTracks != null) return _modeTracks;
+    _modeTracks = modeTimeline.map((trackData) {
+      return TimelineElement.fromData(trackData, show: this, objects: modes);
     }).toList();
+    ensureStartOffsets();
+    ensureFilledEndSpace();
+    return _modeTracks;
   }
 
-  List<TimelineElement> recompileModeElements() {
-    if (trackType == 'global') return null;
-    else {
-      List<TimelineElement> elements;
-      int childCount;
-
-      elements = (trackType == 'groups' ? groupElements : propElements).expand((el) => el).toList();
-      childCount = trackType == 'groups' ? groupCount : propCount;
-
-      var globalTimeline = TimelineElement.groupIntoSingleTrack(elements,
-        childCount: childCount,
-        propCounts: propCounts,
-        childType: trackType,
-        duration: duration,
-      );
-
-      // Compare timeline elements to the original timeline,
-      // and save the ones that have been changed
-      var elementComparison = TimelineElement.groupSimilar([
-        ..._modeElements,
-        ...globalTimeline,
-      ]);
-      // print("Compared elements: ${elementComparison.values.map((v) => v.length).toList()}");
-      // print("..._modeElements: ${_modeElements.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
-      // print("...globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
-      if (false)
-        elementComparison.values.forEach((matches) {
-          // TODO: Check on changes to the object and potentially save it as well.
-          //       Imagine two identical global mode timeline elements, split into props.
-          //       Adjust the hue of one prop within one timeline element. When stiching
-          //       back together, the mode needs to be updated, and the object ID should
-          //       sholud be changed.
-          if (matches.length == 1) {
-            var element = matches.first;
-            if (globalTimeline.contains(element)) {
-              element.showId = id;
-              // print("Saving EL: ${[element.position, element.startOffset, element.endOffset, element.objectType, element.objectId, element.showId]}");
-              element.save();
-              timelineElements.add(element);
-            } else {
-              Client.removeTimelineElement(element);
-              timelineElements.remove(element);
-            }
-          }
-        });
-
-      _modeElements = globalTimeline;
-      _groupElements = null;
-      _propElements = null;
-    }
+  void resetModeTracks() {
+    _modeTracks = null;
   }
 
-  List<TimelineElement> get modeElements => _modeElements ?? reloadModeElements();
-
-  List<List<TimelineElement>> _groupElements;
-  List<List<TimelineElement>> get groupElements => _groupElements = List.generate(groupCount, (index) {
-    return modeElementsFor(groupIndex: index, timelineIndex: index);
-  }).toList();
-
-  List<List<TimelineElement>> _propElements;
-  List<List<TimelineElement>> get propElements {
-    var indexOffset = 0;
-    if (_propElements != null) return _propElements;
-    _propElements = [];
-    eachWithIndex(propCounts, (groupIndex, count) {
-      var list = List.generate(count, (propIndex) {
-        return modeElementsFor(groupIndex: groupIndex, propIndex: propIndex, timelineIndex: indexOffset + propIndex);
-      }).toList();
-      indexOffset += count;
-      _propElements.addAll(list);
+  void removeModeElement(element) {
+    modeTracks.forEach((track) {
+      track.remove(element);
     });
-    return _propElements;
   }
 
-  List<TimelineElement> modeElementsFor({groupIndex, propIndex, timelineIndex}) {
-    List<TimelineElement> elements = [];
-    modeElements.forEach((element) {
-      print("ELEMENT FOR: ${groupIndex}, ${propIndex}, ${timelineIndex}");
-      if (element.objectType == 'NestedTimeline')
-        element.object.elementsAt(groupIndex, propIndex, timelineIndex).forEach((trackElement) {
-          trackElement.timelineIndex = timelineIndex;
-          // if (!trackElement.isPersisted)
-          trackElement.startOffset = element.startOffset + trackElement.nestedStartOffset;
-          print("Adding nested timeline element: ${trackElement.startOffset} -> ${trackElement.duration}");
-          elements.add(trackElement);
-        });
-      else {
-        var dup = element.dup();
-        dup.timelineIndex = timelineIndex;
-        dup.object?.setAsSubMode(groupIndex: groupIndex, propIndex: propIndex);
-        print("Adding mode timeline element: ${element.startOffset} -> ${element.duration}");
-        elements.add(dup);
+  void ensureStartOffsets() {
+    eachWithIndex(modeTracks, (trackIndex, track) {
+      var offset = Duration.zero;
+      track.forEach((element) {
+        print("Set timeline index: ${trackIndex}");
+        element.timelineIndex = trackIndex;
+        element.startOffset = offset;
+        offset += element.duration;
+      });
+    });
+  }
+
+  void ensureFilledEndSpace() {
+    // add timeline element to fill the end space
+    modeTracks.forEach((track) {
+      if (track.isNotEmpty && track.last.endOffset < duration)
+        if (track.last.object == null) 
+          track.last.duration = duration - track.last.startOffset;
+        else
+          track.add(TimelineElement(
+            startOffset: track.last.endOffset,
+            duration: duration - track.last.endOffset,
+          ));
+    });
+  }
+
+  List<TimelineElement> groupIntoSingleTrack(List<List<TimelineElement>> elementTracks) {
+    Map<Duration, List<TimelineElement>> elementsByEndOffset = {};
+    Map<String, List<TimelineElement>> elementsByTimeRange = {};
+    List<TimelineElement> globalTimeline = [];
+    int trackCount = elementTracks.length;
+    List<Duration> sharedEndOffsets = [];
+    List<TimelineElement> siblings;
+
+    // // Group by similarities
+    List<TimelineElement> allElements = elementTracks.expand((e) => e).toList(); 
+    elementsByTimeRange = TimelineElement.groupSimilar(allElements);
+    elementsByEndOffset = groupBy(allElements, (element) => element.endOffset);
+    elementsByEndOffset.keys.forEach((endOffset) {
+      if (elementsByEndOffset[endOffset].length == trackCount)
+        sharedEndOffsets.add(endOffset);
+    });
+
+
+
+    // Move identical siblings into global timeline
+    List.from(elementsByTimeRange.keys).forEach((key) {
+      if (elementsByTimeRange[key].length == trackCount) {
+        siblings = elementsByTimeRange.remove(key);
+        var newElement = siblings.first.dup();
+        newElement.object = Mode.fromSiblings(
+          siblings.map((element) => element.object).toList(),
+          show: this,
+        );
+        globalTimeline.add(newElement);
       }
     });
-    print("\nThese are the elements for (${groupIndex} ${propIndex}):\n${elements.map((element) => [element.objectType, element.startOffset, element.duration]).join("\n")}\n\n");
-    return elements;
+
+    if (globalTimeline.isEmpty)
+      globalTimeline = [
+        TimelineElement(
+          startOffset: Duration.zero,
+          duration: duration,
+        )
+      ];
+
+    List<List<TimelineElement>> elementsToBeSubGrouped = elementsByTimeRange.values.toList();
+    globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+    sharedEndOffsets.add(duration);
+    sharedEndOffsets.sort();
+
+    // Create TimelineElements that fill the incongruent spaces
+    var offset = duration;
+    var globalTimelineLength = globalTimeline.length;
+    eachWithIndex(List.from(globalTimeline.reversed), (index, element) {
+      if (element.endOffset < offset)
+        eachWithIndex(sharedEndOffsets, (endOffsetIndex, endOffset) {
+          var previousEndOffset = Duration.zero;
+          if (endOffsetIndex > 0)
+            previousEndOffset = sharedEndOffsets[endOffsetIndex - 1];
+          if (endOffset > element.endOffset && endOffset <= offset)
+            globalTimeline.insert(globalTimelineLength - index, TimelineElement(
+              duration: endOffset - previousEndOffset,
+              startOffset: previousEndOffset,
+              timelineType: 'modes',
+              timelineIndex: 0,
+            ));
+        });
+      offset = element.startOffset;
+    });
+
+    if (offset > Duration.zero)
+      globalTimeline.insert(0, TimelineElement(
+        startOffset: Duration.zero,
+        timelineType: 'modes',
+        duration: offset,
+        timelineIndex: 0,
+      ));
+
+
+    // Attach remaining elements to their sub-timeline chunks:
+    print("track count ${trackCount} - globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
+    elementsToBeSubGrouped.forEach((elements) {
+
+      var element = globalTimeline.firstWhere((globalElement) {
+        return globalElement.startOffset <= elements.first.startOffset &&
+            globalElement.endOffset >= elements.first.endOffset;
+      });
+      element.object ??= Show(
+        modeTimeline: List.generate(trackCount, (index) => []),
+        propCounts: propCounts,
+        trackType: trackType,
+      );
+
+      element.object.addElements(elements.toList());
+      element.object.modeTracks.forEach((track) {
+        track.sort((TimelineElement a, TimelineElement b) => a.startOffset.compareTo(b.startOffset));
+      });
+      element.object.ensureStartOffsets();
+    });
+
+    globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+    eachWithIndex(globalTimeline, (index, element) => element.position = index + 1);
+    print("GLOBAL TIMELINE POSITIONS AND TYPES: ${globalTimeline.map((el) => [el.objectType, el.position])}");
+    return globalTimeline;
+  }
+
+  void addElements(elements) {
+    elements.forEach((element) {
+      print("Setting timeline index from ${element.timelineIndex} to ${localPropIndexFromGlobalPropIndex(element.timelineIndex)}");
+      var localIndex = element.timelineIndex;
+      if (modeTracks.length < propCount)
+        localIndex = localPropIndexFromGlobalPropIndex(element.timelineIndex);
+      modeTracks[localIndex].add(element.dup());
+    });
+  }
+
+  void removeAudioElement(element) {
+    _audioElements.remove(element);
   }
 
   TimelineElement addAudioElement(song) {
     var element = TimelineElement(
-      position: audioElements.isEmpty ? 1 : audioElements.last.position + 1,
       duration: song.duration,
-      timelineType: 'audio',
-      timelineIndex: 0,
       object: song,
-      showId: id,
     );
-    timelineElements.add(element);
+    _audioElements.add(element);
     return element;
   }
 
-  void set modes(_modes) {
-    clearModes();
-    timelineElements.addAll(mapWithIndex(_modes, (index, mode) {
-      return TimelineElement(
-        timelineType: 'modes',
-        position: index + 1,
-        timelineIndex: 0,
-        object: mode,
-      );
-    }).toList());
-    reloadModeElements();
-  }
 
-  void clearModes() {
-    this.timelineElements = timelineElements.where((element) {
-      return element.timelineType != 'modes';
-    }).toList();
-  }
 
-  List<String> get songIds => audioElements.map((element) => element.objectId).toList();
-  List<String> get modeIds => modeElements.map((element) => element.objectId).toList();
 
   String get durationString => twoDigitString(duration);
 
   Duration get duration {
-    if (audioElements.length == 0 && modeElements.length == 0) return Duration(minutes: 1);
+    if (audioElements.length == 0 && modeTracks.length == 0) return Duration(minutes: 1);
     if (songDuration == Duration() && modeDuration == Duration()) return Duration(minutes: 1);
     return maxDuration(songDuration, modeDuration);
   }
@@ -238,9 +266,12 @@ class Show {
   }
 
   Duration get modeDuration {
-    var modeDurations = modeElements.map((mode) => mode.duration ?? Duration());
-    if (modeDurations.length == 0) return Duration();
-    return modeDurations.reduce((a, b) => a+b); 
+    var max = Duration.zero;
+    modeTracks.forEach((track) {
+      if (track.isNotEmpty)
+        max = maxDuration(max, track.last.endOffset);
+    });
+    return max;
   }
 
   Future<void> downloadSongs() {
@@ -255,7 +286,7 @@ class Show {
       baseMode = Preloader.baseModes.elementAt(0);
     print ("fromMap: ");
     return Mode.fromMap({
-      'position': modeElements.length + 1,
+      'position': modeTracks.length + 1,
       'base_mode_id': baseMode?.id,
       'parent_type': 'Show',
       'parent_id': id,
@@ -277,7 +308,7 @@ class Show {
 
     var modes = resource.toMany['modes'].map((element) {
       var elementData = (included ?? []).firstWhere((item) => item.id == element.id);
-      return Mode.fromResource(elementData.unwrap(), included: included);
+      return Mode.fromMap(elementData.unwrap().attributes);
     }).toList();
 
 
@@ -287,15 +318,13 @@ class Show {
 
       id: resource.attributes['id'],
       name: resource.attributes['name'],
-      trackType: resource.attributes['edit_mode'],
+      trackType: resource.attributes['track_type'],
       propCounts: resource.attributes['prop_counts'],
       modeTimeline: resource.attributes['mode_timeline'],
       audioTimeline: resource.attributes['audio_timeline'],
       audioByteSize: resource.attributes['audio_byte_size'],
     );
 
-      audioByteSize: resource.attributes['audio_byte_size'],
-    );
 
     // show.reloadModeElements();
     // show.attachNestedElements();
@@ -336,15 +365,16 @@ class Show {
       'name': name,
       'track_type': trackType,
       'prop_counts': propCounts,
-      'audio_timeline': audioTimeline,
       'audio_byte_size': audioByteSize,
       'mode_timeline': modeTimelineAsJson,
+      'audio_timeline': audioTimelineAsJson,
     };
   }
 
   factory Show.create() {
     return Show(
-      timeline: [],
+      modeTimeline: [],
+      audioTimeline: [],
       trackType: 'global',
       propCounts: Group.currentGroups.map((group) => group.props.length).toList(),
     );
@@ -352,36 +382,129 @@ class Show {
 
   bool get isPersisted => id != null;
 
-  List<Map<String, dynamic>> get modeTimelineAsJson {
-    List<TimelineElement> elements;
-    int childCount;
+  void setEditMode(editMode) {
+    if (editMode == trackType) return;
+    print("SETING EDIT MODE: ${editMode} ... from ${trackType}");
 
-    // if (trackType == 'global')
+    if (trackType == 'global')
+      if (editMode == 'props')
+        splitGlobalTrackInto('props');
+      else {
+        setEditMode('props');
+        setEditMode('groups');
+      }
+    else if (editMode == 'global') {
+      setEditMode('props');
+      combineTracksToGlobal();
+    } else if (trackType == 'groups')
+      splitGroupsIntoProps();
+    else combineTrackToGroups();
 
-    elements = (trackType == 'groups' ? groupElements : propElements).expand((el) => el).toList();
-    childCount = trackType == 'groups' ? groupCount : propCount;
-    var globalTimeline = TimelineElement.groupIntoSingleTrack(elements,
-      childCount: childCount,
-      propCounts: propCounts,
-      childType: trackType,
-      duration: duration,
-    );
+    trackType = editMode;
+    ensureStartOffsets();
 
-    return globalTimeline.map((element) {
+    // reloadModeElements();
+  }
+
+  List<TimelineElement> get globalElements => groupIntoSingleTrack(modeTracks);
+
+  void combineTracksToGlobal() {
+    _modeTracks = [groupIntoSingleTrack(modeTracks)];
+  }
+
+  void combineTrackToGroups() {
+    int trackOffset = 0;
+    _modeTracks = mapWithIndex(propCounts, (index, trackCount) {
+      print("Truning props into groups: group #${index} sublisting:(${trackOffset} ${trackCount}");
+      var tracksToCombine = modeTracks.sublist(trackOffset, trackOffset + trackCount);
+      trackOffset += trackCount;
+      return groupIntoSingleTrack(tracksToCombine);
+    }).toList();
+  }
+
+
+  // I think this is done for nested shows
+  // I think this is done for nested shows
+  // I think this is done for nested shows
+  // I think this is done for nested shows
+  void splitGlobalTrackInto(editMode) {
+    if (trackType != 'global') return;
+    var trackCount = editMode == 'props' ? propCount : groupCount;
+    List<List<TimelineElement>> tracks = List.generate(trackCount, (index) => []);
+    print("Splitting to props, object ids: ${modeTracks.first.map((el) => el.object?.id).join(', ')}");
+    List.generate(trackCount, (timelineIndex) {
+      modeTracks.first.forEach((element) {
+        print("Obj type: ${element.objectType}");
+        if (element.objectType == 'Show') {
+          element.object.setEditMode(editMode);
+          element.object.modeTracks[timelineIndex].forEach((nestedElement) {
+            print("SubObj type: ${nestedElement.objectType}");
+            tracks[timelineIndex].add(nestedElement.dup());
+          });
+        } else tracks[timelineIndex].add(element.dup());
+        print("..... ${tracks[timelineIndex].length}");
+      });
+    });
+    print("Splitting to props, object ids: ${tracks.map((track) => track.length).join(', ')}");
+    _modeTracks = tracks;
+  }
+
+  void splitGroupsIntoProps() {
+    if (trackType != 'groups') return;
+    List<List<TimelineElement>> propTracks = List.generate(propCount, (index) => []);
+    var timelineIndex = 0;
+    print("before splitting groups.... ${propCounts}");
+    eachWithIndex(propCounts, (groupIndex, count) {
+      List.generate(count, (propIndex) {
+        modeTracks[groupIndex].forEach((element) {
+          if (element.objectType == 'Show') {
+            // element.object.setEditMode('props'); // should be already props, I think
+            element.object.modeTracks[propIndex].forEach((nestedElement) {
+              propTracks[propIndex + timelineIndex].add(nestedElement.dup());
+            });
+          } else propTracks[propIndex + timelineIndex].add(element.dup());
+        });
+      });
+      timelineIndex += count;
+    });
+    _modeTracks = propTracks;
+  }
+
+  List<Map<String, dynamic>> get audioTimelineAsJson {
+    return audioElements.map((element) {
       return element.asJson();
     }).toList();
   }
 
-  Future<Map<dynamic, dynamic>> save({modeDuration}) {
+  List<List<Map<String, dynamic>>> get modeTimelineAsJson {
+    print("Mode Tracks: ${modeTracks}");
+    return modeTracks.map((track) {
+      return track.map((element) {
+        return element.asJson();
+      }).toList();
+    }).toList();
+  }
+
+  void generateTimeline(modes, modeDuration) {
+    var elementCount = durationRatio(duration, modeDuration);
+    var lastElementRatio = elementCount.remainder(1);
+    double modeRatio;
+    print("Generating Timeline: modes: ${modes.length}, modeDuration: ${modeDuration}, count: ${elementCount}");
+    _modeTracks = [
+      List.generate(elementCount.ceil(), (index) {
+        modeRatio = (index+1 == elementCount.ceil() ? lastElementRatio : 1.0);
+        return TimelineElement(
+          object: modes[index % modes.length],
+          duration: modeDuration * modeRatio,
+        );
+      }),
+    ];
+  }
+
+  Future<Map<dynamic, dynamic>> save() {
     var method = isPersisted ? Client.updateShow : Client.createShow;
     var attributes = toMap();
 
-    if (!isPersisted) {
-      attributes['mode_duration'] = modeDuration?.inMilliseconds;
-      attributes['duration'] = duration.inMilliseconds;
-      attributes['song_ids'] = songIds;
-      attributes['mode_ids'] = modeIds;
-    }
     return method(attributes);
   }
 

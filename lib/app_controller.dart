@@ -170,6 +170,10 @@ class AppController extends StatefulWidget {
     return randomColor;
   }
 
+  static double get screenWidth {
+    return MediaQuery.of(getCurrentContext()).size.width;
+  }
+
   static double topPadding() {
     return MediaQuery.of(getCurrentContext()).padding.top;
   }

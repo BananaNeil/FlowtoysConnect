@@ -3,6 +3,7 @@ import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/show_widget.dart';
 import 'package:app/components/waveform.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
@@ -15,7 +16,8 @@ import 'package:app/client.dart';
 import 'dart:math';
 
 class EditShowWidget extends StatefulWidget {
-  EditShowWidget({Key key, this.show}) : super(key: key);
+  EditShowWidget({Key key, this.show, this.modes}) : super(key: key);
+  List<Mode> modes;
   Show show;
 
   @override
@@ -42,6 +44,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Duration get minModeDuration => Duration(milliseconds: 500);
   double get minModeDurationRatio => (minModeDuration.inMicroseconds / show.duration.inMicroseconds);
 
+  List<Mode> get modes => widget.modes ?? [];
+
   Duration get modeDuration {
     if (!useBPM) return Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
 
@@ -62,7 +66,10 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     if ((show.name ?? '').isEmpty) return;
 
     setState(() => errorMessage = null);
-    show.save(modeDuration: modeDuration).then((response) {
+    if (isNewShow)
+      show.generateTimeline(modes, modeDuration);
+
+    show.save().then((response) {
       if (response['success']) {
         setState(() {
           show = response['show'];
@@ -89,15 +96,13 @@ class _EditShowWidgetState extends State<EditShowWidget> {
           song.assignAttributesFromCopy(response['song']);
           // song.id = response['song'].id;
           // song.filePath = response['song'].filePath;
-          element.save().then((response) {
-            element = response['timelineElement'] ?? element;
-            setState(() {});
-            song.downloadFile().then((_) {
-              setState(() {
-                waveforms[element.id ?? element.hashCode.toString()] = WaveformController.open(song.localPath);
-              });
+          setState(() {});
+          song.downloadFile().then((_) {
+            setState(() {
+              waveforms[song.id ?? song.hashCode.toString()] = WaveformController.open(song.localPath);
             });
           });
+          show.save();
         }
       });
     }
@@ -107,7 +112,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     return show.downloadSongs().then((_) {
       setState(() {
         show.audioElements.forEach((element) {
-          waveforms[element.id ?? element.hashCode.toString()] = WaveformController.open(element.object.localPath);
+          waveforms[element.objectId] = WaveformController.open(element.object.localPath);
         });
       });
     });
@@ -251,20 +256,13 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               ),
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: SizedBox.expand(
-                child: Row(
-                  children: show.isPersisted ? mapWithIndex(show.modeElements, (index, element) {
-                    return Flexible(
-                      flex: element.duration.inMilliseconds,
-                      child: Container(
-                        child: ModeColumn(mode: element.object, showImages: true),
-                      )
-                    );
-                  }).toList() : List<Widget>.generate(totalModeCount, (index) {
-                    var element = show.modeElements[index % show.modeElements.length];
+                child: show.isPersisted ? ShowPreview(show: show) : Row(
+                  children: List<Widget>.generate(totalModeCount, (index) {
+                    var element = modes[index % modes.length];
                     return Flexible(
                       flex: (index == totalModeCount - 1) ? lastModeDuration.inMicroseconds : modeDuration.inMicroseconds,
                       child: Container(
-                        child: show.modeElements.isEmpty ? Container() : ModeColumn(mode: element.object, showImages: true),
+                        child: modes.isEmpty ? Container() : ModeColumn(mode: element, showImages: true),
                       )
                     );
                   }).toList(),
@@ -322,8 +320,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 'color': Colors.red,
                 'onPressed': () {
                   setState(() {
-                    show.timelineElements.remove(element);
-                    Client.removeTimelineElement(element);
+                    show.removeAudioElement(element);
+                    show.save();
                   });
                 },
               }]
@@ -406,7 +404,6 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             elements.insert(min(elements.length, current), element);
             elements.asMap().forEach((index, other) {
               other.position = index + 1;
-              other.save();
             });
             if (show.isPersisted) show.save();
             setState((){});

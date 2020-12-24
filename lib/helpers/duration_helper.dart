@@ -22,6 +22,10 @@ Duration maxDuration(a, b) {
   return a > b ? a : b;
 }
 
+double durationRatio(a, b) {
+  return (a.inMicroseconds / b.inMicroseconds);
+}
+
 
 Duration parseDuration(String s) {
   int hours = 0;

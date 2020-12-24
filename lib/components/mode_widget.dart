@@ -101,10 +101,22 @@ class ModeImage extends StatelessWidget {
 }
 
 class ModeColumn extends StatelessWidget {
-  ModeColumn({this.mode, this.showImages, this.fit});
+  ModeColumn({
+    this.fit,
+    this.mode,
+    this.showImages,
+    this.multigroup,
+    this.multiprop,
+    this.groupIndex,
+    this.propIndex,
+  });
 
   Mode mode;
   BoxFit fit;
+  int propIndex;
+  int groupIndex;
+  bool multiprop = false;
+  bool multigroup = false;
   bool showImages = false;
 
   @override
@@ -121,7 +133,13 @@ class ModeColumn extends StatelessWidget {
           );
         else return Column(
           children: showImages == true ?
-            imagesForProps(mode, size: height, fit: fit, vertical: true) :
+            imagesForProps(mode,
+              fit: fit,
+              size: height,
+              vertical: true,
+              groupIndex: groupIndex,
+              propIndex: propIndex
+            ) :
             widgetsForProps(mode),
         );
       }
@@ -199,30 +217,17 @@ Widget ModeImageFilter({mode, hsvColor, child}) {
   );
 }
 
-List<HSVColor> hsvColorsForProps(mode, {multiprop, multigroup}) {
+List<HSVColor> hsvColorsForProps(mode, {multiprop, multigroup, groupIndex, propIndex}) {
+  groupIndex ??= mode.groupIndex;
+  propIndex ??= mode.propIndex;
   List<HSVColor> params = [];
-  if (multiprop == true) {
-    if (mode.childType == null)
-      params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: mode.propIndex));
-    else if (mode.childType == 'prop')
-      List.generate(mode.childCount, (childIndex) {
-        params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: childIndex));
+  eachWithIndex(Group.currentGroups, (_groupIndex, group) {
+    if (groupIndex == null || groupIndex == _groupIndex)
+      eachWithIndex(group.props, (_propIndex, prop) {
+        if (propIndex == null || propIndex == _propIndex)
+          params.add(mode.getHSVColor(groupIndex: _groupIndex, propIndex: _propIndex));
       });
-    else
-      eachWithIndex(Group.currentGroups, (groupIndex, group) {
-        eachWithIndex(group.props, (propIndex, prop) {
-          params.add(mode.getHSVColor(groupIndex: groupIndex, propIndex: propIndex));
-        });
-      });
-  } else if (multigroup == true)
-    if (mode.childType == null)
-      params.add(mode.getHSVColor(groupIndex: mode.groupIndex, propIndex: mode.propIndex));
-    else if (mode.childType == 'prop')
-      params.add(mode.getHSVColor(groupIndex: mode.groupIndex));
-    else
-      eachWithIndex(Group.currentGroups, (groupIndex, group) {
-        params.add(mode.getHSVColor(groupIndex: groupIndex));
-      });
+  });
   if (params.isEmpty)
     params = [mode.getHSVColor()];
   return params;
@@ -249,11 +254,9 @@ List<Widget> widgetsForProps(mode) {
   }).toList();
 }
 
-List<Widget> imagesForProps(mode, {size, fit, vertical}) {
+List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, multiprop, multigroup}) {
   // var colors = hsvColorsForProps(mode, multiprop: mode.isMultivalue);
-  var colors = hsvColorsForProps(mode, multiprop: true);
-  if (!mode.isMultivalue)
-    colors = colors.sublist(0, min(colors.length, 6));
+  var colors = hsvColorsForProps(mode, groupIndex: groupIndex, propIndex: propIndex, multiprop: multiprop);
   vertical = vertical ?? false;
   return colors.map((color) {
     return Expanded(
@@ -261,21 +264,19 @@ List<Widget> imagesForProps(mode, {size, fit, vertical}) {
         child: SingleChildScrollView(
           physics: NeverScrollableScrollPhysics(),
           child: Container(
-              // height: size,
-              // height: size / colors.length,
-              height: (mode.hasTrailImage ? 1 : 4) * (size ?? 500) / (vertical ? colors.length : 1),
-              child: ModeImageFilter(
-                hsvColor: color,
-                mode: mode,
-                child: Container(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      fit: fit ?? BoxFit.cover,
-                      image: NetworkImage(mode.hasTrailImage ? mode.trailImage : mode.image),
-                    ),
-                  )
+            height: (mode.hasTrailImage ? 1 : 4) * (size ?? 500) / (vertical ? colors.length : 1),
+            child: ModeImageFilter(
+              hsvColor: color,
+              mode: mode,
+              child: Container(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    fit: fit ?? BoxFit.cover,
+                    image: NetworkImage(mode.hasTrailImage ? mode.trailImage : mode.image),
+                  ),
                 )
               )
+            )
           ),
         )
       )

@@ -79,9 +79,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   }
 
   Widget buildElement(element) {
-    if (element.object == null)
-      return Container();
-    else return widget.buildElement(element);
+    return widget.buildElement(element);
   }
 
   @override
@@ -505,6 +503,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 class TimelineTrackController {
   TimelineTrackController({
     elements,
+    this.timelineIndex,
     this.selectMultiple,
     this.onSelectionUpdate,
   }) {
@@ -522,6 +521,7 @@ class TimelineTrackController {
   List<TimelineElement> selectedElements = [];
   Function onSelectionUpdate;
   bool selectMultiple;
+  int timelineIndex;
 
   void setWindow({windowStart, visibleDuration, futureVisibleDuration, timelineDuration}) {
     this.futureVisibleDuration = futureVisibleDuration;
@@ -612,14 +612,7 @@ class TimelineTrackController {
   Duration get visibleEnd => minDuration(windowStart + visibleDuration, timelineDuration);
 
   List<TimelineElement> get elements {
-    var elements = List<TimelineElement>.from(_elements);
-    if (elements.isNotEmpty && elements.last.endOffset < visibleEnd) {
-      blankElement.startOffset = elements.last.endOffset;
-      blankElement.duration = timelineDuration - elements.last.endOffset;
-      elements.add(blankElement);
-    }
-
-    return elements;
+    return List<TimelineElement>.from(_elements);
   }
 
   TimelineElement elementAtTime(time) {
