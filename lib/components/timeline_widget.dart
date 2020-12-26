@@ -50,6 +50,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   bool showModeImages = true; 
   bool selectMultiple = false;
+  bool snapping = true;
   List<Mode> selectedModes = [];
   bool slideModesWhenStretching = false;
   bool get oneModeSelected => selectedElements.length == 1;
@@ -58,9 +59,26 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return controller.selectedElements;
   }).expand((e) => e).toList();
 
-  List<int> get selectedElementTimelineIndexes => timelineControllers.where((controller) {
+  List<TimelineTrackController> get selectedElementControllers => timelineControllers.where((controller) {
     return controller.selectedElements.isNotEmpty;
-  }).map((controller) => controller.timelineIndex).toList();
+  }).toList();
+
+  List<int> get selectedElementTimelineIndexes => selectedElementControllers.map((controller) => controller.timelineIndex).toList();
+
+  List<TimelineElement> _allElements;
+  List<TimelineElement> get allElements {
+    return _allElements ??= show.modeTracks.expand((track) => track).toList();
+  }
+
+  List<Duration> _inflectionPoints;
+  List<Duration> get inflectionPoints {
+    return _inflectionPoints ??= allElements.map<List<Duration>>((el) {
+      if (el.objectType == 'Show')
+        return el.object.modeTracks.expand<TimelineElement>((List<TimelineElement> nestedEl) => nestedEl)
+            .map<Duration>((TimelineElement nestedEl) => nestedEl.endOffset + el.startOffset).toList();
+      else return [el.endOffset];
+    }).expand((dur) => dur).toSet().toList();
+  }
 
   double scale;
   double futureScale;
@@ -86,6 +104,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   double scrollbarWidth = 0;
   double containerWidth = 0;
   double playHeadWidth = 20.0;
+
+  void setContainerWidth(_width) {
+    if (this.containerWidth != _width) {
+      this.containerWidth = _width;
+      setScrollBarWidth();
+    }
+  }
+
   double get scrollContainerWidth => containerWidth * 0.97;
   bool get timelineContainsStart => startOffset.value <= 0;
   bool get timelineContainsEnd => startOffset.value + futureVisibleMiliseconds >= lengthInMiliseconds;
@@ -154,12 +180,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (duration != null)
       scale *= show.duration.inMilliseconds / duration.inMilliseconds;
 
+    _inflectionPoints = null;
+    _allElements = null;
+
     duration = show.duration;
     if (scale == null)
       scale = show.modeTracks.length / 12.0;
     scale = scale.clamp(1.0, maxScale);
     futureScale = scale;
-    setScrollBarWidth();
     setAnimationControllers();
 
     show.modeTracks.forEach((e) => print("Creating new controller with element durations: ${e.map((a) => a.duration)}"));
@@ -171,6 +199,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         timelineIndex: index,
       );
     }).toList();
+    setScrollBarWidth();
   }
 
   void loadPlayers() {
@@ -264,10 +293,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     playOffset.value = value;
   }
 
-  void prepareTimeline() {
-    setScrollBarWidth();
-  }
-
   void setScrollBarWidth() {
     if (scrollContainerWidth > 0)
       scrollbarWidth = (scrollContainerWidth / futureScale).clamp(10.0, scrollContainerWidth).toDouble();
@@ -349,7 +374,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         ),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints box) {
-            containerWidth = box.maxWidth;
+            setContainerWidth(box.maxWidth);
 
             if (loading)
               return SpinKitCircle(color: AppController.blue);
@@ -385,6 +410,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  double _playOffsetValue;
   _PlayIndicator() {
     return AnimatedBuilder(
       animation: playOffset,
@@ -397,9 +423,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           child: Column(
             children: [
               GestureDetector(
+                onPanStart: (details) {
+                  _playOffsetValue = playOffset.value;
+                },
                 onPanUpdate: (details) {
                   var offsetValue = details.delta.dx * (visibleMiliseconds/(containerWidth + playHeadWidth));
-                  playOffset.value += offsetValue;
+                  _playOffsetValue += offsetValue;
+
+                  playOffset.value = inflectionPoints.firstWhere((offset) {
+                    return snapping && (1.0 - (_playOffsetValue / offset.inMilliseconds)).abs() < 0.05;
+                  }, orElse: () => null)?.inMilliseconds?.toDouble() ?? _playOffsetValue;
 
                   audioPlayers.values.forEach((player) => player.pause());
                   setState((){});
@@ -456,15 +489,20 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   Widget _PlayIndicatorTrack() {
     return GestureDetector(
       onPanStart: (details) {
-        playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         audioPlayers.values.forEach((player) => player.pause());
+        _playOffsetValue = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        playOffset.value = _playOffsetValue;
       },
       onPanUpdate: (details) {
         // Attempt to animate it:
         // var moveTo = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
         // Tween<double>(begin: 0, end: moveTo).animate(playOffset);
+        _playOffsetValue = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
 
-        playOffset.value = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        playOffset.value = inflectionPoints.firstWhere((offset) {
+          return snapping && (1.0 - (_playOffsetValue / offset.inMilliseconds)).abs() < 0.05;
+        }, orElse: () => null)?.inMilliseconds?.toDouble() ?? _playOffsetValue;
+
         audioPlayers.values.forEach((player) => player.pause());
         setState((){});
       },
@@ -509,7 +547,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           scale = futureScale;
           setState(() {
             setStartOffset();
-            prepareTimeline();
+            setScrollBarWidth();
           });
           startOffset.animateWith(
              // The bigger the first parameter, the less friction is applied
@@ -526,7 +564,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             if (timelineGestureStartPointX != details.localFocalPoint.dx || startOffset.value != milisecondOffsetValue) {
               timelineGestureStartPointX = details.localFocalPoint.dx;
               startOffset.value = milisecondOffsetValue.clamp(0.0, lengthInMiliseconds - visibleMiliseconds);
-              prepareTimeline();
+              setScrollBarWidth();
             }
           }); 
 
@@ -574,18 +612,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   show.save();
                   reloadModes();
                 },
+                snapping: snapping,
+                inflectionPoints: inflectionPoints,
                 slideWhenStretching: slideModesWhenStretching,
-                buildElement: (element) {
+                buildElement: (element, {start, end}) {
+                    var invisibleLeft = maxDuration(Duration.zero, windowStart - element.startOffset);
+                    var invisibleRight = maxDuration(Duration.zero, element.endOffset - windowEnd);
                   if (element.objectType == 'Mode')
                     return _ModeColumn(
                       mode: element.object,
+                      invisibleLeftRatio: durationRatio(invisibleLeft, element.duration),
+                      invisibleRightRatio: durationRatio(invisibleRight, element.duration),
                       timelineIndex: controller.timelineIndex,
                     );
                   else if (element.objectType == 'Show')
                     return ShowPreview(
                       show: element.object,
-                      duration: element.duration,
-                      contentOffset: element.contentOffset,
+                      duration: minDuration(element.duration, windowEnd - element.startOffset),
+                      contentOffset: maxDuration(Duration.zero, windowStart - element.startOffset) + (element.contentOffset ?? Duration.zero),
                     );
                   else if (element.object == null)
                     return Container(decoration: BoxDecoration(color: Colors.black));
@@ -601,7 +645,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
-  void _stretchSelectedModes(stretchedValue, {overwrite, insertBlack, growFrom}) {
+  void _stretchSelectedElements(stretchedValue, {overwrite, insertBlack, growFrom}) {
     timelineControllers.forEach((controller) {
       List<int> selectedIndexes = controller.selectedElementIndexes;
       if (selectedIndexes.isEmpty) return;
@@ -635,14 +679,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           sibling = controller.elements[controller.elements.indexOf(controller.selectedElements.first) - 1];
         else sibling = controller.elements[controller.elements.indexOf(controller.selectedElements.last) + 1];
 
-        // There is some sort of bug here where the first visible mode won't show a resize and another bug where it's dropping to zero if stretch < 1
 
-        sibling.duration -= durationDifference;
+        var siblingDurationRatio = durationRatio(sibling.duration - durationDifference, sibling.duration);
+        sibling.stretchBy(siblingDurationRatio);
       } else if (overwrite == 'left') {
         controller.elements.sublist(0, controller.selectedElementIndexes.first).reversed.forEach((element) {
           var newStart = controller.selectedElements.first.startOffset - durationDifference;
+          print("SO ${element.startOffset} ... new start ${newStart}");
           if (element.startOffset >= newStart) {
             controller.elements.remove(element);
+            show.modeTracks[controller.timelineIndex].remove(element);
           } else if (element.endOffset > newStart)
             element.duration -= element.endOffset - newStart;
         });
@@ -658,7 +704,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         });
       }
       controller.selectedElements.forEach((element) {
-        element.duration *= stretchedValue;
+        element.stretchBy(stretchedValue);
       });
 
       Duration offset = Duration();
@@ -679,11 +725,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     // if (stretchedValue == 0) return _afterDelete();
 
     if (slideModesWhenStretching)
-      _stretchSelectedModes(value);
+      _stretchSelectedElements(value);
     else if (value > 1)
-			_stretchSelectedModes(value, overwrite: side);
+      _stretchSelectedElements(value, overwrite: side);
     else if (value < 1)
-			_stretchSelectedModes(value, growFrom: side); 
+      _stretchSelectedElements(value, growFrom: side); 
 
     setState(() { reloadModes(); });
   }
@@ -817,7 +863,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           var offsetValue =  details.delta.dx * milisecondsNotVisible;
           startOffset.value = startOffset.value + (offsetValue/(scrollContainerWidth - scrollbarWidth));
           startOffset.value = startOffset.value.clamp(0.0, milisecondsNotVisible).toDouble();
-          prepareTimeline();
+          setScrollBarWidth();
         });
       },
       child: Stack(
@@ -849,7 +895,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }
 
   Widget _ScaleSlider() {
-    print("MAX SCALE: ${scale} : ${maxScale}");
     return Container(
       width: 150,
       decoration: BoxDecoration(
@@ -875,7 +920,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   setState(() {
                     scale = futureScale;
                     setStartOffset();
-                    prepareTimeline();
+                    setScrollBarWidth();
                   });
                 });
               },
@@ -913,6 +958,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                _SnapingButtons(),
                 _PushModeButtons(),
                 _MultiSelectButtons(),
               ]
@@ -1041,22 +1087,51 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  Widget _SnapingButtons() {
+    return Container(
+      padding: EdgeInsets.all(2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(child: Text("Snapping"), margin: EdgeInsets.only(bottom: 6)),
+          Container(
+            decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+            child: ToggleButtons(
+              isSelected: [!snapping, snapping],
+              onPressed: (int index) {
+                snapping = (index == 1);
+                setState(() {});
+              },
+              children: [
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("Off"),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: Text("On"),
+                ),
+              ]
+            )
+          ),
+        ]
+      )
+    );
+  }
+
   Widget _PushModeButtons() {
     return Container(
       padding: EdgeInsets.all(2),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(child: Text("Push Mode "), margin: EdgeInsets.only(bottom: 6)),
-          // Icon(slideModesWhenStretching ? Icons.check_circle : Icons.circle, size: 16),
+          Container(child: Text("Push Mode"), margin: EdgeInsets.only(bottom: 6)),
           Container(
             decoration: BoxDecoration(color: Color(0x22FFFFFF)),
             child: ToggleButtons(
               isSelected: [!slideModesWhenStretching, slideModesWhenStretching],
               onPressed: (int index) {
                 slideModesWhenStretching = (index == 1);
-                show.save();
-                reloadModes();
                 setState(() {});
               },
               children: [
@@ -1226,7 +1301,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   replacement.recursivelySetMultiValue();
                 }
                 selectedElements.forEach((element) => element.object = replacement);
-                // setState(() {});
                 replacement.save().then((response) {
                   if (!response['success'])
                     print("WARNING:     Object failed to save!!!!!!");
@@ -1268,10 +1342,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       margin: EdgeInsets.all(5),
       child: RaisedButton(
         onPressed: () {
-          modeTimelineControllers.forEach((controller) {
+          var controllers = [];
+          selectedElementControllers.forEach((controller) {
             var current = controller.elementAtTime(playOffsetDuration);
             if (current == null) return;
             if (current.startOffset == playOffsetDuration) return;
+            if (!selectedElements.contains(current)) return;
+            controllers.add(controller);
             var index = controller.elements.indexOf(current);
             var newElement = current.dup();
 
@@ -1283,9 +1360,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             show.modeTracks[controller.timelineIndex].insert(index+1, newElement);
             show.save();
           });
-          reloadModes();
+
           modeTimelineControllers.forEach((controller) {
             controller.deselectAll();
+          });
+          reloadModes();
+          controllers.forEach((controller) {
             controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
           });
         },
@@ -1341,24 +1421,22 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
-  Widget _ModeColumn({mode, timelineIndex}) {
+  Widget _ModeColumn({Mode mode, int timelineIndex, double invisibleLeftRatio, double invisibleRightRatio}) {
+    var groupIndex; var propIndex;
     if (editMode == 'groups')
-      return ModeColumn(
-        showImages: showModeImages,
-        groupIndex: timelineIndex,
-        mode: mode,
-      );
+      groupIndex = timelineIndex;
     else if (editMode == 'props') {
-      return ModeColumn(
-        showImages: showModeImages,
-        groupIndex: show.groupIndexFromGlobalPropIndex(timelineIndex),
-        propIndex: show.localPropIndexFromGlobalPropIndex(timelineIndex),
-        mode: mode,
-      );
+      groupIndex = show.groupIndexFromGlobalPropIndex(timelineIndex);
+      propIndex = show.localPropIndexFromGlobalPropIndex(timelineIndex);
     }
-    else return ModeColumn(mode: mode, showImages: showModeImages);
+    return ModeColumnForShow(
+      invisibleRightRatio: invisibleRightRatio,
+      invisibleLeftRatio: invisibleLeftRatio,
+      groupIndex: groupIndex,
+      propIndex: propIndex,
+      mode: mode,
+    );
   }
-
 
   String _getTitle() {
     return 'Timeline';

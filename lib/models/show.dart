@@ -99,10 +99,9 @@ class Show {
   }
 
   void ensureStartOffsets() {
-    eachWithIndex(modeTracks, (trackIndex, track) {
+    eachWithIndex([...modeTracks, audioElements], (trackIndex, track) {
       var offset = Duration.zero;
       track.forEach((element) {
-        print("Set timeline index: ${trackIndex}");
         element.timelineIndex = trackIndex;
         element.startOffset = offset;
         offset += element.duration;
@@ -131,9 +130,11 @@ class Show {
     int trackCount = elementTracks.length;
     List<Duration> sharedEndOffsets = [];
     List<TimelineElement> siblings;
+    ensureStartOffsets();
 
     // // Group by similarities
     List<TimelineElement> allElements = elementTracks.expand((e) => e).toList(); 
+    allElements = allElements.where((element) => element.duration > Duration.zero).toList();
     elementsByTimeRange = TimelineElement.groupSimilar(allElements);
     elementsByEndOffset = groupBy(allElements, (element) => element.endOffset);
     elementsByEndOffset.keys.forEach((endOffset) {
@@ -156,52 +157,38 @@ class Show {
       }
     });
 
-    if (globalTimeline.isEmpty)
-      globalTimeline = [
-        TimelineElement(
-          startOffset: Duration.zero,
-          duration: duration,
-        )
-      ];
-
     List<List<TimelineElement>> elementsToBeSubGrouped = elementsByTimeRange.values.toList();
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
-    sharedEndOffsets.add(duration);
+    sharedEndOffsets.addAll([duration, Duration.zero]);
+    sharedEndOffsets = sharedEndOffsets.toSet().toList();
     sharedEndOffsets.sort();
 
     // Create TimelineElements that fill the incongruent spaces
     var offset = duration;
     var globalTimelineLength = globalTimeline.length;
-    eachWithIndex(List.from(globalTimeline.reversed), (index, element) {
-      if (element.endOffset < offset)
-        eachWithIndex(sharedEndOffsets, (endOffsetIndex, endOffset) {
-          var previousEndOffset = Duration.zero;
-          if (endOffsetIndex > 0)
-            previousEndOffset = sharedEndOffsets[endOffsetIndex - 1];
-          if (endOffset > element.endOffset && endOffset <= offset)
-            globalTimeline.insert(globalTimelineLength - index, TimelineElement(
-              duration: endOffset - previousEndOffset,
-              startOffset: previousEndOffset,
-              timelineType: 'modes',
-              timelineIndex: 0,
-            ));
+    var reversedGlobalTimeline = List.from(globalTimeline.reversed);
+    reversedGlobalTimeline.add(TimelineElement(duration: Duration.zero, startOffset: Duration.zero));
+    reversedGlobalTimeline.forEach((globalElement) {
+      if (offset > globalElement.endOffset) {
+        var breakPoints = sharedEndOffsets.where((sharedEndOffset) {
+          return sharedEndOffset > globalElement.endOffset && sharedEndOffset <= offset;
+        }).toList();
+        [...breakPoints.reversed, globalElement.endOffset].forEach((breakPoint) {
+          globalTimeline.add(TimelineElement(
+            duration: offset - breakPoint,
+            startOffset: breakPoint,
+            timelineType: 'modes',
+            timelineIndex: 0,
+          ));
+          offset = breakPoint;
         });
-      offset = element.startOffset;
+      }
+      offset = globalElement.startOffset;
     });
-
-    if (offset > Duration.zero)
-      globalTimeline.insert(0, TimelineElement(
-        startOffset: Duration.zero,
-        timelineType: 'modes',
-        duration: offset,
-        timelineIndex: 0,
-      ));
-
-
+    globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+    globalTimeline = globalTimeline.where((el) => el.duration > Duration.zero).toList();
     // Attach remaining elements to their sub-timeline chunks:
-    print("track count ${trackCount} - globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId])}");
     elementsToBeSubGrouped.forEach((elements) {
-
       var element = globalTimeline.firstWhere((globalElement) {
         return globalElement.startOffset <= elements.first.startOffset &&
             globalElement.endOffset >= elements.first.endOffset;
@@ -227,7 +214,6 @@ class Show {
 
   void addElements(elements) {
     elements.forEach((element) {
-      print("Setting timeline index from ${element.timelineIndex} to ${localPropIndexFromGlobalPropIndex(element.timelineIndex)}");
       var localIndex = element.timelineIndex;
       if (modeTracks.length < propCount)
         localIndex = localPropIndexFromGlobalPropIndex(element.timelineIndex);
@@ -434,11 +420,9 @@ class Show {
     print("Splitting to props, object ids: ${modeTracks.first.map((el) => el.object?.id).join(', ')}");
     List.generate(trackCount, (timelineIndex) {
       modeTracks.first.forEach((element) {
-        print("Obj type: ${element.objectType}");
         if (element.objectType == 'Show') {
           element.object.setEditMode(editMode);
           element.object.modeTracks[timelineIndex].forEach((nestedElement) {
-            print("SubObj type: ${nestedElement.objectType}");
             tracks[timelineIndex].add(nestedElement.dup());
           });
         } else tracks[timelineIndex].add(element.dup());
@@ -447,6 +431,13 @@ class Show {
     });
     print("Splitting to props, object ids: ${tracks.map((track) => track.length).join(', ')}");
     _modeTracks = tracks;
+  }
+
+  void stretchBy(ratio) {
+    modeTracks.forEach((track) {
+      track.forEach((element) => element.duration *= ratio);
+    });
+    ensureStartOffsets();
   }
 
   void splitGroupsIntoProps() {

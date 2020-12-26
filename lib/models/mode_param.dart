@@ -68,7 +68,8 @@ class ModeParam {
       multiValueEnabled && (!recurisiveChildValuesAreEqual);
 
   bool get recurisiveChildValuesAreEqual =>
-    childValuesAreEqual && !childParams.map((param) => param.childValuesAreEqual).contains(false);
+    childValuesAreEqual && !childParams.map((param) => param.recurisiveChildValuesAreEqual).contains(false)
+      && (childParams.isEmpty || childParams.first.value == value);
 
   bool hasMultiValueChildren() {
     return multiValueEnabled &&

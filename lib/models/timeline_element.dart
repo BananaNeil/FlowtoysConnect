@@ -33,13 +33,14 @@ class TimelineElement {
     this.timelineIndex,
     this.contentOffset,
     this.timelineType,
-    this.startOffset,
+    startOffset,
     this.position,
     this.duration,
     this.showId,
     this.object,
     this.id,
   }) {
+    this.startOffset = startOffset ?? Duration.zero;
   }
 
   bool get isPersisted => id != null;
@@ -60,6 +61,12 @@ class TimelineElement {
         element.duration,
       ].toString();
     });
+  }
+
+  void stretchBy(ratio) {
+    this.duration *= ratio;
+    if (this.objectType == 'Show')
+      this.object.stretchBy(ratio);
   }
 
   Future<void> ensurePersistedObject() {

@@ -15,7 +15,9 @@ class Mode {
   String get thumbnail => Client.url((images['club'] ?? {})['thumb'] ?? defaultImage);
   String get defaultImage => baseMode.defaultImage;
 
-  String get trailImage => Client.url((images['trail'] ?? {})['medium']) ?? defaultImage;
+  String get trailImage {
+    return Client.url((images['trail'] ?? {})['medium']);
+  }
 
   bool get hasTrailImage => trailImage != null;
 
@@ -206,10 +208,16 @@ class Mode {
     var param = getParam(paramName);
     if (groupIndex == null)
       modeParams[paramName] = newParam;
-    else if (propIndex == null)
+    else if (propIndex == null) {
+      // this line makes sure that the param exists before overriding it
+      var groupParam = param.childParamAt(groupIndex);
       param.childParams[groupIndex] = newParam;
-    else
-      param.childParams[groupIndex].childParams[propIndex] = newParam;
+    } else {
+      var groupParam = param.childParamAt(groupIndex);
+      // this line makes sure that the param exists before overriding it
+      var propParam = groupParam.childParamAt(propIndex);
+      groupParam.childParams[propIndex] = newParam;
+    }
   }
 
   void updateBaseModeId(id) {

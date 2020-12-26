@@ -283,3 +283,48 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
     );
   }).toList();
 }
+
+  Widget ModeColumnForShow({Mode mode, int groupIndex, int propIndex, double invisibleLeftRatio, double invisibleRightRatio}) {
+    invisibleRightRatio ??= 0.0;
+    invisibleLeftRatio ??= 0.0;
+    var colors = hsvColorsForProps(mode, groupIndex: groupIndex, propIndex: propIndex);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints box) {
+        var height = box.maxHeight;
+        var width = box.maxWidth;
+        if (mode == null)
+          return Container( decoration: BoxDecoration( color: Colors.black));
+        else {
+          return Column(
+            children: colors.map((color) {
+              double xAlignment = invisibleLeftRatio == 0 ? -1.0 : 1.0; 
+              if (invisibleLeftRatio > 0 && invisibleRightRatio > 0)
+                xAlignment = (invisibleLeftRatio - invisibleRightRatio) / (invisibleLeftRatio + invisibleRightRatio);
+              return Expanded(
+                child: ClipRect(
+                    child: FractionallySizedBox(
+                      widthFactor: max(0, 1 / (1 - (invisibleRightRatio + invisibleLeftRatio))),
+                      heightFactor: (mode.hasTrailImage ? 1 : 4),
+                      alignment: Alignment(xAlignment, 1),
+                      child: ModeImageFilter(
+                        hsvColor: color,
+                        mode: mode,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              fit: BoxFit.cover,
+                              image: NetworkImage(mode.hasTrailImage ? mode.trailImage : mode.image),
+                            ),
+                          )
+                        )
+                      )
+                    )
+                  )
+                // )
+              );
+            }).toList()
+          );
+        }
+      });
+  }
+

@@ -10,20 +10,24 @@ import 'dart:math';
 class TimelineTrackWidget extends StatefulWidget {
   TimelineTrackWidget({
     Key key,
+    this.snapping,
     this.onReorder,
     this.controller,
     this.buildElement,
     this.onScrollUpdate,
     this.onStretchUpdate,
+    this.inflectionPoints,
     this.slideWhenStretching,
   }) : super(key: key);
 
   final TimelineTrackController controller;
+  List<Duration> inflectionPoints;
   bool slideWhenStretching;
   Function onStretchUpdate;
   Function onScrollUpdate;
   Function buildElement;
   Function onReorder;
+  bool snapping;
 
   Duration get futureVisibleDuration => controller.futureVisibleDuration;
   Duration get timelineDuration => controller.timelineDuration;
@@ -42,12 +46,12 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 
   Duration get windowStart => widget.windowStart;
 
+  bool get snapping => widget.snapping;
   bool get slideWhenStretching => widget.slideWhenStretching;
   bool get isActingOnSelected => isStretching || isReordering;
   bool get isStretching => selectionStretch['right'] != 1 || selectionStretch['left'] != 1;
 
   String get stretchedSide => selectionStretch.keys.firstWhere((key) => selectionStretch[key] != 1 );
-  double get stretchedValue => selectionStretch[stretchedSide];
 
   Duration dragDelta = Duration();
   bool isReordering = false;
@@ -125,7 +129,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 
   TimelineElement get stretchedSibling {
     var index;
-    if (!isStretching) return null;
+    if (!isStretching || selectedElements.isEmpty) return null;
     if (stretchedSide == 'left')
       index = elements.indexOf(selectedElements.first) - 1;
     else
@@ -203,11 +207,36 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     );
   }
 
+  List<double> _stretchInflectionPoints;
+  List<double> get stretchInflectionPoints {
+    if (_stretchInflectionPoints != null)
+      return _stretchInflectionPoints;
+
+    List<Duration> inflectionPoints = [];
+    var startOffset = selectedElements.first.startOffset;
+    var endOffset = selectedElements.first.endOffset;
+    if (stretchedSide == 'right') {
+      return widget.inflectionPoints.map((point) => durationRatio((point - startOffset), selectedDuration)).toList();
+    } else if (stretchedSide == 'left') {
+      return widget.inflectionPoints.map((point) => durationRatio((endOffset - point), selectedDuration)).toList();
+    }
+  }
+
   void updateStretch({side, dx, maxStretch, visiblySelectedRatio}) {
     setState(() {
       selectionStretch[side] += 3 * dx / visiblySelectedRatio;
       selectionStretch[side] = selectionStretch[side].clamp(0.0, maxStretch);
     });
+  }
+
+  double selectionStretchValue(side) {
+    if (!isStretching) return 1.0;
+    double value;
+    if (snapping)
+      value = stretchInflectionPoints.firstWhere((point) {
+        return (1 - (point / selectionStretch[side])).abs() < 0.05;
+      }, orElse: () => null);
+    return max(0.0, value ?? selectionStretch[side]);
   }
 
   List<int> get selectedElementIndexes => controller.selectedElementIndexes;
@@ -237,10 +266,10 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
       end = minDuration(end, visibleDuration);
     } else {
       end = maxDuration(Duration(), (firstElement.startOffset - windowStart)) +
-          (visibleSelectedDuration * max(0, selectionStretch['right']));
+          (visibleSelectedDuration * selectionStretchValue('right'));
 
       start = visibleDuration - maxDuration(Duration(), windowEnd - lastElement.endOffset) -
-          (visibleSelectedDuration * max(0, selectionStretch['left']));
+          (visibleSelectedDuration * selectionStretchValue('left'));
 
       start = maxDuration(start, Duration());
       end = minDuration(end, visibleDuration);
@@ -266,11 +295,12 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onPanEnd: (details) {
-                    widget.onStretchUpdate('left', stretchedValue);
+                    widget.onStretchUpdate('left', selectionStretchValue('left'));
                     setState(() { selectionStretch['left'] = 1.0; });
                   },
                   onPanStart: (details) {
                     selectionStretch['left'] = 1;
+                    _stretchInflectionPoints = null;
                   },
                   onPanUpdate: (details) {
                     updateStretch(
@@ -334,11 +364,12 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                 child: GestureDetector(
                   behavior: HitTestBehavior.translucent,
                   onPanEnd: (details) {
-                    widget.onStretchUpdate('right', stretchedValue);
+                    widget.onStretchUpdate('right', selectionStretchValue('right'));
                     setState(() { selectionStretch['right'] = 1.0; });
                   },
                   onPanStart: (details) {
                     selectionStretch['right'] = 1;
+                    _stretchInflectionPoints = null;
                   },
                   onPanUpdate: (details) {
                     updateStretch(
@@ -505,9 +536,10 @@ class TimelineTrackController {
     elements,
     this.timelineIndex,
     this.selectMultiple,
-    this.onSelectionUpdate,
+    onSelectionUpdate,
   }) {
     this._elements = elements;
+    this.onSelectionUpdate = onSelectionUpdate ?? () => null;
   }
 
   void set elements(elements) => _elements = elements;

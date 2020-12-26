@@ -16,8 +16,9 @@ import 'package:app/client.dart';
 import 'dart:math';
 
 class EditShowWidget extends StatefulWidget {
-  EditShowWidget({Key key, this.show, this.modes}) : super(key: key);
+  EditShowWidget({Key key, this.show, this.modes, this.onSave}) : super(key: key);
   List<Mode> modes;
+  Function onSave;
   Show show;
 
   @override
@@ -32,6 +33,10 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Show show;
   String errorMessage;
   Map<String, WaveformController> waveforms = {};
+
+  void onSave(show) {
+    if (widget.onSave != null) widget.onSave(show);
+  }
 
 
   String bpmError;
@@ -53,7 +58,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     print("AUDIO: ${show.audioElements.first.object.bpm}");
     return Duration(milliseconds: (1000 * chosenBeatsPerMode / (bpm / 60)).floor());
   }
-  int get totalModeCount => (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
+  int get totalModeCount => modes.length == 0 ? 0 : (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
   Duration get lastModeDuration => Duration(microseconds: show.duration.inMicroseconds - ((totalModeCount-1) * modeDuration.inMicroseconds));
 
   @override initState() {
@@ -71,6 +76,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
 
     show.save().then((response) {
       if (response['success']) {
+        widget.onSave(response['show']);
         setState(() {
           show = response['show'];
           if (isNewShow)
@@ -102,7 +108,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               waveforms[song.id ?? song.hashCode.toString()] = WaveformController.open(song.localPath);
             });
           });
-          show.save();
+          if (show.isPersisted) show.save();
         }
       });
     }
@@ -173,7 +179,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 )
               )
             ),
-            show.isPersisted ? Container() : Column(
+            show.isPersisted || modes.length == 0 ? Container() : Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Container(
@@ -281,7 +287,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               margin: EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: mapWithIndex(show.audioElements, (index, element) {
-                  var waveform = waveforms[element.id ?? element.hashCode.toString()];
+                  var waveform = waveforms[element.object.id ?? element.object.hashCode.toString()];
                   var color = [Colors.blue, Colors.red][index % 2];
                   return Flexible(
                     flex: ((element.duration.inMilliseconds / show.duration.inMilliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
@@ -300,6 +306,23 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 Text("00:00"),
                 Text(twoDigitString(show.duration)),
               ]
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.pushNamed(context, '/modes',
+                  arguments: {
+                    'selectAction': "Add Modes",
+                    'isSelecting': true,
+                  }
+                ).then((_modes) {
+                  if (_modes != null) {
+                    widget.modes ??= [];
+                    widget.modes.addAll(_modes);
+                    setState(() {});
+                  }
+                });
+              },
+              child: Text("+ Add Modes (${modes.length})", style: TextStyle(color: Colors.blue)),
             ),
           ],
         ),
@@ -321,7 +344,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 'onPressed': () {
                   setState(() {
                     show.removeAudioElement(element);
-                    show.save();
+                    if (show.isPersisted) show.save();
                   });
                 },
               }]
