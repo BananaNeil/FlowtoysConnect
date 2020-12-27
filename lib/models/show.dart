@@ -76,7 +76,6 @@ class Show {
     return _audioElements;
   }
 
-
   List<List<TimelineElement>> _modeTracks;
   List<List<TimelineElement>> get modeTracks {
     if (_modeTracks != null) return _modeTracks;
@@ -86,6 +85,10 @@ class Show {
     ensureStartOffsets();
     ensureFilledEndSpace();
     return _modeTracks;
+  }
+
+  List<List<TimelineElement>> get elementTracks {
+    return [...modeTracks, audioElements];
   }
 
   void resetModeTracks() {
@@ -111,7 +114,7 @@ class Show {
 
   void ensureFilledEndSpace() {
     // add timeline element to fill the end space
-    modeTracks.forEach((track) {
+    [...modeTracks, audioElements].forEach((track) {
       if (track.isNotEmpty && track.last.endOffset < duration)
         if (track.last.object == null) 
           track.last.duration = duration - track.last.startOffset;

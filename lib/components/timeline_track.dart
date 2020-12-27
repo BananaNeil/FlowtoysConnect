@@ -62,9 +62,9 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     'right': 1.0,
   };
 
-  double get milisecondsPerPixel => visibleMiliseconds / containerWidth;
+  double get microsecondsPerPixel => visibleMicroseconds / containerWidth;
   Duration get futureVisibleDuration => widget.futureVisibleDuration;
-  int get visibleMiliseconds => visibleDuration.inMilliseconds;
+  int get visibleMicroseconds => visibleDuration.inMicroseconds;
   Duration get visibleDuration => widget.visibleDuration;
   Duration get windowEnd => windowStart + visibleDuration;
 
@@ -156,7 +156,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
             else elementVisibleDuration = Duration();
 
           return Flexible(
-            flex: ((elementVisibleDuration.inMilliseconds / (futureVisibleDuration.inMilliseconds)).clamp(0.0, 1.0) * 1000.0).ceil(),
+            flex: ((elementVisibleDuration.inMicroseconds / (futureVisibleDuration.inMicroseconds)).clamp(0.0, 1.0) * 1000.0).ceil(),
               child: Container(
                 decoration: BoxDecoration(
                   border: (isSelected && !isActingOnSelected) ? Border.all(color: Colors.white, width: 2) : 
@@ -199,7 +199,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
           );
         }).toList() + [
         //   Flexible(
-        //   flex: ((!timelineContainsEnd ? 0 : invisibleDurationOfLastVisibleWaveform.inMilliseconds / futureVisibleMiliseconds) * 1000).toInt(),
+        //   flex: ((!timelineContainsEnd ? 0 : invisibleDurationOfLastVisibleWaveform.inMicroseconds / futureVisibleMicroseconds) * 1000).toInt(),
         //   child: Container(),
         // )
         ]
@@ -276,10 +276,10 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     }
 
 
-    var startWidth = (start.inMilliseconds / milisecondsPerPixel);
-    var endWidth = (visibleDuration - end).inMilliseconds / milisecondsPerPixel;
+    var startWidth = (start.inMicroseconds / microsecondsPerPixel);
+    var endWidth = (visibleDuration - end).inMicroseconds / microsecondsPerPixel;
 
-		var visiblySelectedRatio = (visibleSelectedDuration.inMilliseconds / visibleDuration.inMilliseconds);
+    var visiblySelectedRatio = (visibleSelectedDuration.inMicroseconds / visibleDuration.inMicroseconds);
     var selectedElementsVisibleInWindow = lastElement.endOffset + dragDelta > windowStart && firstElement.startOffset + dragDelta < windowEnd;
 
     return Row(
@@ -288,7 +288,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
         Visibility(
           visible: firstElement.startOffset + dragDelta > windowStart && selectedElementsVisibleInWindow,
           child: Flexible(
-            flex: start.inMilliseconds,
+            flex: start.inMicroseconds,
             child: Container(
               child: Align(
                 alignment: Alignment.centerRight,
@@ -307,7 +307,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                       side: 'left',
                       dx: -1 * details.delta.dx / containerWidth,
                       visiblySelectedRatio: visiblySelectedRatio,
-                      maxStretch: end.inMilliseconds / visibleSelectedDuration.inMilliseconds,
+                      maxStretch: end.inMicroseconds / visibleSelectedDuration.inMicroseconds,
                     );
                   },
                   child: Container(
@@ -323,7 +323,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
           ),
         ),
         Flexible(
-          flex: max(1, (end - start).inMilliseconds),
+          flex: max(1, (end - start).inMicroseconds),
           child: Opacity(
             opacity: isActingOnSelected ? 1 : 0,
             child: Container(
@@ -341,7 +341,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
               child: Row(
                 children: selectedElements.map((element) {
                   return Flexible(
-                    flex: element.duration.inMilliseconds,
+                    flex: element.duration.inMicroseconds,
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.white, width: 2),
@@ -357,7 +357,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
         Visibility(
           visible: lastElement.endOffset + dragDelta < windowEnd && selectedElementsVisibleInWindow,
           child: Flexible(
-            flex: (visibleDuration - end).inMilliseconds,
+            flex: (visibleDuration - end).inMicroseconds,
             child: Container(
               child: Align(
                 alignment: Alignment.centerLeft,
@@ -441,7 +441,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
       controller.windowStart += movementAmount;
       controller.windowStart = maxDuration(Duration(), controller.windowStart);
       widget.onScrollUpdate(windowStart);
-      if (windowStart.inMilliseconds > 0)
+      if (windowStart.inMicroseconds > 0)
         triggerDragScroll(movementAmount);
 
     } else if (thresholdEnd > visibleDuration - triggerPoint) {
@@ -502,7 +502,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
           return LongPressDraggable(
             onUpdate: (details) {
               setState(() {
-                dragDelta += Duration(milliseconds: (details.delta.dx * milisecondsPerPixel).toInt());
+                dragDelta += Duration(microseconds: (details.delta.dx * microsecondsPerPixel).toInt());
                 updateDragDelta();
               });
             },

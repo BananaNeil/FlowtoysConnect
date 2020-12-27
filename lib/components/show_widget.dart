@@ -35,7 +35,7 @@ class ShowPreview extends StatelessWidget {
                 flex: (element.duration
                   - maxDuration(Duration.zero, contentOffset - element.startOffset)
                   - maxDuration(Duration.zero, element.endOffset - contentOffset - duration)
-                ).inMilliseconds,
+                ).inMicroseconds,
                 child: Container(
                   child: (element.objectType == 'Mode') ?
                     ModeColumnForShow(

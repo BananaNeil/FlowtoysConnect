@@ -110,7 +110,7 @@ class Song {
       'file_path': filePath,
       'youtube_url': youtubeUrl,
       'thumbnail_url': thumbnailUrl,
-      'duration': duration.inMilliseconds,
+      'duration': duration.inMicroseconds,
     };
   }
 
@@ -125,7 +125,7 @@ class Song {
       byteSize: resource.attributes['byte_size'],
       filePath: resource.attributes['file_path'],
       thumbnailUrl: resource.attributes['thumbnail_url'],
-      duration: Duration(milliseconds: resource.attributes['duration']),
+      duration: Duration(microseconds: resource.attributes['duration']),
     );
   }
 
@@ -138,7 +138,7 @@ class Song {
       byteSize: json['byte_size'],
       filePath: json['file_path'],
       thumbnailUrl: json['thumbnail_url'],
-      duration: Duration(milliseconds: json['duration'] ?? 0),
+      duration: Duration(microseconds: json['duration'] ?? 0),
     );
   }
 }

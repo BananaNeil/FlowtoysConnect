@@ -43,8 +43,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   TimelineTrackController waveformTimelineController = TimelineTrackController(elements: <TimelineElement>[]);
 
   List<TimelineTrackController> get timelineControllers => [
-    waveformTimelineController,
     ...modeTimelineControllers,
+    waveformTimelineController,
   ].where((controller) => controller != null).toList();
 
 
@@ -87,18 +87,18 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   bool isPlaying = false;
 
   Duration duration;
-  int get lengthInMiliseconds => duration.inMilliseconds;
+  int get lengthInMicroseconds => duration.inMicroseconds;
   Duration get visibleDuration => duration * (1 / scale);
   Duration get futureVisibleDuration => duration * (1 / futureScale);
-  double get visibleMiliseconds => (lengthInMiliseconds / scale);
-  double get remainingMiliseconds => lengthInMiliseconds - playOffset.value;
-  double get futureVisibleMiliseconds => (lengthInMiliseconds / futureScale);
+  double get visibleMicroseconds => (lengthInMicroseconds / scale);
+  double get remainingMicroseconds => lengthInMicroseconds - playOffset.value;
+  double get futureVisibleMicroseconds => (lengthInMicroseconds / futureScale);
 
 
   AnimationController startOffset;
   AnimationController playOffset;
 
-  Duration get playOffsetDuration => Duration(milliseconds: playOffset.value.toInt());
+  Duration get playOffsetDuration => Duration(microseconds: playOffset.value.toInt());
 
 
   double scrollbarWidth = 0;
@@ -114,8 +114,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   double get scrollContainerWidth => containerWidth * 0.97;
   bool get timelineContainsStart => startOffset.value <= 0;
-  bool get timelineContainsEnd => startOffset.value + futureVisibleMiliseconds >= lengthInMiliseconds;
-  double get milisecondsPerPixel => visibleMiliseconds / containerWidth;
+  bool get timelineContainsEnd => startOffset.value + futureVisibleMicroseconds >= lengthInMicroseconds;
+  double get microsecondsPerPixel => visibleMicroseconds / containerWidth;
 
   bool modesLoaded = false;
   bool loading = false;
@@ -127,8 +127,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   Map<TimelineElement, WaveformController> waveforms = {};
   // List<Duration> get songDurations => waveforms.map((song) => song.duration).toList();
 
-  Duration get windowStart => Duration(milliseconds: startOffset.value.toInt());
-  Duration get windowEnd => windowStart + Duration(milliseconds: visibleMiliseconds.toInt());
+  Duration get windowStart => Duration(microseconds: startOffset.value.toInt());
+  Duration get windowEnd => windowStart + Duration(microseconds: visibleMicroseconds.toInt());
 
   visibleDurationOf(object) {
     var objectVisibleDuration;
@@ -178,7 +178,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     modesLoaded = true;
 
     if (duration != null)
-      scale *= show.duration.inMilliseconds / duration.inMilliseconds;
+      scale *= show.duration.inMicroseconds / duration.inMicroseconds;
 
     _inflectionPoints = null;
     _allElements = null;
@@ -200,6 +200,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       );
     }).toList();
     setScrollBarWidth();
+    waveformTimelineController.timelineIndex = modeTimelineControllers.length;
   }
 
   void loadPlayers() {
@@ -221,12 +222,13 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     });
 
     loadAudioPlayers().then((_) {
-      var lengthInMiliseconds = 0.1;
+      var lengthInMicroseconds = 0.1;
       var index = 0;
       mapWithIndex(show.audioElements, (index, element) {
         waveforms[element].startOffset = element.startOffset;
       });
       waveformTimelineController = TimelineTrackController(
+        timelineIndex: modeTimelineControllers.length,
         onSelectionUpdate: (() => setState(() {})),
         selectMultiple: selectMultiple,
         elements: show.audioElements,
@@ -276,7 +278,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     var currentOffsetValue = startOffset?.value ?? 0;
     startOffset?.dispose();
     startOffset = AnimationController(
-      upperBound: lengthInMiliseconds - visibleMiliseconds,
+      upperBound: lengthInMicroseconds - visibleMicroseconds,
       value: currentOffsetValue,
       lowerBound: 0,
       vsync: this
@@ -286,7 +288,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   void setPlayOffset() {
     var value = playOffset?.value ?? 0;
     playOffset = AnimationController(
-      upperBound: lengthInMiliseconds.toDouble(),
+      upperBound: lengthInMicroseconds.toDouble(),
       lowerBound: 0,
       vsync: this
     );
@@ -299,13 +301,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }
 
   void updatePlayIndicatorAnimation() {
-    if (currentAudioElement?.object != null)
-      currentPlayer.seek(Duration(milliseconds: playOffset.value.toInt()) - currentAudioElement.startOffset);
+    if (currentAudioElement?.object != null) {
+      var startOffset = currentAudioElement.startOffset - (currentAudioElement.contentOffset ?? Duration.zero);
+      currentPlayer.seek(Duration(microseconds: playOffset.value.toInt()) - startOffset);
+    }
 
     if (isPlaying) {
       currentPlayer.play();
-      playOffset.animateTo(lengthInMiliseconds.toDouble(),
-        duration: Duration(milliseconds: remainingMiliseconds.toInt()),
+      playOffset.animateTo(lengthInMicroseconds.toDouble(),
+        duration: Duration(microseconds: remainingMicroseconds.toInt()),
       );
     } else {
       audioPlayers.values.forEach((player) => player.pause());
@@ -418,8 +422,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         return Positioned(
           top: 3,
           bottom: 0,
-          left: timelineContainsEnd ? null : (((playOffset.value - startOffset.value) / futureVisibleMiliseconds) * containerWidth) - (playHeadWidth / 2),
-          right: !timelineContainsEnd ? null : (((lengthInMiliseconds - playOffset.value) / futureVisibleMiliseconds) * containerWidth) - (playHeadWidth / 2),
+          left: timelineContainsEnd ? null : (((playOffset.value - startOffset.value) / futureVisibleMicroseconds) * containerWidth) - (playHeadWidth / 2),
+          right: !timelineContainsEnd ? null : (((lengthInMicroseconds - playOffset.value) / futureVisibleMicroseconds) * containerWidth) - (playHeadWidth / 2),
           child: Column(
             children: [
               GestureDetector(
@@ -427,12 +431,12 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   _playOffsetValue = playOffset.value;
                 },
                 onPanUpdate: (details) {
-                  var offsetValue = details.delta.dx * (visibleMiliseconds/(containerWidth + playHeadWidth));
+                  var offsetValue = details.delta.dx * (visibleMicroseconds/(containerWidth + playHeadWidth));
                   _playOffsetValue += offsetValue;
 
                   playOffset.value = inflectionPoints.firstWhere((offset) {
-                    return snapping && (1.0 - (_playOffsetValue / offset.inMilliseconds)).abs() < 0.05;
-                  }, orElse: () => null)?.inMilliseconds?.toDouble() ?? _playOffsetValue;
+                    return snapping && (1.0 - (_playOffsetValue / offset.inMicroseconds)).abs() < 0.05;
+                  }, orElse: () => null)?.inMicroseconds?.toDouble() ?? _playOffsetValue;
 
                   audioPlayers.values.forEach((player) => player.pause());
                   setState((){});
@@ -468,8 +472,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text("${(startOffset.value/1000).toStringAsFixed(1)} sec"),
-        Text("${((startOffset.value + visibleMiliseconds)/1000).toStringAsFixed(1)} sec"),
+        Text("${(startOffset.value/Duration(seconds: 1).inMicroseconds).toStringAsFixed(1)} sec"),
+        Text("${((startOffset.value + visibleMicroseconds)/Duration(seconds: 1).inMicroseconds).toStringAsFixed(1)} sec"),
       ],
     );
   }
@@ -490,18 +494,18 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return GestureDetector(
       onPanStart: (details) {
         audioPlayers.values.forEach((player) => player.pause());
-        _playOffsetValue = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        _playOffsetValue = startOffset.value + (visibleMicroseconds * details.localPosition.dx / containerWidth);
         playOffset.value = _playOffsetValue;
       },
       onPanUpdate: (details) {
         // Attempt to animate it:
-        // var moveTo = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        // var moveTo = startOffset.value + (visibleMicroseconds * details.localPosition.dx / containerWidth);
         // Tween<double>(begin: 0, end: moveTo).animate(playOffset);
-        _playOffsetValue = startOffset.value + (visibleMiliseconds * details.localPosition.dx / containerWidth);
+        _playOffsetValue = startOffset.value + (visibleMicroseconds * details.localPosition.dx / containerWidth);
 
         playOffset.value = inflectionPoints.firstWhere((offset) {
-          return snapping && (1.0 - (_playOffsetValue / offset.inMilliseconds)).abs() < 0.05;
-        }, orElse: () => null)?.inMilliseconds?.toDouble() ?? _playOffsetValue;
+          return snapping && (1.0 - (_playOffsetValue / offset.inMicroseconds)).abs() < 0.05;
+        }, orElse: () => null)?.inMicroseconds?.toDouble() ?? _playOffsetValue;
 
         audioPlayers.values.forEach((player) => player.pause());
         setState((){});
@@ -552,7 +556,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           startOffset.animateWith(
              // The bigger the first parameter, the less friction is applied
             FrictionSimulation(0.2, startOffset.value,
-              details.velocity.pixelsPerSecond.dx * -1 * milisecondsPerPixel// <- Velocity of inertia
+              details.velocity.pixelsPerSecond.dx * -1 * microsecondsPerPixel// <- Velocity of inertia
             )
           );
         },
@@ -560,10 +564,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         onScaleUpdate: (details) {
           setState(() {
             var scrollSpeed = 2;
-            var milisecondOffsetValue = (startOffset.value + (timelineGestureStartPointX - details.localFocalPoint.dx) * milisecondsPerPixel * scrollSpeed) ;
+            var milisecondOffsetValue = (startOffset.value + (timelineGestureStartPointX - details.localFocalPoint.dx) * microsecondsPerPixel * scrollSpeed) ;
             if (timelineGestureStartPointX != details.localFocalPoint.dx || startOffset.value != milisecondOffsetValue) {
               timelineGestureStartPointX = details.localFocalPoint.dx;
-              startOffset.value = milisecondOffsetValue.clamp(0.0, lengthInMiliseconds - visibleMiliseconds);
+              startOffset.value = milisecondOffsetValue.clamp(0.0, lengthInMicroseconds - visibleMicroseconds);
               setScrollBarWidth();
             }
           }); 
@@ -604,7 +608,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 controller: controller,
                 onScrollUpdate: (windowStart) {
                   setState(() {
-                    startOffset.value = windowStart.inMilliseconds.toDouble();
+                    startOffset.value = windowStart.inMicroseconds.toDouble();
                   });
                 },
                 onReorder: () {
@@ -790,7 +794,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             controller: waveformTimelineController,
             onScrollUpdate: (windowStart) {
               setState(() {
-                startOffset.value = windowStart.inMilliseconds.toDouble();
+                startOffset.value = windowStart.inMicroseconds.toDouble();
               });
             },
             onReorder: () {
@@ -800,13 +804,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             slideWhenStretching: slideModesWhenStretching,
             buildElement: (element) {
               Duration waveVisibleDuration = visibleDurationOf(element);
+              var contentOffset = element.contentOffset ?? Duration.zero;
               return Waveform(
                 controller: waveforms[element],
                 visibleDuration: waveVisibleDuration,
-                startOffset: maxDuration(windowStart - element.startOffset, Duration()),
-                scale: scale * (element.duration.inMilliseconds / lengthInMiliseconds),
-                futureScale: futureScale * (element.duration.inMilliseconds / lengthInMiliseconds),
-                visibleBands: 1200 * (waveVisibleDuration.inMilliseconds / visibleMiliseconds).clamp(0.0, 1.0),
+                scale: scale * (element.duration.inMicroseconds / lengthInMicroseconds),
+                futureScale: futureScale * (element.duration.inMicroseconds / lengthInMicroseconds),
+                startOffset: maxDuration(windowStart - element.startOffset, Duration()) + contentOffset,
+                visibleBands: 1200 * (waveVisibleDuration.inMicroseconds / visibleMicroseconds).clamp(0.0, 1.0),
                 color: [Colors.red, Colors.red][waveforms.keys.toList().indexOf(element) % 2],
               );
             },
@@ -827,7 +832,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         return Positioned(
           top: 0,
           bottom: 0,
-          left: ((scrollContainerWidth) * playOffset.value / lengthInMiliseconds),
+          left: ((scrollContainerWidth) * playOffset.value / lengthInMicroseconds),
           child: Column(
             children: [
               ClipPath(
@@ -858,11 +863,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return GestureDetector(
       onPanUpdate: (details) {
         setState(() {
-          var milisecondsNotVisible = lengthInMiliseconds - visibleMiliseconds;
+          var microsecondsNotVisible = lengthInMicroseconds - visibleMicroseconds;
 
-          var offsetValue =  details.delta.dx * milisecondsNotVisible;
+          var offsetValue =  details.delta.dx * microsecondsNotVisible;
           startOffset.value = startOffset.value + (offsetValue/(scrollContainerWidth - scrollbarWidth));
-          startOffset.value = startOffset.value.clamp(0.0, milisecondsNotVisible).toDouble();
+          startOffset.value = startOffset.value.clamp(0.0, microsecondsNotVisible).toDouble();
           setScrollBarWidth();
         });
       },
@@ -878,7 +883,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           ),
           Positioned(
             top: 2,
-            left: (horizontalPadding + scrollContainerWidth * startOffset.value / lengthInMiliseconds).clamp(horizontalPadding, max(horizontalPadding, containerWidth - scrollbarWidth - horizontalPadding)),
+            left: (horizontalPadding + scrollContainerWidth * startOffset.value / lengthInMicroseconds).clamp(horizontalPadding, max(horizontalPadding, containerWidth - scrollbarWidth - horizontalPadding)),
             child: Container(
               width: scrollbarWidth,
               height: 16,
@@ -916,7 +921,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   setScrollBarWidth();
                 });
                 computeDataTimer?.cancel();
-                computeDataTimer = Timer(Duration(milliseconds: 250), () {
+                computeDataTimer = Timer(Duration(microseconds: 250), () {
                   setState(() {
                     scale = futureScale;
                     setStartOffset();
@@ -1357,7 +1362,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
             current.duration -= newElement.duration;
             newElement.contentOffset = current.duration;
-            show.modeTracks[controller.timelineIndex].insert(index+1, newElement);
+            show.elementTracks[controller.timelineIndex].insert(index+1, newElement);
             show.save();
           });
 

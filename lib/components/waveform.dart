@@ -106,9 +106,9 @@ class Waveform extends StatefulWidget {
 
 class _WaveformState extends State<Waveform> {
   Duration get startOffset => widget.startOffset ?? Duration();
-  double get futureVisibleMiliseconds => visibleMiliseconds * futureScale / scale;
+  double get futureVisibleMicroseconds => visibleMicroseconds * futureScale / scale;
   Duration get visibleDuration => widget.visibleDuration ?? controller.duration;
-  double get visibleMiliseconds => visibleDuration.inMilliseconds.toDouble();
+  double get visibleMicroseconds => visibleDuration.inMicroseconds.toDouble();
   Color get color => widget.color ?? Colors.blue;
   double get futureScale => widget.futureScale;
   double get scale => widget.scale ?? 1;
@@ -118,11 +118,11 @@ class _WaveformState extends State<Waveform> {
 
   List<int> get data => controller.data;
   double get visibleBands => widget.visibleBands ?? 1200;
-  int get durationInMilliseconds => controller.duration.inMilliseconds;
-  double get visibleRatio => (visibleMiliseconds / durationInMilliseconds);
+  int get durationInMicroseconds => controller.duration.inMicroseconds;
+  double get visibleRatio => (visibleMicroseconds / durationInMicroseconds);
   int get totalChunksForSong => (visibleBands / visibleRatio).ceil();
-  int get milisecondsPerBand => (durationInMilliseconds / totalChunksForSong).ceil();
-  int get bandOffset => data.length == 0 ? 0 : max(0, (startOffset.inMilliseconds / milisecondsPerBand).toInt());//.clamp(0, scaledData.length - visibleBands);
+  int get microsecondsPerBand => (durationInMicroseconds / totalChunksForSong).ceil();
+  int get bandOffset => data.length == 0 ? 0 : max(0, (startOffset.inMicroseconds / microsecondsPerBand).toInt());//.clamp(0, scaledData.length - visibleBands);
 
 
   int chunkSizeWas;
@@ -255,7 +255,7 @@ class _WaveformState extends State<Waveform> {
 
     timer?.cancel();
 
-    if (visibleMiliseconds <= 0)
+    if (visibleMicroseconds <= 0)
       return Container();
 
     if (scaleWas != scale)
