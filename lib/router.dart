@@ -3,6 +3,7 @@ import 'package:fluro/fluro.dart';
 
 import 'package:app/routes/reset_password.dart';
 import 'package:app/routes/create_account.dart';
+import 'package:app/routes/new_subshow.dart';
 import 'package:app/routes/edit_show.dart';
 import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
@@ -77,6 +78,11 @@ class AppRouter {
       '/props',
       handler: newHandler(() => Props()),
       transitionType: TransitionType.inFromRight,
+    );
+    router.define(
+      '/subshows/new',
+      handler: newHandler(() => NewSubShow()),
+      transitionType: TransitionType.inFromBottom,
     );
     router.define(
       '/shows/:id/edit',

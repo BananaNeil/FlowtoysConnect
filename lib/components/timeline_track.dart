@@ -156,7 +156,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
             else elementVisibleDuration = Duration();
 
           return Flexible(
-            flex: ((elementVisibleDuration.inMicroseconds / (futureVisibleDuration.inMicroseconds)).clamp(0.0, 1.0) * 1000.0).ceil(),
+            flex: ((elementVisibleDuration.inMicroseconds / (futureVisibleDuration.inMicroseconds)).clamp(0.0, 1.0) * 20000.0).ceil(),
               child: Container(
                 decoration: BoxDecoration(
                   border: (isSelected && !isActingOnSelected) ? Border.all(color: Colors.white, width: 2) : 
@@ -279,7 +279,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     var startWidth = (start.inMicroseconds / microsecondsPerPixel);
     var endWidth = (visibleDuration - end).inMicroseconds / microsecondsPerPixel;
 
-    var visiblySelectedRatio = (visibleSelectedDuration.inMicroseconds / visibleDuration.inMicroseconds);
+		var visiblySelectedRatio = (visibleSelectedDuration.inMicroseconds / visibleDuration.inMicroseconds);
     var selectedElementsVisibleInWindow = lastElement.endOffset + dragDelta > windowStart && firstElement.startOffset + dragDelta < windowEnd;
 
     return Row(
@@ -383,7 +383,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                     width: end >= visibleDuration ? 0 : 30,
                     child: Transform.translate(
                       offset: Offset(-12, 0),
-                      child: Icon(slideWhenStretching ? Icons.double_arrow : Icons.arrow_right, size: 40),
+                      child: Icon(slideWhenStretching ? Icons.arrow_right : Icons.arrow_right, size: 40),
                     )
                   )
                 )
@@ -539,7 +539,7 @@ class TimelineTrackController {
     onSelectionUpdate,
   }) {
     this._elements = elements;
-    this.onSelectionUpdate = onSelectionUpdate ?? () => null;
+    this.onSelectionUpdate = onSelectionUpdate ?? (_) => null;
   }
 
   void set elements(elements) => _elements = elements;
@@ -578,7 +578,7 @@ class TimelineTrackController {
         return element.endOffset > before;
       }).toList();
     else selectedElements = [];
-    onSelectionUpdate();
+    onSelectionUpdate(this);
   }
 
   void selectAll({before, after}) {
@@ -594,7 +594,7 @@ class TimelineTrackController {
       }).toList();
     else
       selectedElements = List.from(elements);
-    onSelectionUpdate();
+    onSelectionUpdate(this);
   }
 
   void toggleSelectMultiple() {
@@ -612,7 +612,7 @@ class TimelineTrackController {
       selectedElements = [element];
 
     selectedElements.sort((a, b) => a.startOffset.compareTo(b.startOffset));
-    onSelectionUpdate();
+    onSelectionUpdate(this);
   }
 
   bool get selectedElementsAreConsecutive {

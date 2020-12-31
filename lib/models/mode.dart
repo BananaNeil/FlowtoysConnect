@@ -128,7 +128,7 @@ class Mode {
     var method = (id == null) ? Client.createMode : Client.updateMode;
     return method(this).then((response) {
       if (response['success']) {
-        this.id = id ?? response['mode'].id;
+        this.id = response['mode'].id ?? id;
         // assignAttributesFromCopy(response['mode']); // This isn't really necessary, but seems right for good measure?
         response['id'] = id;
         response['mode'] = this;
@@ -143,9 +143,9 @@ class Mode {
   Mode dup() {
     var attributes = toFullMap();
     attributes['id'] = null;
-    attributes['accessLevel'] = 'editable';
-    attributes['parentType'] = null;
-    attributes['parentId'] = null;
+    attributes['access_level'] = 'editable';
+    attributes['parent_type'] = null;
+    attributes['parent_id'] = null;
     return Mode.fromMap(attributes);
   }
 
@@ -295,6 +295,21 @@ class Mode {
       mode.modeParams[paramName].recursivelySetMultiValue();
     });
     return mode;
+  }
+
+  factory Mode.basic() {
+    var baseMode;
+    if (Preloader.baseModes.isNotEmpty)
+      baseMode = Preloader.baseModes.elementAt(0);
+    return Mode.fromMap({
+      'hue': { 'value': 0.5 },
+      'speed': { 'value': 0.5 },
+      'density': { 'value': 0.5 },
+      'saturation': { 'value': 0.5 },
+      'brightness': { 'value': 0.5 },
+      'base_mode_id': baseMode?.id,
+      'accessLevel': 'editable',
+    });
   }
 
   factory Mode.fromMap(Map<String, dynamic> body) {

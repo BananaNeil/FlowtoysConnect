@@ -146,12 +146,13 @@ class TimelineElement {
           modes: objects,
         );
       else
-        object = objects.firstWhere((obj) {
+        object = objects?.firstWhere((obj) {
           return obj.runtimeType.toString() == element['object_type'] &&
             obj.id == element['object_id'];
         }, orElse: () => null);
 
       return TimelineElement(
+        contentOffset: Duration(microseconds: element['content_offset'] ?? 0),
         duration: Duration(microseconds: element['duration']),
         object: object,
       );
@@ -164,10 +165,37 @@ class TimelineElement {
     }).toList();
   }
 
+  List<List<TimelineElement>> get localNestedModeTracks {
+    if (objectType != 'Show') return [];
+    contentOffset ??= Duration.zero;
+    var trackCount = object.trackType == 'groups' ? object.groupCount : object.propCount;
+    List<List<TimelineElement>> tracks = List.generate(trackCount, (index) => []);
+    List.generate(trackCount, (timelineIndex) {
+      object.modeTracks[timelineIndex].forEach((nestedElement) {
+        var _nestedElement = nestedElement.dup();
+        if (contentOffset < nestedElement.endOffset && duration > nestedElement.startOffset - contentOffset) {
+          _nestedElement.duration = minDuration(nestedElement.endOffset, contentOffset + duration)
+              - maxDuration(nestedElement.startOffset, contentOffset);
+          tracks[timelineIndex].add(_nestedElement);
+        }
+      });
+    });
+    eachWithIndex(tracks, (trackIndex, track) {
+      var offset = Duration.zero;
+      track.forEach((element) {
+        element.timelineIndex = trackIndex;
+        element.startOffset = offset;
+        offset += element.duration;
+      });
+    });
+    return tracks;
+  }
+
   Map<String, dynamic> asJson() {
     Map<String, dynamic> json = {
       'object_type': objectType,
       'duration': duration.inMicroseconds,
+      'content_offset': contentOffset?.inMicroseconds,
     };
     if (['Mode', 'Song'].contains(objectType))
       json['object_id'] = objectId;

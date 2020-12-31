@@ -172,7 +172,7 @@ class _ShowsPageState extends State<ShowsPage> {
                             ), margin: EdgeInsets.only(right: 6)),
                           ),
                           // Don't forget to remove this minimum byte size after you figure out show json size
-                          Text("${show.durationString}  -  (${filesize(max(1500, show.audioByteSize))})", style: TextStyle(
+                          Text("${show.durationString}  -  (${filesize(show.byteSize)})", style: TextStyle(
                             fontSize: 12,
                           )),
                         ]
@@ -188,7 +188,7 @@ class _ShowsPageState extends State<ShowsPage> {
                       Flexible(
                         child: Container(
                           margin: EdgeInsets.only(top: 5),
-                          child: Text( "(${element.durationString}) - ${element.object.name}",
+                          child: Text( "(${element.durationString}) - ${element.object?.name}",
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppController.purple,

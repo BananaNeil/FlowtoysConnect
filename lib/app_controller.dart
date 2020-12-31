@@ -16,7 +16,7 @@ import 'dart:math';
 class AppController extends StatefulWidget {
   final Function(BuildContext) builder;
 
-  static final globalKey = new GlobalKey<NavigatorState>();
+  static GlobalKey<NavigatorState> globalKey = new GlobalKey<NavigatorState>();
   static Map<String, dynamic> config = {};
   static bool dialogIsOpen = false;
   static String openedPath;
@@ -191,6 +191,7 @@ class AppController extends StatefulWidget {
   static Color white = Colors.white;
   static Color grey = Colors.grey;
   static Color darkGrey = Color(0xff333333);
+  static Color lightGrey = Color(0xffCCCCCC);
 
   static List<Color> colors = [
     purple,
@@ -223,13 +224,13 @@ class AppController extends StatefulWidget {
     return value.toDouble();
   }
 
-  static void openDialog(title, body, {path: null, buttonText: null, buttons: null}) async {
-    if (dialogIsOpen) return;
+  static Future<dynamic> openDialog(title, body, {path: null, buttonText: null, buttons: null}) async {
+    if (dialogIsOpen) return Future.value(false);
     dialogIsOpen = true;
 
     var context = getCurrentContext();
     buttons ??= [];
-    showDialog(
+    return showDialog(
       context: context,
       builder: (context) => AlertDialog(
         content: ListTile(
@@ -243,7 +244,7 @@ class AppController extends StatefulWidget {
               textColor: button['color'] ?? white,
               onPressed: () {
                 dialogIsOpen = false;
-                Navigator.of(context).pop();
+                Navigator.pop(context, button['returnValue'] ?? true);
                 button['onPressed']();
               },
             );
@@ -252,15 +253,16 @@ class AppController extends StatefulWidget {
             child: Text(buttonText ?? 'Ok'),
             onPressed: () {
               dialogIsOpen = false;
-              Navigator.of(context).pop();
+              Navigator.pop(context, null);
               if (path != null)
                 openPath(path);
             },
           ),
         ],
       ),
-    ).then((_) {
+    ).then((result) {
       dialogIsOpen = false;
+      return result;
     });
   }
 

@@ -53,11 +53,20 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   bool snapping = true;
   List<Mode> selectedModes = [];
   bool slideModesWhenStretching = false;
-  bool get oneModeSelected => selectedElements.length == 1;
+  bool get oneElementSelected => selectedElements.length == 1;
+  bool get oneModeSelected => oneElementSelected && selectedElements.first.objectType == 'Mode';
   List<String> get selectedElementIds => selectedElements.map((element) => element.id);
   List<TimelineElement> get selectedElements => timelineControllers.map((controller) {
     return controller.selectedElements;
   }).expand((e) => e).toList();
+
+  List<TimelineElement> get selectedModeElements => modeTimelineControllers.map((controller) {
+    return controller.selectedElements;
+  }).expand((e) => e).toList();
+
+  List<TimelineTrackController> get selectedModeControllers => modeTimelineControllers.where((controller) {
+    return controller.selectedElements.isNotEmpty;
+  }).toList();
 
   List<TimelineTrackController> get selectedElementControllers => timelineControllers.where((controller) {
     return controller.selectedElements.isNotEmpty;
@@ -74,7 +83,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   List<Duration> get inflectionPoints {
     return _inflectionPoints ??= allElements.map<List<Duration>>((el) {
       if (el.objectType == 'Show')
-        return el.object.modeTracks.expand<TimelineElement>((List<TimelineElement> nestedEl) => nestedEl)
+        return el.localNestedModeTracks.expand<TimelineElement>((List<TimelineElement> nestedEl) => nestedEl)
             .map<Duration>((TimelineElement nestedEl) => nestedEl.endOffset + el.startOffset).toList();
       else return [el.endOffset];
     }).expand((dur) => dur).toSet().toList();
@@ -103,13 +112,24 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   double scrollbarWidth = 0;
   double containerWidth = 0;
+  double containerHeight = 0;
   double playHeadWidth = 20.0;
+
+  void setContainerHeight(_height) {
+    if (this.containerHeight != _height) {
+      this.containerHeight = _height;
+    }
+  }
 
   void setContainerWidth(_width) {
     if (this.containerWidth != _width) {
       this.containerWidth = _width;
       setScrollBarWidth();
     }
+  }
+
+  Future save() {
+    return show.save().then((_) => setState((){}));
   }
 
   double get scrollContainerWidth => containerWidth * 0.97;
@@ -158,6 +178,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     super.initState();
   }
 
+  List<TimelineElement> get currentElements => timelineControllers.map((controller) {
+    return controller.elementAtTime(playOffsetDuration);
+  }).toList();
 
   TimelineElement get currentAudioElement {
     return waveformTimelineController.elementAtTime(playOffsetDuration);
@@ -165,6 +188,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   AssetsAudioPlayer get currentPlayer {
     return audioPlayers[currentAudioElement];
+  }
+
+  void _selectionUpdate(_controller) {
+    if (!selectMultiple && _controller.selectedElements.isNotEmpty)
+      timelineControllers.forEach((controller) {
+        if (controller.timelineIndex != _controller.timelineIndex)
+          controller.deselectAll();
+      });
+    setState(() {});
   }
 
   void reloadModes() {
@@ -190,10 +222,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     futureScale = scale;
     setAnimationControllers();
 
-    show.modeTracks.forEach((e) => print("Creating new controller with element durations: ${e.map((a) => a.duration)}"));
     modeTimelineControllers = mapWithIndex(show.modeTracks, (index, trackElements) {
       return TimelineTrackController(
-        onSelectionUpdate: (() => setState(() {})),
+        onSelectionUpdate: _selectionUpdate,
         selectMultiple: selectMultiple,
         elements: trackElements,
         timelineIndex: index,
@@ -229,7 +260,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       });
       waveformTimelineController = TimelineTrackController(
         timelineIndex: modeTimelineControllers.length,
-        onSelectionUpdate: (() => setState(() {})),
+        onSelectionUpdate: _selectionUpdate,
         selectMultiple: selectMultiple,
         elements: show.audioElements,
       );
@@ -347,9 +378,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             element.object = null;
           } else {
             sibling?.duration += element.duration;
-            print("Removing ${element}");
             controller.elements.remove(element);
-            show.modeTracks[controller.timelineIndex].remove(element);
+            show.elementTracks[controller.timelineIndex].remove(element);
           }
         });
       });
@@ -357,7 +387,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     });
     show.ensureStartOffsets();
     show.ensureFilledEndSpace();
-    show.save();
+    save();
     reloadModes();
   }
 
@@ -378,6 +408,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         ),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints box) {
+            setContainerHeight(box.maxHeight);
             setContainerWidth(box.maxWidth);
 
             if (loading)
@@ -401,7 +432,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                         _Timestamps(),
                         _TimelineContainer(),
                         _ScrollBar(),
-                        _ScaleSlider(),
+                        Container(
+                          margin: EdgeInsets.only(right: 10, left: 10, top: 10),
+                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            _EditModeButtons(),
+                            _GroupingIconButtons(),
+                            _IconButtonSettings(),
+                          ]),
+                        )
                       ],
                     );
                   }
@@ -471,8 +509,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   Widget _Timestamps() {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         Text("${(startOffset.value/Duration(seconds: 1).inMicroseconds).toStringAsFixed(1)} sec"),
+        _PlayHeadTimestamp(),
         Text("${((startOffset.value + visibleMicroseconds)/Duration(seconds: 1).inMicroseconds).toStringAsFixed(1)} sec"),
       ],
     );
@@ -585,6 +625,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  double get trackHeight => (containerHeight / 600) * (editMode == 'global' ? 160 : (editMode == 'groups' ? 80 : 40));
+
   Widget _ModeContainer() {
     return Column(
       children: modeTimelineControllers.map((controller) {
@@ -595,7 +637,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           windowStart: windowStart,
         );
         return Container(
-          height: editMode == 'global' ? 100 : (editMode == 'groups' ? 80 : 40),
+          height: trackHeight,
           padding: EdgeInsets.symmetric(vertical: 1),
           decoration: BoxDecoration(
              color: Color(0xFF555555),
@@ -613,15 +655,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 },
                 onReorder: () {
                   eachWithIndex(controller.elements, (index, element) => element.position = index + 1);
-                  show.save();
+                  save();
                   reloadModes();
                 },
                 snapping: snapping,
                 inflectionPoints: inflectionPoints,
                 slideWhenStretching: slideModesWhenStretching,
                 buildElement: (element, {start, end}) {
-                    var invisibleLeft = maxDuration(Duration.zero, windowStart - element.startOffset);
-                    var invisibleRight = maxDuration(Duration.zero, element.endOffset - windowEnd);
+                  var invisibleLeft = maxDuration(Duration.zero, windowStart - element.startOffset);
+                  var invisibleRight = maxDuration(Duration.zero, element.endOffset - windowEnd);
                   if (element.objectType == 'Mode')
                     return _ModeColumn(
                       mode: element.object,
@@ -668,7 +710,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
         blackElement.duration = durationDifference * -1;
         blackElement.object = null;
-        show.modeTracks[controller.timelineIndex].insert(index + 1, blackElement);
+        show.elementTracks[controller.timelineIndex].insert(index + 1, blackElement);
       } else if (insertBlack == 'left') {
         // I don't think this is a thing anymore:
         var blackElement = controller.selectedElements.first.dup();
@@ -676,7 +718,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
         blackElement.duration = durationDifference * -1;
         blackElement.object.setAsBlack();
-        show.modeTracks[controller.timelineIndex].insert(index - 1, blackElement);
+        show.elementTracks[controller.timelineIndex].insert(index - 1, blackElement);
       } else if (growFrom != null) {
         var sibling;
         if (growFrom == 'left')
@@ -689,10 +731,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       } else if (overwrite == 'left') {
         controller.elements.sublist(0, controller.selectedElementIndexes.first).reversed.forEach((element) {
           var newStart = controller.selectedElements.first.startOffset - durationDifference;
-          print("SO ${element.startOffset} ... new start ${newStart}");
           if (element.startOffset >= newStart) {
             controller.elements.remove(element);
-            show.modeTracks[controller.timelineIndex].remove(element);
+            show.elementTracks[controller.timelineIndex].remove(element);
           } else if (element.endOffset > newStart)
             element.duration -= element.endOffset - newStart;
         });
@@ -701,7 +742,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           var newEnd = controller.selectedElements.last.endOffset + durationDifference;
           if (element.endOffset <= newEnd) {
             controller.elements.remove(element);
-            show.modeTracks[controller.timelineIndex].remove(element);
+            show.elementTracks[controller.timelineIndex].remove(element);
           } else if (element.startOffset < newEnd) {
             element.duration -= newEnd - element.startOffset;
           }
@@ -720,7 +761,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       controller.selectedElements.removeWhere((element) {
         return element.duration == Duration();
       });
-      show.save();
+      save();
       reloadModes();
     });
   }
@@ -738,8 +779,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     setState(() { reloadModes(); });
   }
 
-  void _afterDelete() {
-    AppController.openDialog("How would you like to delete?", "",
+  Future<dynamic> _afterDelete() {
+    return AppController.openDialog("How would you like to delete?", "",
       buttonText: 'Cancel',
       buttons: [{
         'text': 'Replace with empty space',
@@ -748,14 +789,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           removeSelected(replaceWithBlack: true); 
         },
                             // This logic needs to be re-written for controllers
-      }, oneModeSelected && selectedModes == [show.modeTracks.last] ? null : {
+      }, oneElementSelected && selectedModes == [selectedElementControllers.first.elements.last] ? null : {
         'text': 'Expand from the right',
         'color': Colors.white,
         'onPressed': () {
           removeSelected(growFrom: 'right'); 
         },
                             // This logic needs to be re-written for controllers
-      }, oneModeSelected && selectedModes == [show.modeTracks.first] ? null : {
+      }, oneElementSelected && selectedModes == [selectedElementControllers.first.elements.first] ? null : {
         'text': 'Expand from the left',
         'color': Colors.white,
         'onPressed': () {
@@ -771,10 +812,91 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  _replaceSelectedModesWithCycleOfModes() {
+    Navigator.pushNamed(context, '/modes',
+      arguments: {
+        'isSelecting': true,
+        'canChangeCurrentList': true,
+        'selectAction': 'Generate Cycle',
+      }
+    ).then((modes) {
+      if (modes != null)
+        Navigator.pushNamed(context, '/subshows/new', arguments: {
+          'duration': (selectedModeControllers.map((controller) => controller.selectedDuration).toList()..sort()).last,
+          'modes': modes,
+          'bpm': show.bpm
+        }).then((s) {
+          if (s == false) return;
+          Show _show = s;
+          _show = _show.dup();
+          _show.setEditMode('props');
+          selectedModeControllers.forEach((controller) {
+            var track = show.modeTracks[controller.timelineIndex];
+            var index = controller.selectedElementIndexes.first;
+            track.insert(index, TimelineElement(
+              duration: controller.selectedDuration,
+              object: _show,
+            ));
+            controller.selectedElements.forEach((element) => track.remove(element));
+          });
+          show.modes.addAll(_show.modes);
+          show.ensureStartOffsets();
+          reloadModes();
+          save();
+        });
+    });
+  }
+
+  Future<dynamic> _replaceSelectedModesWithMode() {
+    var replacement;
+    if (selectedElements.first.objectType == 'Mode')
+      replacement = selectedElements.first.object.dup();
+    else replacement = show.createNewMode();
+    if (selectedElementTimelineIndexes.toSet().length == 1) {
+      var index = selectedElementTimelineIndexes.first;
+      if (editMode == 'groups')
+        replacement.setAsSubMode(groupIndex: index);
+      else if (editMode == 'props')
+        replacement.setAsSubMode(
+          groupIndex: show.groupIndexFromGlobalPropIndex(index),
+          propIndex: show.localPropIndexFromGlobalPropIndex(index),
+        );
+    }
+    return Navigator.pushNamed(context, "/modes/${replacement.id}",
+      arguments: {
+        'mode': replacement,
+        'autoUpdate': false,
+        'saveMessage': oneElementSelected ? "SAVE" : "REPLACE (${selectedElements.length})"
+      }
+    ).then((saved) {
+      if (saved == true) {
+        if (replacement.groupIndex != null) {
+          var partialReplacement = replacement;
+          replacement = selectedElements.first.object.dup();
+          replacement.modeParams.keys.forEach((paramName) {
+            replacement.setParam(paramName, partialReplacement.modeParams[paramName],
+              groupIndex: partialReplacement.groupIndex,
+              propIndex: partialReplacement.propIndex,
+            );
+          });
+          replacement.recursivelySetMultiValue();
+        }
+        selectedElements.forEach((element) => element.object = replacement);
+        return replacement.save().then((response) {
+          if (!response['success'])
+            print("WARNING:     Object failed to save!!!!!!");
+          else if (response['id'] == null)
+            print("WARNING:     Object was successfully saved, but no ID was returned in the response. Please add an ID so timeline elements can be created");
+        }).then((_) {
+          show.modes.add(replacement);
+          return save();
+        });
+      }
+    });
+  }
+
 
   Widget _Waveforms() {
-    if (audioPlayers.values.isEmpty || waveforms.values.isEmpty)
-      return Container();
 
 
     waveformTimelineController?.setWindow(
@@ -785,7 +907,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
 
     return Container(
-      height: 100,
+      height: min(70 * containerHeight / 600, trackHeight),
       child: waveformTimelineController == null ? SpinKitCircle(color: Colors.blue) : SizedBox.expand(
         child: FractionallySizedBox(
           alignment: timelineContainsEnd && !timelineContainsStart ? FractionalOffset.centerRight : FractionalOffset.centerLeft,
@@ -799,13 +921,16 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             },
             onReorder: () {
               eachWithIndex(waveformTimelineController.elements, (index, element) => element.position = index + 1);
-              show.save();
+              save();
             },
             slideWhenStretching: slideModesWhenStretching,
             buildElement: (element) {
               Duration waveVisibleDuration = visibleDurationOf(element);
               var contentOffset = element.contentOffset ?? Duration.zero;
-              return Waveform(
+              if (element.object == null)
+                return Container(decoration: BoxDecoration(color: Colors.black));
+              else return Waveform(
+                song: element.object,
                 controller: waveforms[element],
                 visibleDuration: waveVisibleDuration,
                 scale: scale * (element.duration.inMicroseconds / lengthInMicroseconds),
@@ -899,13 +1024,201 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  Widget _IconButtonSettings() {
+    return Container(
+      child: Row(
+        children: [
+          _ToggleButton(
+            message: "Snappinig",
+            active: snapping,
+            onTap: () {
+              snapping = !snapping;
+              _showNoticeMessage("Snapping ${snapping ? 'Enabled' : 'Disabled'}");
+            },
+            padding: EdgeInsets.all(5),
+            child: Image(
+              image: AssetImage('assets/images/magnet.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Multi-Select",
+            active: selectMultiple,
+            onTap: () {
+              selectMultiple = !selectMultiple;
+              _showNoticeMessage("Multi-Select ${selectMultiple ? 'Enabled' : 'Disabled'}");
+              timelineControllers.forEach((controller) {
+                controller.selectMultiple = selectMultiple;
+                if (controller.selectedElements.isNotEmpty)
+                  controller.selectedElements = [controller.selectedElements.last];
+              });
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/multiselect.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Push Mode",
+            active: slideModesWhenStretching,
+            onTap: () {
+              slideModesWhenStretching = !slideModesWhenStretching;
+              _showNoticeMessage("Push-Mode ${slideModesWhenStretching ? 'Enabled' : 'Disabled'}");
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/push-mode.png'),
+            )
+          ),
+        ]
+      )
+    );
+  }
+
+  bool get _canSplitAtPlayhead => currentElements.any((element) => selectedElements.contains(element));
+  bool get _canDelete => selectedElements.length > 0;
+  bool get _canEdit => selectedElements.length > 0;
+
+  Widget _EditModeButtons() {
+    return Container(
+      child: Row(
+        children: [
+          _ToggleButton(
+            message: "Edit or Replace Element",
+            active: _canEdit,
+            onTap: () {
+              if (!_canEdit) return Future.value(false);
+              return _editSelectedModes();
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/edit-params.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Split at Playhead",
+            active: _canSplitAtPlayhead,
+            onTap: () {
+              if (!_canSplitAtPlayhead) return;
+              _splitAtPlayhead();
+              _showNoticeMessage("Split Elements at Playhead");
+            },
+            padding: EdgeInsets.all(5),
+            child: Image(
+              image: AssetImage('assets/images/cut.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Delete (${selectedElements.length})",
+            active: _canDelete,
+            onTap: () {
+              if (!_canDelete) return;
+              var elementCount = selectedElements.length;
+              _afterDelete().then((_deleted) {
+                if (_deleted == true)
+                  elementCount == 1 ? _showNoticeMessage("1 Element Deleted") :
+                    _showNoticeMessage("${elementCount} Elements Deleted");
+              });
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/delete.png'),
+            )
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget _GroupingIconButtons() {
+    return Container(
+      child: Row(
+        children: [
+          _ToggleButton(
+            message: "Global Edit Mode",
+            active: editMode == 'global',
+            onTap: () {
+              show.setEditMode('global');
+              reloadModes();
+              _showNoticeMessage("Editing Global");
+            },
+            padding: EdgeInsets.all(5),
+            child: Image(
+              image: AssetImage('assets/images/global-timeline.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Group Edit Mode",
+            active: editMode == 'groups',
+            onTap: () {
+              show.setEditMode('groups');
+              reloadModes();
+              _showNoticeMessage("Editing Groups");
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/group-timeline.png'),
+            )
+          ),
+          _ToggleButton(
+            message: "Prop Edit Mode",
+            active: editMode == 'props',
+            onTap: () {
+              show.setEditMode('props');
+              reloadModes();
+              _showNoticeMessage("Editing Props");
+            },
+            padding: EdgeInsets.all(3),
+            child: Image(
+              image: AssetImage('assets/images/prop-timeline.png'),
+            )
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget _ToggleButton({active, child, padding, onTap, message}) {
+    return Tooltip(
+      message: message,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 35,
+          width: containerWidth / 11,
+          padding: padding,
+          decoration: BoxDecoration(
+            border: Border.all(color: active ? Color(0xff555555) : Color(0xff444444), width: 1),
+            boxShadow: [
+              const BoxShadow(
+                color: Color(0xFF000000),
+              ),
+              const BoxShadow(
+                color: Color(0xFF000000),
+                spreadRadius: -10.0,
+                blurRadius: 10.0,
+              ),
+            ],
+            color: active ? Color(0xff22303c) : Color(0xff333333)
+          ),
+          child: Opacity(
+            opacity: active ? 1.0 : 0.6,
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(active ? Colors.blue : Colors.grey, BlendMode.srcATop),
+              child: child,
+            )
+          )
+        )
+      )
+    );
+  }
+
   Widget _ScaleSlider() {
     return Container(
-      width: 150,
+      height: 35,
+      width: containerWidth / 2.8,
       decoration: BoxDecoration(
         color: Colors.grey
       ),
-      margin: EdgeInsets.only(top: 10, left: 10),
       child: Row(
         children: [
           Icon(Icons.zoom_in, color: Colors.black),
@@ -944,9 +1257,21 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         // mainAxisAlignment: MainAxisAlignment.spaceAround,
         // crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 15),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _UndoAndRedo(),
+                _NoticeMesssage(),
+                _SavedToCloudIndicator(),
+              ]
+            ),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Container(width: 20),
               _SelectAll(),
               Container(width: 10),
               _DeselectAll(),
@@ -957,17 +1282,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             children: [
               _EditModeControls(),
             ]
-          ),
-          Container(
-            margin: EdgeInsets.only(bottom: 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _SnapingButtons(),
-                _PushModeButtons(),
-                _MultiSelectButtons(),
-              ]
-            ),
           ),
           // GestureDetector(
           //   onTap: () {
@@ -984,20 +1298,32 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           //      )
           //    )
           // ),
-          Container(
-            margin: EdgeInsets.only(bottom: 5),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _SplitAtPlayHead(),
-                _DeleteButton(),
-                _EditButton(),
-              ]
-            ),
-          ),
-          _PlayHeadTimestamp(),
         ]
       )
+    );
+  }
+
+  void _showNoticeMessage(message) {
+    setState(() {
+      _noticeMessage = message;
+      _noticeMessageVisible = true;
+    });
+    _noticeMessageTimer?.cancel();
+    _noticeMessageTimer = Timer(Duration(milliseconds: 1500), () {
+      setState(() {
+        _noticeMessageVisible = false;
+      });
+    });
+  }
+
+  String _noticeMessage;
+  Timer _noticeMessageTimer;
+  bool _noticeMessageVisible = false; 
+  Widget _NoticeMesssage() {
+    return AnimatedOpacity(
+      duration: Duration(milliseconds: _noticeMessageVisible ? 0 : 500),
+      opacity: _noticeMessageVisible ? 1.0 : 0.0,
+      child: Text(_noticeMessage ?? "", style: TextStyle( color: Colors.green ))
     );
   }
 
@@ -1069,6 +1395,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 selectMultiple = (index == 1);
 
                 timelineControllers.forEach((controller) {
+                  controller.selectMultiple = selectMultiple;
                   if (controller.selectedElements.isNotEmpty)
                     controller.selectedElements = [controller.selectedElements.last];
                 });
@@ -1156,6 +1483,46 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  Widget _SavedToCloudIndicator() {
+    return Container(
+      width: 25,
+      margin: EdgeInsets.only(right: 10),
+      child: show.audioDownloadedPending ? SpinKitCircle(color: Colors.white, size: 20) :
+        (show.savedToCloud ? 
+          Icon(Icons.cloud_done, color: AppController.lightGrey) : Icon(Icons.cloud_off, color: AppController.darkGrey)
+        ),
+    );
+  }
+
+  Widget _UndoAndRedo() {
+    return Row(
+      children: [
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              show.undo();
+            });
+          },
+          child: Container(
+            padding: EdgeInsets.all(2),
+            child: Icon(Icons.undo, color: show.canUndo ? AppController.lightGrey : AppController.darkGrey),
+          )
+        ),
+        GestureDetector(
+          onTap: () {
+            setState(() {
+              show.redo();
+            });
+          },
+          child: Container(
+            padding: EdgeInsets.all(2),
+            child: Icon(Icons.redo, color: show.canRedo ? AppController.lightGrey : AppController.darkGrey),
+          )
+        ),
+      ]
+    );
+  }
+
   Widget _SelectAll() {
     return Visibility(
       visible: timelineControllers.any((controller) => !controller.allElementsSelected),
@@ -1165,6 +1532,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           RaisedButton(
             onPressed: () {
               setState(() {
+                selectMultiple = true;
                 timelineControllers.forEach((controller) => controller.selectAll());
               });
             },
@@ -1268,6 +1636,28 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  Future<dynamic> _editSelectedModes() {
+    if (selectedElementControllers.any((controller) => !controller.selectedElementsAreConsecutive))
+      return _replaceSelectedModesWithMode();
+    else
+      return AppController.openDialog("How would you like to ${oneElementSelected ? "edit (1)" : "replace (${selectedElements.length})"}?", "",
+        buttonText: 'Cancel',
+        buttons: [{
+          'text': oneModeSelected ? 'Edit Mode Details' : 'Replace with mode',
+          'color': Colors.white,
+          'onPressed': () {
+            _replaceSelectedModesWithMode();
+          },
+        }, {
+          'text': 'Replace with cycle of modes',
+          'color': Colors.white,
+          'onPressed': () {
+            _replaceSelectedModesWithCycleOfModes();
+          },
+        }]
+      );
+  }
+
   Widget _EditButton() {
     return Visibility(
       visible: modeTimelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
@@ -1275,49 +1665,11 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         margin: EdgeInsets.all(5),
         child: RaisedButton(
           onPressed: () {
-            var replacement = selectedElements.first.object.dup();
-            if (selectedElementTimelineIndexes.toSet().length == 1) {
-              var index = selectedElementTimelineIndexes.first;
-              if (editMode == 'groups')
-                replacement.setAsSubMode(groupIndex: index);
-              else if (editMode == 'props')
-                replacement.setAsSubMode(
-                  groupIndex: show.groupIndexFromGlobalPropIndex(index),
-                  propIndex: show.localPropIndexFromGlobalPropIndex(index),
-                );
-            }
-            Navigator.pushNamed(context, "/modes/${replacement.id}",
-              arguments: {
-                'mode': replacement,
-                'autoUpdate': false,
-                'saveMessage': oneModeSelected ? "SAVE" : "REPLACE (${selectedElements.length})"
-              }
-            ).then((saved) {
-              if (saved == true) {
-                if (replacement.groupIndex != null) {
-                  var partialReplacement = replacement;
-                  replacement = selectedElements.first.object.dup();
-                  replacement.modeParams.keys.forEach((paramName) {
-                    replacement.setParam(paramName, partialReplacement.modeParams[paramName],
-                      groupIndex: partialReplacement.groupIndex,
-                      propIndex: partialReplacement.propIndex,
-                    );
-                  });
-                  replacement.recursivelySetMultiValue();
-                }
-                selectedElements.forEach((element) => element.object = replacement);
-                replacement.save().then((response) {
-                  if (!response['success'])
-                    print("WARNING:     Object failed to save!!!!!!");
-                  else if (response['id'] == null)
-                    print("WARNING:     Object was successfully saved, but no ID was returned in the response. Please add an ID so timeline elements can be created");
-                });
-              }
-            });
+            _editSelectedModes();
           },
           child: Container(
             padding: EdgeInsets.all(2),
-            child: Text(oneModeSelected ? "Edit (1)" : "Replace (${selectedElements.length})")
+            child: Text(oneElementSelected ? "Edit (1)" : "Replace (${selectedElements.length})")
           )
         )
       )
@@ -1342,37 +1694,44 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  void _splitAtPlayhead() {
+    var controllers = [];
+    selectedElementControllers.forEach((controller) {
+      var current = controller.elementAtTime(playOffsetDuration);
+      if (current == null) return;
+      if (current.startOffset == playOffsetDuration) return;
+      if (!selectedElements.contains(current)) return;
+      controllers.add(controller);
+      var index = controller.elements.indexOf(current);
+      var newElement = current.dup();
+
+      newElement.startOffset = playOffsetDuration;
+      newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
+      current.duration -= newElement.duration;
+      newElement.contentOffset = current.duration;
+      show.elementTracks[controller.timelineIndex].insert(index+1, newElement);
+      
+      save();
+    });
+
+    modeTimelineControllers.forEach((controller) {
+      controller.deselectAll();
+    });
+    reloadModes();
+    controllers.forEach((controller) {
+      controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
+    });
+  }
+
   Widget _SplitAtPlayHead() {
+    if (currentElements.every((element) => !selectedElements.contains(element)))
+      return Container();
+
     return Container(
       margin: EdgeInsets.all(5),
       child: RaisedButton(
         onPressed: () {
-          var controllers = [];
-          selectedElementControllers.forEach((controller) {
-            var current = controller.elementAtTime(playOffsetDuration);
-            if (current == null) return;
-            if (current.startOffset == playOffsetDuration) return;
-            if (!selectedElements.contains(current)) return;
-            controllers.add(controller);
-            var index = controller.elements.indexOf(current);
-            var newElement = current.dup();
-
-
-            newElement.startOffset = playOffsetDuration;
-            newElement.duration = current.duration - (playOffsetDuration - current.startOffset);
-            current.duration -= newElement.duration;
-            newElement.contentOffset = current.duration;
-            show.elementTracks[controller.timelineIndex].insert(index+1, newElement);
-            show.save();
-          });
-
-          modeTimelineControllers.forEach((controller) {
-            controller.deselectAll();
-          });
-          reloadModes();
-          controllers.forEach((controller) {
-            controller.toggleSelected(controller.elementAtTime(playOffsetDuration));
-          });
+          _splitAtPlayhead();
         },
         child: Container(
           padding: EdgeInsets.all(2),
@@ -1388,39 +1747,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(child: Text("Edit As:"), margin: EdgeInsets.only(bottom: 6)),
-          Container(
-            margin: EdgeInsets.only(bottom: 15),
-            decoration: BoxDecoration(color: Color(0x22FFFFFF)),
-            child: ToggleButtons(
-              isSelected: [
-                editMode == 'global',
-                editMode == 'groups',
-                editMode == 'props'
-              ],
-              onPressed: (int index) {
-                editMode = ['global', 'groups', 'props'][index];
-                show.setEditMode(editMode);
-                // show.save();
-                reloadModes();
-                setState(() {});
-              },
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text("Global"),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text("Groups"),
-                ),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: Text("Props"),
-                ),
-              ]
-            ),
-          ),
         ]
       )
     );

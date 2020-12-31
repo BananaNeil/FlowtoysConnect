@@ -267,36 +267,66 @@ class _ModesPageState extends State<ModesPage> {
   Widget get _SelectCurrentList {
     if (!canChangeCurrentList) return Container();
     if (allLists == null && !isFetchingAllLists) _fetchAllLists();
-    if (isFetchingAllLists)
-      return SpinKitCircle(size: 14, color: Colors.white);
 
-    print("ALLLL????????? ${allLists.length}");
-    return Container(
-      margin: EdgeInsets.all(5),
-      child: DropdownButton(
-        isExpanded: true,
-        value: firstList?.id,
-        items: allLists.map((ModeList list) {
-          return DropdownMenuItem<String>(
-            value: list.id,
-                child: Wrap(
-                  children: [
-                    Text(list.name),
-                    ...list.modes.map((mode) {
-                      return Container(
-                        margin: EdgeInsets.only(right: 4, bottom: 4),
-                        child: ModeImage(mode: mode, size: 12)
-                      );
-                    }).toList(),
-                  ]
-                )
-          );
-        }).toList(),
-        onChanged: (value) {
-          modeLists = [allLists.firstWhere((list) => list.id == value)];
-          setState(() {});
-        },
-      )
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        isFetchingAllLists ?
+          Container(
+            height: 40,
+            margin: EdgeInsets.only(bottom: 5),
+            child: SpinKitCircle(size: 25, color: Colors.white)
+          ) : Container(
+            margin: EdgeInsets.all(5),
+            child: Container(height: 35,
+              child: DropdownButton(
+                isExpanded: true,
+                value: firstList?.id,
+                items: allLists.map((ModeList list) {
+                  return DropdownMenuItem<String>(
+                    value: list.id,
+                    child: Container(
+                      margin: EdgeInsets.only(bottom: 5),
+                      child: Wrap(
+                        clipBehavior: Clip.antiAlias,
+                        children: [
+                          Container(
+                            margin: EdgeInsets.only(right: 10, top: 3),
+                            child: Text(list.name),
+                          ),
+                          ...list.modes.map((mode) {
+                            return Container(
+                              margin: EdgeInsets.only(right: 4, bottom: 3),
+                              child: ModeImage(mode: mode, size: 12)
+                            );
+                          }).toList(),
+                        ]
+                      )
+                    )
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  modeLists = [allLists.firstWhere((list) => list.id == value)];
+                      print("ON CHANGED");
+                  setState(() {});
+                },
+              )
+            )
+          ),
+        Container(
+          height: 15,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF2f2f2f),
+                  Colors.black,
+                ],
+            )
+          )
+        )
+      ]
     );
   }
 
@@ -338,13 +368,6 @@ class _ModesPageState extends State<ModesPage> {
             },
           ),
           ActionButton(
-            visible: !isShowingMultipleLists,
-            text: "Create Show",
-            onPressed: () {
-              Navigator.pushNamed(context, '/shows/new', arguments: {'modes': firstList.modes});
-            },
-          ),
-          ActionButton(
             text: "Select Modes",
             onPressed: () {
               setState(() { isSelecting = true; });
@@ -379,6 +402,13 @@ class _ModesPageState extends State<ModesPage> {
       mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        !(selectAction == 'Create Show' && selectedModes.length == 0) ? Container() : ActionButton(
+          rightMargin: 25.0,
+          text: 'Skip',
+          onPressed: () {
+            Navigator.pop(context, []);
+          },
+        ),
         ActionButton(
           visible: selectedModes.length < allModes.length,
           text: "Select All",
@@ -388,7 +418,7 @@ class _ModesPageState extends State<ModesPage> {
           },
         ),
         ActionButton(
-          visible: !isShowingMultipleLists && selectedModes.length > 0,
+          visible: !isShowingMultipleLists && selectedModes.length > 0 && selectAction == null,
           text: "Remove (${selectedModes.length})",
           rightMargin: 25.0,
           onPressed: () {
@@ -407,7 +437,7 @@ class _ModesPageState extends State<ModesPage> {
           },
         ),
         ActionButton(
-          visible: !isShowingMultipleLists && selectedModes.length > 0,
+          visible: !isShowingMultipleLists && selectedModes.length > 0 && selectAction == null,
           text: "Duplicate (${selectedModes.length})",
           rightMargin: 25.0,
           onPressed: _duplicateSelected,
@@ -418,6 +448,23 @@ class _ModesPageState extends State<ModesPage> {
           rightMargin: 25.0,
           onPressed: () {
             setState(() => selectedModes = []);
+          },
+        ),
+        ActionButton(
+          visible: selectAction == null && !isShowingMultipleLists && selectedModes.length > 0,
+          text: "Create Show (${selectedModes.length})",
+          rightMargin: 25.0,
+          onPressed: () {
+            Navigator.pushNamed(context, '/shows/new',
+              arguments: {'modes': firstList.modes}
+            ).then((saved) {
+              if (saved) {
+                showExpandedActionButtons = false;
+                isSelecting = false;
+                selectedModes = [];
+                _fetchModes();
+              }
+            });
           },
         ),
         Container(
@@ -438,11 +485,13 @@ class _ModesPageState extends State<ModesPage> {
                   if (selectedModes.length > 0)
                     Navigator.pushNamed(context, '/lists/new', arguments: {
                       'selectedModes': selectedModes,
-                    }).then((_) {
-                      showExpandedActionButtons = false;
-                      isSelecting = false;
-                      selectedModes = [];
-                      _fetchModes();
+                    }).then((saved) {
+                      if (saved) {
+                        showExpandedActionButtons = false;
+                        isSelecting = false;
+                        selectedModes = [];
+                        _fetchModes();
+                      }
                     });
                 },
               ),

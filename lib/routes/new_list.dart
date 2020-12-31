@@ -49,15 +49,19 @@ class _NewListPageState extends State<NewListPage> {
     fetchLists();
   }
 
+  bool _saved = false;
   Future<void> _createNewList() {
     if (newListName.length == 0) return null;
     return Client.createNewList(newListName, selectedModes).then((response) {
       var list = response['modeList'];
       if (!response['success'])
         setState(() => errorMessage = response['message'] );
-      else Navigator.pushReplacementNamed(context, "/lists/${list.id}", arguments: {
+      else {
+        _saved = true;
+        Navigator.pushReplacementNamed(context, "/lists/${list.id}", arguments: {
           'modeList': list,
         });
+      }
     });
   }
 
@@ -74,6 +78,12 @@ class _NewListPageState extends State<NewListPage> {
         appBar: AppBar(
           title: Text("Save ${selectedModes.length} Modes to a List"),
           backgroundColor: Color(0xff222222),
+          leading: new IconButton(
+            icon: new Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.pop(context, _saved);
+            },
+          ),
         ),
         body: Center(
           child: Column(

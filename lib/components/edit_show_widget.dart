@@ -16,10 +16,20 @@ import 'package:app/client.dart';
 import 'dart:math';
 
 class EditShowWidget extends StatefulWidget {
-  EditShowWidget({Key key, this.show, this.modes, this.onSave}) : super(key: key);
+  EditShowWidget({
+    Key key,
+    this.bpm,
+    this.show,
+    this.modes,
+    this.onSave,
+    this.onlyShowCycleGeneration,
+  }) : super(key: key);
+  bool onlyShowCycleGeneration = false;
   List<Mode> modes;
   Function onSave;
   Show show;
+  double bpm;
+
 
   @override
   _EditShowWidgetState createState() => _EditShowWidgetState(
@@ -54,9 +64,12 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   Duration get modeDuration {
     if (!useBPM) return Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
 
-    var bpm = show.audioElements.first.object.bpm;
-    print("AUDIO: ${show.audioElements.first.object.bpm}");
-    return Duration(milliseconds: (1000 * chosenBeatsPerMode / (bpm / 60)).floor());
+    var beatsPerMinute;
+    if (widget.onlyShowCycleGeneration)
+      beatsPerMinute = widget.bpm;
+    else beatsPerMinute = show.audioElements.first.object.bpm;
+
+    return Duration(milliseconds: (1000 * chosenBeatsPerMode / (beatsPerMinute / 60)).floor());
   }
   int get totalModeCount => modes.length == 0 ? 0 : (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
   Duration get lastModeDuration => Duration(microseconds: show.duration.inMicroseconds - ((totalModeCount-1) * modeDuration.inMicroseconds));
@@ -67,6 +80,11 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   }
 
   void _saveAndFinish() {
+    if (widget.onlyShowCycleGeneration) {
+      show.generateTimeline(modes, modeDuration);
+      Navigator.pop(context, show);
+    }
+
     var isNewShow = !show.isPersisted;
     if ((show.name ?? '').isEmpty) return;
 
@@ -115,7 +133,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   }
 
   Future<dynamic> loadSongs() {
-    return show.downloadSongs().then((_) {
+    return show?.downloadSongs().then((_) {
       setState(() {
         show.audioElements.forEach((element) {
           waveforms[element.objectId] = WaveformController.open(element.object.localPath);
@@ -147,35 +165,40 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                     // Add a spinner here!!
                     child: Text('SAVE',
                       style: TextStyle(
-                        color: (show.name ?? '').isEmpty ? Colors.grey : Colors.blue,
+                        color: (show.name ?? '').isEmpty && !widget.onlyShowCycleGeneration ? Colors.grey : Colors.blue,
                       )
                     ),
                   ),
                 )
               ],
             ),
-            Container(
-              padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
-              child: TextFormField(
-                initialValue: show.name,
-                   textCapitalization: TextCapitalization.sentences,
-
-                decoration: InputDecoration(
-                  labelText: 'Name your show...',
-                ),
-                onChanged: (text) {
-                  setState(() {
-                    show.name = text;
-                  });
-                }
-              )
+            Visibility(
+              visible: !widget.onlyShowCycleGeneration,
+              child: Container(
+                padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
+                child: TextFormField(
+                  initialValue: show.name,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Name your show...',
+                  ),
+                  onChanged: (text) {
+                    setState(() {
+                      show.name = text;
+                    });
+                  }
+                )
+              ),
             ),
             ..._SongsListWidgets,
-            Container(
-              margin: EdgeInsets.only(top: 50, bottom: 10),
-              child: Text("Timeline Preview",
-                style: TextStyle(
-                  fontSize: 22,
+            Visibility(
+              visible: !widget.onlyShowCycleGeneration,
+              child: Container(
+                margin: EdgeInsets.only(top: 50, bottom: 10),
+                child: Text("Timeline Preview",
+                  style: TextStyle(
+                    fontSize: 22,
+                  )
                 )
               )
             ),
@@ -196,31 +219,34 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   visible: bpmError != null,
                   child: Text(bpmError ?? "", style: TextStyle(color: Colors.red)),
                 ),
-                Container(
-                  margin: EdgeInsets.only(top: 5),
-                  decoration: BoxDecoration(color: Color(0x22FFFFFF)),
-                  child: ToggleButtons(
-                    isSelected: [!useBPM, useBPM],
-                    onPressed: (int index) {
-                      if (index == 1)
-                        if (show.audioElements.isEmpty)
-                          return setState(() => bpmError = "You must add an audio element to use BPM matching.");
-                        else if (show.audioElements.first.object?.bpm == null)
-                          return setState(() => bpmError = "Wait a moment, we are anazlying to song to determine the BPM");
-                      bpmError = null;
-                      useBPM = !useBPM;
-                      setState(() {});
-                    },
-                    children: [
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text("By Duration"),
-                      ),
-                      Container(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text("Match Audio BPM"),
-                      ),
-                    ]
+                Visibility(
+                  visible: widget.onlyShowCycleGeneration && widget.bpm != null,
+                  child: Container(
+                    margin: EdgeInsets.only(top: 5),
+                    decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+                    child: ToggleButtons(
+                      isSelected: [!useBPM, useBPM],
+                      onPressed: (int index) {
+                        if (index == 1 && !widget.onlyShowCycleGeneration)
+                          if (show.audioElements.isEmpty)
+                            return setState(() => bpmError = "You must add an audio element to use BPM matching.");
+                          else if (show.audioElements.first.object?.bpm == null)
+                            return setState(() => bpmError = "Wait a moment, we are anazlying to song to determine the BPM");
+                        bpmError = null;
+                        useBPM = !useBPM;
+                        setState(() {});
+                      },
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text("By Duration"),
+                        ),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text("Match Audio BPM"),
+                        ),
+                      ]
+                    ),
                   ),
                 ),
                 Align(
@@ -407,6 +433,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   }
 
   List<Widget> get _SongsListWidgets {
+    if (widget.onlyShowCycleGeneration) return [];
     return [
       Container(
         margin: EdgeInsets.only(top: 20, bottom: 10),

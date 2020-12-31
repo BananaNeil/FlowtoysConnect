@@ -21,9 +21,10 @@ class ShowPreview extends StatelessWidget {
         var visibleElements = elements.where((element) {
           return element.endOffset > contentOffset && element.startOffset < contentOffset + duration;
         }).toList();
+        var lastEndOffset = visibleElements.isEmpty ? Duration.zero : visibleElements.last.endOffset;
         visibleElements.add(TimelineElement(
-          startOffset: visibleElements.last.endOffset,
-          duration: maxDuration(Duration.zero, contentOffset + duration - visibleElements.last.endOffset),
+          startOffset: lastEndOffset,
+          duration: maxDuration(Duration.zero, contentOffset + duration - lastEndOffset),
         ));
         return Flexible(
           flex: 1,

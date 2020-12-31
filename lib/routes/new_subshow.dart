@@ -5,23 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:app/models/show.dart';
 import 'package:app/models/mode.dart';
 
-class NewShow extends StatelessWidget {
-  NewShow();
+class NewSubShow extends StatelessWidget {
+  NewSubShow();
 
   @override
   Widget build(BuildContext context) {
-    return NewShowState();
+    return NewSubShowState();
   }
 }
 
-class NewShowState extends StatefulWidget {
-  NewShowState({Key key}) : super(key: key);
+class NewSubShowState extends StatefulWidget {
+  NewSubShowState({Key key}) : super(key: key);
 
   @override
-  _NewShowState createState() => _NewShowState();
+  _NewSubShowState createState() => _NewSubShowState();
 }
 
-class _NewShowState extends State<NewShowState> {
+class _NewSubShowState extends State<NewSubShowState> {
 
   Show show;
   String errorMessage;
@@ -32,27 +32,33 @@ class _NewShowState extends State<NewShowState> {
   Widget build(BuildContext context) {
     show = show ?? Show.create();
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
+    show.setDuration(arguments['duration']);
     List<Mode> modes;
-    if (arguments != null) {
-      if (show.modeTracks.isEmpty)
-        modes = List<Mode>.from(arguments['modes']);
-    }
+    if (arguments != null)
+      modes = List<Mode>.from(arguments['modes']);
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        title: Text("Create New Show"),
+        title: Text("Generate Mode Cycle"),
         backgroundColor: Color(0xff222222),
         leading: new IconButton(
-          icon: new Icon(Icons.arrow_back),
+          icon: new Icon(Icons.close),
           onPressed: () {
             Navigator.pop(context, _saved);
           },
         ),
       ),
-      body: EditShowWidget(show: show, modes: modes, onSave: (_) => _saved = true)
+      body: EditShowWidget(
+        show: show,
+        modes: modes,
+        bpm: arguments['bpm'],
+        onlyShowCycleGeneration: true,
+        onSave: (_) => _saved = true
+      )
     );
   }
 
 }
+
 

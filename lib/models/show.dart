@@ -39,7 +39,34 @@ class Show {
   });
 
   int get groupCount => propCounts.length;
-  int get propCount => propCounts.reduce((a, b) => a + b);
+  int get propCount => List<int>.from(propCounts).reduce((a, b) => a + b);
+
+  int _historicalIndex = 0;
+  List<Map<String, dynamic>> _history = [];
+  bool get canUndo => _history.length > 0 && _historicalIndex + 1 < _history.length;
+  bool get canRedo => _history.length > 0 && _historicalIndex > 0;
+
+  void undo() {
+    // print("${_history.length > 0} && ${_historicalIndex + 1 < _history.length}");
+    if (!canUndo) return;
+    _historicalIndex += 1;
+    var newState = _history[_historicalIndex];
+    modeTimeline = newState['modes'];
+    audioTimeline = newState['audio'];
+    trackType = newState['trackType'];
+    _audioElements = null;
+    _modeTracks = null;
+  }
+
+  void redo() {
+    if (!canRedo) return;
+    _historicalIndex -= 1;
+    var newState = _history[_historicalIndex];
+    modeTimeline = newState['modes'];
+    audioTimeline = newState['audio'];
+    _audioElements = null;
+    _modeTracks = null;
+  }
 
   int groupIndexFromGlobalPropIndex(index) {
     int groupIndex = 0;
@@ -87,6 +114,20 @@ class Show {
     return _modeTracks;
   }
 
+  Mode createNewMode() {
+    if (modes.isNotEmpty) return modes.first.dup();
+    if (Preloader.modeLists.isNotEmpty && Preloader.modeLists.first.modes.isNotEmpty)
+      return Preloader.modeLists.first.modes.first.dup();
+    else return Mode.basic();
+  }
+
+  double get bpm {
+    return audioElements.map((element) {
+      return element.object?.bpm;
+    }).firstWhere((bpm) => bpm != null,
+    orElse: () => null);
+  }
+
   List<List<TimelineElement>> get elementTracks {
     return [...modeTracks, audioElements];
   }
@@ -113,7 +154,6 @@ class Show {
   }
 
   void ensureFilledEndSpace() {
-    // add timeline element to fill the end space
     [...modeTracks, audioElements].forEach((track) {
       if (track.isNotEmpty && track.last.endOffset < duration)
         if (track.last.object == null) 
@@ -211,7 +251,6 @@ class Show {
 
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
     eachWithIndex(globalTimeline, (index, element) => element.position = index + 1);
-    print("GLOBAL TIMELINE POSITIONS AND TYPES: ${globalTimeline.map((el) => [el.objectType, el.position])}");
     return globalTimeline;
   }
 
@@ -242,7 +281,13 @@ class Show {
 
   String get durationString => twoDigitString(duration);
 
+  void setDuration(duration) {
+    _duration = duration;
+  }
+
+  Duration _duration;
   Duration get duration {
+    if (_duration != null) return _duration;
     if (audioElements.length == 0 && modeTracks.length == 0) return Duration(minutes: 1);
     if (songDuration == Duration() && modeDuration == Duration()) return Duration(minutes: 1);
     return maxDuration(songDuration, modeDuration);
@@ -267,19 +312,6 @@ class Show {
     return Future.wait(audioElements.map((element) {
       return element.object?.downloadFile() ?? Future.value(true);
     }));
-  }
-
-  Mode createNewMode() {
-    var baseMode;
-    if (Preloader.baseModes.isNotEmpty)
-      baseMode = Preloader.baseModes.elementAt(0);
-    print ("fromMap: ");
-    return Mode.fromMap({
-      'position': modeTracks.length + 1,
-      'base_mode_id': baseMode?.id,
-      'parent_type': 'Show',
-      'parent_id': id,
-    });
   }
 
   static List<Show> fromList(Map<String, dynamic> json) {
@@ -320,6 +352,8 @@ class Show {
     return show;
   }
 
+  int get byteSize => audioByteSize + (toMap().toString().length);
+
   // void attachNestedElements() {
   //   timelineElements.forEach((element) {
   //     if (element.objectType == 'NestedTimeline')
@@ -344,7 +378,6 @@ class Show {
 
   factory Show.fromMap(Map<String, dynamic> json) {
     var data = Document.fromJson(json, ResourceData.fromJson).data;
-    // print("FROM MAP: ${json} \n ----> ${data.included} (data: ${data})");
     return Show.fromResource(data.unwrap(), included: data.included);
   }
 
@@ -377,7 +410,7 @@ class Show {
 
     if (trackType == 'global')
       if (editMode == 'props')
-        splitGlobalTrackInto('props');
+        splitGlobalTrackIntoProps();
       else {
         setEditMode('props');
         setEditMode('groups');
@@ -412,27 +445,20 @@ class Show {
   }
 
 
-  // I think this is done for nested shows
-  // I think this is done for nested shows
-  // I think this is done for nested shows
-  // I think this is done for nested shows
-  void splitGlobalTrackInto(editMode) {
+  void splitGlobalTrackIntoProps() {
     if (trackType != 'global') return;
-    var trackCount = editMode == 'props' ? propCount : groupCount;
+    var trackCount = propCount;
     List<List<TimelineElement>> tracks = List.generate(trackCount, (index) => []);
-    print("Splitting to props, object ids: ${modeTracks.first.map((el) => el.object?.id).join(', ')}");
     List.generate(trackCount, (timelineIndex) {
       modeTracks.first.forEach((element) {
         if (element.objectType == 'Show') {
-          element.object.setEditMode(editMode);
-          element.object.modeTracks[timelineIndex].forEach((nestedElement) {
+          element.object.setEditMode('props');
+          element.localNestedModeTracks[timelineIndex].forEach((nestedElement) {
             tracks[timelineIndex].add(nestedElement.dup());
           });
         } else tracks[timelineIndex].add(element.dup());
-        print("..... ${tracks[timelineIndex].length}");
       });
     });
-    print("Splitting to props, object ids: ${tracks.map((track) => track.length).join(', ')}");
     _modeTracks = tracks;
   }
 
@@ -479,11 +505,13 @@ class Show {
     }).toList();
   }
 
+  bool get savedToCloud => _history.isEmpty || (_historicalIndex == 0 && _history.first['saved'] == true);
+
   void generateTimeline(modes, modeDuration) {
     var elementCount = durationRatio(duration, modeDuration);
     var lastElementRatio = elementCount.remainder(1);
+    this.modes = modes;
     double modeRatio;
-    print("Generating Timeline: modes: ${modes.length}, modeDuration: ${modeDuration}, count: ${elementCount}");
     _modeTracks = [
       List.generate(elementCount.ceil(), (index) {
         modeRatio = (index+1 == elementCount.ceil() ? lastElementRatio : 1.0);
@@ -495,11 +523,34 @@ class Show {
     ];
   }
 
+  Show dup() {
+    var attributes = toMap();
+    return Show(
+      propCounts: attributes['prop_counts'],
+      modeTimeline: attributes['mode_timeline'],
+      audioTimeline: attributes['audio_timeline'],
+      audioByteSize: attributes['audio_byte_size'],
+      trackType: attributes['track_type'],
+      songs: songs,
+      modes: modes,
+    );
+  }
+
   Future<Map<dynamic, dynamic>> save() {
     var method = isPersisted ? Client.updateShow : Client.createShow;
     var attributes = toMap();
 
-    return method(attributes);
+    _history = _history.sublist(_historicalIndex);
+    _historicalIndex = 0;
+    _history.insert(0, {
+      'trackType': trackType,
+      'datetime': DateTime.now(),
+      'modes': modeTimelineAsJson,
+      'audio': audioTimelineAsJson,
+    });
+    return method(attributes).then((response) {
+      _history.first['saved'] = response['success'];
+    });
   }
 
 }

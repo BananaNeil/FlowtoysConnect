@@ -300,10 +300,12 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
               double xAlignment = invisibleLeftRatio == 0 ? -1.0 : 1.0; 
               if (invisibleLeftRatio > 0 && invisibleRightRatio > 0)
                 xAlignment = (invisibleLeftRatio - invisibleRightRatio) / (invisibleLeftRatio + invisibleRightRatio);
+              double invisibleRatio = invisibleRightRatio + invisibleLeftRatio;
+              if (invisibleRatio == 1) return Container();
               return Expanded(
                 child: ClipRect(
                     child: FractionallySizedBox(
-                      widthFactor: max(0, 1 / (1 - (invisibleRightRatio + invisibleLeftRatio))),
+                      widthFactor: max(0, 1 / (1 - (invisibleRatio))),
                       heightFactor: (mode.hasTrailImage ? 1 : 4),
                       alignment: Alignment(xAlignment, 1),
                       child: ModeImageFilter(
