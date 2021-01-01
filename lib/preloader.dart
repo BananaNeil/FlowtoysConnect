@@ -122,8 +122,8 @@ class Preloader {
     });
   }
 
-  static void downloadData() async {
-    Client.getBaseModes().then((response) {
+  static Future<dynamic> downloadData() async {
+    return Client.getBaseModes().then((response) {
       if (response['success']) {
         baseModes = response['baseModes'];
         baseModes.forEach((mode) {
