@@ -53,12 +53,16 @@ class Authentication {
   }
 
   static void ensureNotifications() {
-    if (isAuthenticated()) {
+    if (isAuthenticated) {
       Timer(Duration(milliseconds: 1000), () => PushNotificationsManager().init());
     }
   }
 
-  static bool isAuthenticated() {
+  static void invalidateAuth() {
+    token = null;
+  }
+
+  static bool get isAuthenticated {
     return token != null && token['access-token'] != null;
   }
 
@@ -67,7 +71,7 @@ class Authentication {
       if (accessToken == 'null' || accessToken == null) accessToken = null;
       else token = json.decode(accessToken) as Map;
 
-      if (isAuthenticated())
+      if (isAuthenticated)
         return readFromDisk('currentAccount').then((json) {
           if (json != null)
             setCurrentAccount(Account.fromJson(json));

@@ -146,7 +146,6 @@ class _NewSongPageState extends State<NewSongPage> {
                               return !video.duration.isEmpty;
                             }).toList();
                             waitingForYoutube = false;
-                            AppController.closeKeyboard();
                           });
                       });
                     });

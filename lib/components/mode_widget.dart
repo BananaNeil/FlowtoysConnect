@@ -301,7 +301,7 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
               if (invisibleLeftRatio > 0 && invisibleRightRatio > 0)
                 xAlignment = (invisibleLeftRatio - invisibleRightRatio) / (invisibleLeftRatio + invisibleRightRatio);
               double invisibleRatio = invisibleRightRatio + invisibleLeftRatio;
-              if (invisibleRatio == 1) return Container();
+              if (invisibleRatio >= 1) return Container();
               return Expanded(
                 child: ClipRect(
                     child: FractionallySizedBox(

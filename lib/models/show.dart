@@ -21,6 +21,8 @@ class Show {
 
   String trackType = 'global';
   List<dynamic> propCounts;
+  bool isSaving = false;
+  DateTime updatedAt;
   int audioByteSize;
   String name;
   String id;
@@ -29,20 +31,29 @@ class Show {
     this.id,
     this.name,
     this.trackType,
+    this.updatedAt,
     this.propCounts,
     this.modeTimeline,
     this.audioTimeline,
     this.audioByteSize,
-
+    duration,
     this.songs,
     this.modes,
-  });
+  }) {
+    if (duration != null && duration > Duration.zero)
+      _duration = duration;
+    _saveToHistory(saved: isPersisted);
+  }
+
+  int get updatedAtInSeconds => ((updatedAt ?? DateTime.now()).millisecondsSinceEpoch/1000).toInt();
 
   int get groupCount => propCounts.length;
   int get propCount => List<int>.from(propCounts).reduce((a, b) => a + b);
 
   int _historicalIndex = 0;
   List<Map<String, dynamic>> _history = [];
+  List<Map<String, dynamic>> get history => _history;
+  int get historicalIndex => _historicalIndex;
   bool get canUndo => _history.length > 0 && _historicalIndex + 1 < _history.length;
   bool get canRedo => _history.length > 0 && _historicalIndex > 0;
 
@@ -51,6 +62,9 @@ class Show {
     if (!canUndo) return;
     _historicalIndex += 1;
     var newState = _history[_historicalIndex];
+
+    updatedAt = DateTime.fromMillisecondsSinceEpoch(newState['timestamp'] * 1000);
+    _duration = newState['duration'];
     modeTimeline = newState['modes'];
     audioTimeline = newState['audio'];
     trackType = newState['trackType'];
@@ -62,8 +76,11 @@ class Show {
     if (!canRedo) return;
     _historicalIndex -= 1;
     var newState = _history[_historicalIndex];
+    updatedAt = DateTime.fromMillisecondsSinceEpoch(newState['timestamp'] * 1000);
+    _duration = newState['duration'];
     modeTimeline = newState['modes'];
     audioTimeline = newState['audio'];
+    trackType = newState['trackType'];
     _audioElements = null;
     _modeTracks = null;
   }
@@ -96,7 +113,16 @@ class Show {
     });
   }
 
+  bool get audioIsEmpty {
+    return audioElements.isEmpty || audioElements.every((element) {
+      return element.object == null;
+    });
+  }
+
   List<TimelineElement> _audioElements;
+  set audioElements(elements) {
+    _audioElements = elements;
+  }
   List<TimelineElement> get audioElements {
     if (_audioElements != null) return _audioElements;
     _audioElements = TimelineElement.fromData(audioTimeline ?? [], objects: songs);
@@ -111,6 +137,7 @@ class Show {
     }).toList();
     ensureStartOffsets();
     ensureFilledEndSpace();
+    ensureElementsHaveDurations();
     return _modeTracks;
   }
 
@@ -155,14 +182,37 @@ class Show {
 
   void ensureFilledEndSpace() {
     [...modeTracks, audioElements].forEach((track) {
-      if (track.isNotEmpty && track.last.endOffset < duration)
-        if (track.last.object == null) 
+      if (track.isEmpty)
+        track.add(TimelineElement(
+          startOffset: Duration.zero,
+          duration: duration,
+        ));
+      else if (track.last.endOffset < duration)
+        if (track.isNotEmpty && track.last.object == null)
           track.last.duration = duration - track.last.startOffset;
         else
           track.add(TimelineElement(
             startOffset: track.last.endOffset,
             duration: duration - track.last.endOffset,
           ));
+    });
+  }
+
+  removeEmptySpaceFromEnd() {
+    [...modeTracks, audioElements].forEach((track) {
+      if (track.isNotEmpty && track.last.object == null)
+        track.remove(track.last);
+    });
+  }
+
+  void ensureElementsHaveDurations() {
+    [...modeTracks, audioElements].forEach((track) {
+      if (track.isNotEmpty) {
+        List.from(track).forEach((el) {
+          if (el.duration == Duration.zero)
+            track.remove(el);
+        });
+      }
     });
   }
 
@@ -174,6 +224,11 @@ class Show {
     List<Duration> sharedEndOffsets = [];
     List<TimelineElement> siblings;
     ensureStartOffsets();
+
+    Duration duration = this.duration;
+    elementTracks.forEach((track) {
+      if (track.isNotEmpty) duration = maxDuration(track.last.endOffset, duration);
+    });
 
     // // Group by similarities
     List<TimelineElement> allElements = elementTracks.expand((e) => e).toList(); 
@@ -242,6 +297,9 @@ class Show {
         trackType: trackType,
       );
 
+      // Usinig black modes instead of null objects so the
+      // show doesn't remove the empty space by accident
+      elements.forEach((el) => el.object ??= createNewMode()..setAsBlack());
       element.object.addElements(elements.toList());
       element.object.modeTracks.forEach((track) {
         track.sort((TimelineElement a, TimelineElement b) => a.startOffset.compareTo(b.startOffset));
@@ -250,17 +308,18 @@ class Show {
     });
 
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
-    eachWithIndex(globalTimeline, (index, element) => element.position = index + 1);
     return globalTimeline;
   }
 
   void addElements(elements) {
+    removeEmptySpaceFromEnd();
     elements.forEach((element) {
       var localIndex = element.timelineIndex;
       if (modeTracks.length < propCount)
         localIndex = localPropIndexFromGlobalPropIndex(element.timelineIndex);
       modeTracks[localIndex].add(element.dup());
     });
+    ensureFilledEndSpace();
   }
 
   void removeAudioElement(element) {
@@ -268,11 +327,13 @@ class Show {
   }
 
   TimelineElement addAudioElement(song) {
+    removeEmptySpaceFromEnd();
     var element = TimelineElement(
       duration: song.duration,
       object: song,
     );
     _audioElements.add(element);
+    ensureFilledEndSpace();
     return element;
   }
 
@@ -281,8 +342,10 @@ class Show {
 
   String get durationString => twoDigitString(duration);
 
+  bool get hasDefinedDuration => _duration != null;
   void setDuration(duration) {
     _duration = duration;
+    ensureFilledEndSpace();
   }
 
   Duration _duration;
@@ -337,13 +400,15 @@ class Show {
       songs: songs,
       modes: modes,
 
-      id: resource.attributes['id'],
       name: resource.attributes['name'],
+      id: resource.attributes['id'].toString(),
       trackType: resource.attributes['track_type'],
       propCounts: resource.attributes['prop_counts'],
       modeTimeline: resource.attributes['mode_timeline'],
       audioTimeline: resource.attributes['audio_timeline'],
       audioByteSize: resource.attributes['audio_byte_size'],
+      updatedAt: DateTime.parse(resource.attributes['updated_at']),
+      duration: Duration(microseconds: resource.attributes['duration'] ?? 0),
     );
 
 
@@ -368,10 +433,16 @@ class Show {
 
   void updateFromCopy(copy) {
     audioByteSize = copy.audioByteSize;
-    audioTimeline = copy.audioTimeline;
-    modeTimeline = copy.modeTimeline;
+    audioTimeline = copy.audioTimelineAsJson;
+    modeTimeline = copy.modeTimelineAsJson;
     propCounts = copy.propCounts;
+    updatedAt = copy.updatedAt;
+    setDuration(copy.duration);
     trackType = copy.trackType;
+    _audioElements = null;
+    _modeTracks = null;
+    modes = copy.modes;
+    songs = copy.songs;
     name = copy.name;
     id = copy.id;
   }
@@ -387,8 +458,10 @@ class Show {
       'name': name,
       'track_type': trackType,
       'prop_counts': propCounts,
+      'updated_at': updatedAtInSeconds,
       'audio_byte_size': audioByteSize,
       'mode_timeline': modeTimelineAsJson,
+      'duration': duration.inMicroseconds,
       'audio_timeline': audioTimelineAsJson,
     };
   }
@@ -406,7 +479,6 @@ class Show {
 
   void setEditMode(editMode) {
     if (editMode == trackType) return;
-    print("SETING EDIT MODE: ${editMode} ... from ${trackType}");
 
     if (trackType == 'global')
       if (editMode == 'props')
@@ -437,7 +509,6 @@ class Show {
   void combineTrackToGroups() {
     int trackOffset = 0;
     _modeTracks = mapWithIndex(propCounts, (index, trackCount) {
-      print("Truning props into groups: group #${index} sublisting:(${trackOffset} ${trackCount}");
       var tracksToCombine = modeTracks.sublist(trackOffset, trackOffset + trackCount);
       trackOffset += trackCount;
       return groupIntoSingleTrack(tracksToCombine);
@@ -473,13 +544,13 @@ class Show {
     if (trackType != 'groups') return;
     List<List<TimelineElement>> propTracks = List.generate(propCount, (index) => []);
     var timelineIndex = 0;
-    print("before splitting groups.... ${propCounts}");
     eachWithIndex(propCounts, (groupIndex, count) {
       List.generate(count, (propIndex) {
         modeTracks[groupIndex].forEach((element) {
           if (element.objectType == 'Show') {
             // element.object.setEditMode('props'); // should be already props, I think
-            element.object.modeTracks[propIndex].forEach((nestedElement) {
+            element.object.setEditMode('props');
+            element.localNestedModeTracks[propIndex].forEach((nestedElement) {
               propTracks[propIndex + timelineIndex].add(nestedElement.dup());
             });
           } else propTracks[propIndex + timelineIndex].add(element.dup());
@@ -497,7 +568,6 @@ class Show {
   }
 
   List<List<Map<String, dynamic>>> get modeTimelineAsJson {
-    print("Mode Tracks: ${modeTracks}");
     return modeTracks.map((track) {
       return track.map((element) {
         return element.asJson();
@@ -505,7 +575,8 @@ class Show {
     }).toList();
   }
 
-  bool get savedToCloud => _history.isEmpty || (_historicalIndex == 0 && _history.first['saved'] == true);
+  bool get showingPreviousVersion => _historicalIndex != 0;
+  bool get savedToCloud => _history.isEmpty || (!showingPreviousVersion && _history.first['saved'] == true);
 
   void generateTimeline(modes, modeDuration) {
     var elementCount = durationRatio(duration, modeDuration);
@@ -515,42 +586,87 @@ class Show {
     _modeTracks = [
       List.generate(elementCount.ceil(), (index) {
         modeRatio = (index+1 == elementCount.ceil() ? lastElementRatio : 1.0);
+        if (modeRatio == 0.0) modeRatio = 1.0; // if remainder is zero, it should be a full element
         return TimelineElement(
-          object: modes[index % modes.length],
+          object: modes.length == 0 ? null : modes[index % modes.length],
           duration: modeDuration * modeRatio,
         );
       }),
     ];
+    ensureStartOffsets();
   }
 
   Show dup() {
     var attributes = toMap();
     return Show(
-      propCounts: attributes['prop_counts'],
+      duration: Duration(microseconds: attributes['duration'] ?? 0),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(attributes['updated_at']),
       modeTimeline: attributes['mode_timeline'],
       audioTimeline: attributes['audio_timeline'],
       audioByteSize: attributes['audio_byte_size'],
+      propCounts: attributes['prop_counts'],
       trackType: attributes['track_type'],
       songs: songs,
       modes: modes,
+      name: name,
     );
   }
 
   Future<Map<dynamic, dynamic>> save() {
+    if (isPersisted && !_history.isEmpty && !hasChanged && savedToCloud)
+      return Future.value({'success': true, 'show': this});
     var method = isPersisted ? Client.updateShow : Client.createShow;
     var attributes = toMap();
 
-    _history = _history.sublist(_historicalIndex);
-    _historicalIndex = 0;
-    _history.insert(0, {
-      'trackType': trackType,
-      'datetime': DateTime.now(),
-      'modes': modeTimelineAsJson,
-      'audio': audioTimelineAsJson,
-    });
+    // THIS HAS TO GO AFTER THE CALL TO toMap();
+    // Because we need the previous value of updatedAt
+    // to be sent to the server
+    updatedAt = DateTime.now();
+
+    _saveToHistory();
+    isSaving = true;
     return method(attributes).then((response) {
       _history.first['saved'] = response['success'];
+      isSaving = false;
+      return response;
     });
+  }
+
+  Future<Map<dynamic, dynamic>> fetchHistory() {
+    return Client.fetchShowHistory(id, {'before': _history.last['timestamp']}).then((response) {
+      if (response['success'])
+        response['versions'].forEach((version) {
+          var historyMap = version.historyMap;
+          historyMap['saved'] = true;
+          _history.add(historyMap); 
+        });
+    });
+  }
+
+  Map<String, dynamic> get historyMap => {
+    'timestamp': updatedAtInSeconds,
+    'audio': audioTimelineAsJson,
+    'modes': modeTimelineAsJson,
+    'trackType': trackType,
+    'duration': _duration,
+  };
+
+  void _saveToHistory({saved = false}) {
+    if (shouldAddToHistory) {
+      _history = _history.sublist(_historicalIndex);
+      var map = historyMap;
+      if (saved) map['saved'] = true;
+      _history.insert(0, map);
+      _historicalIndex = 0;
+    }
+  }
+
+  bool get shouldAddToHistory => _history.isEmpty || hasChanged;
+
+  bool get hasChanged {
+    return _history.first['modes'].toString() != modeTimelineAsJson.toString() ||
+      _history.first['audio'].toString() != audioTimelineAsJson.toString() ||
+      _history.first['duration'].toString() != _duration.toString();
   }
 
 }

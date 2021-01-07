@@ -181,6 +181,17 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> fetchShowHistory(id, options) async {
+    var response = await makeRequest('get', path: '/shows/$id/versions', body: options);
+
+    if (response['success']) {
+      response['versions'] = Show.fromList(response['body']);
+    }
+
+    return response;
+  }
+
+
   static Future<Map<dynamic, dynamic>> updateSong(attributes) async {
     var id = attributes.remove('id');
     var response = await makeRequest('post',
@@ -374,8 +385,7 @@ class Client {
         request.headers[key] = value;
       });
 
-      // print("Is authed: ${Authentication.isAuthenticated()}");
-      if (Authentication.isAuthenticated())
+      if (Authentication.isAuthenticated)
         Authentication.token.forEach((key, value) {
           request.headers[key] = value;
         });
@@ -406,8 +416,10 @@ class Client {
         });
 
       // For debugging: 
-      if (response.statusCode == 401 && unauthorized != null) {
-        unauthorized();
+      if (response.statusCode == 401) {
+        Authentication.invalidateAuth();
+        if (unauthorized != null)
+          unauthorized();
         return {
           'message': 'Unauthorized',
           'success': false,

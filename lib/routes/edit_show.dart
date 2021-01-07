@@ -45,14 +45,19 @@ class _EditShowState extends State<EditShowState> {
   @override
   void initState() {
     super.initState();
-    fetchShow();
+    // fetchShow();
   }
+
+  Show showCopy;
 
   @override
   Widget build(BuildContext context) {
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
     if (arguments != null)
-      show = arguments['show'];
+      show ??= arguments['show'];
+
+    showCopy ??= show.dup();
+    showCopy.id = show.id;
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -66,7 +71,14 @@ class _EditShowState extends State<EditShowState> {
           },
         ),
       ),
-      body: EditShowWidget(show: show)
+      body: EditShowWidget(
+        canEditShowDuration: true,
+        show: showCopy,
+        onSave: (editedShow) {
+          show.updateFromCopy(editedShow);
+          show.save();
+        }
+      )
     );
   }
 

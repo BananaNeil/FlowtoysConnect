@@ -32,7 +32,8 @@ class _NewSubShowState extends State<NewSubShowState> {
   Widget build(BuildContext context) {
     show = show ?? Show.create();
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
-    show.setDuration(arguments['duration']);
+    if (!show.hasDefinedDuration)
+      show.setDuration(arguments['duration']);
     List<Mode> modes;
     if (arguments != null)
       modes = List<Mode>.from(arguments['modes']);
@@ -53,8 +54,9 @@ class _NewSubShowState extends State<NewSubShowState> {
         show: show,
         modes: modes,
         bpm: arguments['bpm'],
+        onSave: (_) => _saved = true,
         onlyShowCycleGeneration: true,
-        onSave: (_) => _saved = true
+        canEditShowDuration: arguments['duration'] == null,
       )
     );
   }

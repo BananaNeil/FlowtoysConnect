@@ -24,7 +24,7 @@ class ShowPreview extends StatelessWidget {
         var lastEndOffset = visibleElements.isEmpty ? Duration.zero : visibleElements.last.endOffset;
         visibleElements.add(TimelineElement(
           startOffset: lastEndOffset,
-          duration: maxDuration(Duration.zero, contentOffset + duration - lastEndOffset),
+          duration: maxDuration(Duration.zero, duration - contentOffset - lastEndOffset),
         ));
         return Flexible(
           flex: 1,
@@ -32,23 +32,33 @@ class ShowPreview extends StatelessWidget {
             children: mapWithIndex(visibleElements, (index, element) {
               var invisibleLeft = maxDuration(Duration.zero, contentOffset - element.startOffset);
               var invisibleRight = maxDuration(Duration.zero, element.endOffset - (duration + contentOffset));
+              var visibleDuration = element.duration - invisibleLeft - invisibleRight;
+
               return Flexible(
-                flex: (element.duration
-                  - maxDuration(Duration.zero, contentOffset - element.startOffset)
-                  - maxDuration(Duration.zero, element.endOffset - contentOffset - duration)
-                ).inMicroseconds,
-                child: Container(
-                  child: (element.objectType == 'Mode') ?
-                    ModeColumnForShow(
-                      invisibleLeftRatio: durationRatio(invisibleLeft, element.duration),
-                      invisibleRightRatio: durationRatio(invisibleRight, element.duration),
-                      groupIndex: show.groupIndexFromGlobalPropIndex(index),
-                      mode: element.object,
-                      propIndex: index,
-                    ) : (element.objectType == 'Show') ?
-                    ShowPreview(
-                      show: element.object
-                    ) : Container(decoration: BoxDecoration(color: Colors.black))
+                flex: visibleDuration.inMicroseconds,
+                child: Stack(
+                  children: [
+                    Container(
+                      child: (element.objectType == 'Mode') ?
+                        ModeColumnForShow(
+                          invisibleLeftRatio: durationRatio(invisibleLeft, element.duration),
+                          invisibleRightRatio: durationRatio(invisibleRight, element.duration),
+                          groupIndex: show.groupIndexFromGlobalPropIndex(index),
+                          mode: element.object,
+                          propIndex: index,
+                        ) : (element.objectType == 'Show') ?
+                        ShowPreview(
+                          show: element.object,
+                          duration: visibleDuration,
+                        ) : Container(decoration: BoxDecoration(color: Colors.black))
+                    ),
+                    Container(
+                      width: 1,
+                      decoration: BoxDecoration(
+                        color: Color(0x88FFFFFF),
+                      )
+                    ),
+                  ]
                 )
               );
             }).toList()

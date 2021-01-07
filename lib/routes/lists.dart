@@ -120,14 +120,14 @@ class _ListsPageState extends State<ListsPage> {
                 GestureDetector(
                   child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
                   onTap: () {
-                    Navigator.pushReplacementNamed(context, '/modes', arguments: {'isSelecting': true});
+                    Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true});
                   }
                 ),
               ]
             )
         ),
       ];
-    else return (lists..removeWhere((value) => value == null)).map((list) {
+    else return (lists..removeWhere((value) => value == null)).map<Widget>((list) {
       return Card(
         elevation: 8.0,
         child: ListTile(
@@ -168,7 +168,17 @@ class _ListsPageState extends State<ListsPage> {
           ),
         )
       );
-    }).toList();
+    }).toList() + [
+      Container(
+        margin: EdgeInsets.only(top: 5),
+        child: GestureDetector(
+          child: Text("CREATE NEW LIST", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
+          onTap: () {
+            Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true});
+          }
+        )
+      ),
+    ];
   }
 
 }

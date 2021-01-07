@@ -1,4 +1,5 @@
 import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path_provider/path_provider.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/models/base_mode.dart';
@@ -49,6 +50,8 @@ class Preloader {
         print("Trigger complete!!!!");
         print("Trigger complete on ${id} ${downloadTasks[id]}");
         downloadTasks[id].complete(true);
+      } else if (status == DownloadTaskStatus.failed) {
+        downloadTasks[id].completeError('Download failed');
       }
     });
 
@@ -59,6 +62,7 @@ class Preloader {
   // and we should probably find a way to move it
   // so it's not the first thing that the user sees.
   static ensureSongDir() async {
+    if (kIsWeb) return Future.value(null);
     Directory appDocDirectory = await getApplicationDocumentsDirectory();
     return Directory("${appDocDirectory.path}/songs/")
      .create(recursive: true).then((Directory directory) {
@@ -96,6 +100,7 @@ class Preloader {
       if (listJson == null) return [];
       var listData = json.decode(listJson) as Map;
       modeLists = ModeList.fromList(listData);
+      modeLists = modeLists.distinct((list) => list.id).toList();
       return modeLists;
     });
   }
@@ -110,7 +115,8 @@ class Preloader {
     });
   }
 
-  static Future<List<ModeList>> getModeLists(query) async {
+  static Future<List<ModeList>> getModeLists([query]) async {
+    query ??= {};
     return getCachedLists().then((lists) {
       return lists.where((list) {
         bool isMatch = true;
@@ -122,8 +128,10 @@ class Preloader {
     });
   }
 
-  static Future<dynamic> downloadData() async {
-    return Client.getBaseModes().then((response) {
+  static Future downloadData() async {
+    if (downloadStarted)
+      return Future.value(true);
+    else return Client.getBaseModes().then((response) {
       if (response['success']) {
         baseModes = response['baseModes'];
         baseModes.forEach((mode) {

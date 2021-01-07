@@ -14,11 +14,13 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
+import 'dart:isolate';
+
 
 import 'package:app/preloader.dart';
 
 class WaveformController {
-  WaveformController({ this.path });
+  WaveformController({ this.path, this.redraw });
   final String path;
 
   int samplesPerSecond = 44410;
@@ -27,6 +29,11 @@ class WaveformController {
   List<num> data = [];
 
   Duration get endOffset => startOffset + duration;
+
+  List<Isolate> isolates;
+
+  Function redraw;
+
 
 
   factory WaveformController.open(path) {
@@ -55,6 +62,8 @@ class WaveformController {
   int chunkSizeWas;
   Map<int, dynamic> chunkedData = {};
 
+  Timer partitionTimer;
+
   List<int> chunkedDataFor({bool cache, int chunkSize, int totalChunksForSong}) {
     chunkSize = chunkSize ?? (data.length / totalChunksForSong).toInt().clamp(1, 1000000);
 
@@ -64,18 +73,32 @@ class WaveformController {
     if (chunkedData[chunkSize] != null)
       return chunkedData[chunkSize];
 
-    print("RECOMPUTING ${startOffset.inSeconds} chunkSize: ${chunkSize} Memory: ${chunkedData.toString().length / 1000000} MB  keys: ${chunkedData.keys.length}");
 
-    var partitionedData = partition(data, chunkSize.clamp(1, data.length));
-    chunkedData[chunkSize] = List<int>.from(partitionedData.map((chunk) {
-      return (chunk.fold(0, (a, b) => a + b) / chunkSize).toInt();
-    }));
-    return chunkedData[chunkSize];
+
+    partitionTimer?.cancel();
+    partitionTimer = Timer(Duration(milliseconds: 150), () {
+      chunkedData[chunkSize] = lastChunkedData;
+      compute(ComputeChunkSize, {'data': data, 'chunkSize': chunkSize}).then((result) {
+        chunkedData[chunkSize] = result;
+        if (redraw != null) redraw();
+      });
+    });
+
+    return chunkedData[chunkSize] ?? lastChunkedData;
   }
+
+  List<int> get lastChunkedData => chunkedData.values.isNotEmpty ? chunkedData.values.last : [];
 
   Future<ByteData> loadSong() async {
     return await ByteData.view(File.fromUri(Uri.parse(path)).readAsBytesSync().buffer);
   }
+}
+
+ComputeChunkSize(options) {
+  var partitionedData = partition(options['data'], options['chunkSize'].clamp(1, options['data'].length));
+  return List<int>.from(partitionedData.map((chunk) {
+    return (chunk.fold(0, (a, b) => a + b) / options['chunkSize']).toInt();
+  }));
 }
 
 class Waveform extends StatefulWidget {
@@ -116,13 +139,14 @@ class _WaveformState extends State<Waveform> {
   WaveformController get controller => widget.controller;
   Song get song => widget.song;
 
-  List<int> get data => controller.data;
-  double get visibleBands => widget.visibleBands ?? 1200;
+  List<int> get data => controller?.data;
+  double containerWidth;
+  double get visibleBands => widget.visibleBands ?? (containerWidth ?? 400) * 1.5;
   int get durationInMicroseconds => controller.duration.inMicroseconds;
   double get visibleRatio => (visibleMicroseconds / durationInMicroseconds);
   int get totalChunksForSong => (visibleBands / visibleRatio).ceil();
   int get microsecondsPerBand => (durationInMicroseconds / totalChunksForSong).ceil();
-  int get bandOffset => data.length == 0 ? 0 : max(0, (startOffset.inMicroseconds / microsecondsPerBand).toInt());//.clamp(0, scaledData.length - visibleBands);
+  int get bandOffset => data == null || data.length == 0 ? 0 : max(0, (startOffset.inMicroseconds / microsecondsPerBand).toInt());//.clamp(0, scaledData.length - visibleBands);
 
 
   int chunkSizeWas;
@@ -193,7 +217,7 @@ class _WaveformState extends State<Waveform> {
     var minValues = [];
     var maxValues = [];
     dataSet.forEach((value) {
-      if (minValues.length < numOfOutliers || minValues.last >= value && value > minThreshold) { 
+      if ((minValues.length < numOfOutliers || minValues.last >= value) && value > minThreshold) {
         minValues.insert(0, value);
         minValues.sort();
         minValues = minValues.sublist(0, min(minValues.length, numOfOutliers));
@@ -245,7 +269,7 @@ class _WaveformState extends State<Waveform> {
         timer?.cancel();
         timer = Timer.periodic(Duration(milliseconds: 300), (_) => setState(() {}));
         return Center(child: CircularPercentIndicator(
-          radius: 35.0,
+          radius: 30.0,
           lineWidth: 4.0,
           percent: song.downloadProgress / 100,
           center: Text("${song.downloadProgress}%", style: TextStyle(fontSize: 11)),
@@ -253,6 +277,13 @@ class _WaveformState extends State<Waveform> {
         ));
       }
 
+    if (scaledData.isEmpty)
+      return SpinKitCircle(color: color, size: 30);
+
+    widget.controller.redraw ??= () {
+      prepareVisibleData();
+      setState((){});
+    };
     timer?.cancel();
 
     if (visibleMicroseconds <= 0)
@@ -273,6 +304,7 @@ class _WaveformState extends State<Waveform> {
     
     return LayoutBuilder(
       builder: (context, BoxConstraints constraints) {
+        containerWidth = constraints.maxWidth;
 
         double ratio;
         double minRatio;
@@ -293,10 +325,9 @@ class _WaveformState extends State<Waveform> {
 
         visibleMinRatio = max(0.01, minRatio);
 
-        print("MAX: ${maxRatio} .... MIN: ${visibleMinRatio} ... MED: ${visibleMedianRatio}");
         return CustomPaint(
           size: Size(
-            constraints.maxWidth,
+            containerWidth,
             constraints.maxHeight,
           ),
           foregroundPainter: WaveformPainter(
@@ -313,7 +344,7 @@ class _WaveformState extends State<Waveform> {
 
               return visibleValue.clamp(0.01, 0.9);
             }).toList(),
-            color: Color(0xff3994DB),
+            color: color ?? Color(0xff3994DB),
           ),
         );
       }

@@ -13,6 +13,7 @@ class TimelineTrackWidget extends StatefulWidget {
     this.snapping,
     this.onReorder,
     this.controller,
+    this.onDoubleTap,
     this.buildElement,
     this.onScrollUpdate,
     this.onStretchUpdate,
@@ -26,6 +27,7 @@ class TimelineTrackWidget extends StatefulWidget {
   Function onStretchUpdate;
   Function onScrollUpdate;
   Function buildElement;
+  Function onDoubleTap;
   Function onReorder;
   bool snapping;
 
@@ -69,6 +71,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   Duration get windowEnd => windowStart + visibleDuration;
 
   double containerWidth = 0;
+  double containerHeight = 0;
 
 
   visibleDurationOf(element) {
@@ -91,6 +94,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints box) {
         containerWidth = box.maxWidth;
+        containerHeight = box.maxHeight;
         return Stack(
           children: [
             _Elements(),
@@ -197,12 +201,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                 )
               )
           );
-        }).toList() + [
-        //   Flexible(
-        //   flex: ((!timelineContainsEnd ? 0 : invisibleDurationOfLastVisibleWaveform.inMicroseconds / futureVisibleMicroseconds) * 1000).toInt(),
-        //   child: Container(),
-        // )
-        ]
+        }).toList()
       )
     );
   }
@@ -313,7 +312,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                   child: Container(
                     width: start <= Duration() ? 0 : 30,
                     child: Transform.translate(
-                      offset: Offset(2 - max(30 - startWidth, 0.0), 0),
+                      offset: Offset(2 - max(30 - startWidth, 0.0), min(0, (containerHeight - 40) / 2)),
                       child: Icon(Icons.arrow_left, size: 40),
                     )
                   )
@@ -382,7 +381,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
                   child: Container(
                     width: end >= visibleDuration ? 0 : 30,
                     child: Transform.translate(
-                      offset: Offset(-12, 0),
+                      offset: Offset(-12, min(0, (containerHeight - 40) / 2)),
                       child: Icon(slideWhenStretching ? Icons.arrow_right : Icons.arrow_right, size: 40),
                     )
                   )
@@ -457,16 +456,11 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
     DoubleTapGestureRecognizer: GestureRecognizerFactoryWithHandlers<DoubleTapGestureRecognizer>(() => new DoubleTapGestureRecognizer(),
       (DoubleTapGestureRecognizer instance) {
         instance
-          ..onDoubleTap = () {
-            print("DOUBLE TAP");
-            // var element = elementAtTime(windowStart + visibleDuration * (details.localPosition.dx / containerWidth));
-            // toggleSelected(element);
-            // // onDoubleTap();
-            // setState(() {
-            //   dragDelta = Duration();
-            //   isReordering = false;
-            // });
-      };
+          ..onDoubleTapDown = (details) {
+            var element = elementAtTime(windowStart + visibleDuration * (details.localPosition.dx / containerWidth));
+            toggleSelected(element, only: 'select');
+            widget.onDoubleTap(element);
+          };
       }
     ),
     ForcePressGestureRecognizer: GestureRecognizerFactoryWithHandlers<ForcePressGestureRecognizer>(() => new ForcePressGestureRecognizer(),
@@ -549,6 +543,10 @@ class TimelineTrackController {
   Duration visibleDuration = Duration();
   Duration windowStart = Duration();
 
+  bool get isEmpty {
+    return elements.isEmpty || elements.every((el) => el.object == null);
+  }
+
   List<TimelineElement> _elements;
   List<TimelineElement> selectedElements = [];
   Function onSelectionUpdate;
@@ -606,7 +604,7 @@ class TimelineTrackController {
     if (isSelected && only == 'select') return;
     else if (isSelected)
       selectedElements.remove(element);
-    else if (selectMultiple)
+    else if (selectMultiple == true)
       selectedElements.add(element);
     else
       selectedElements = [element];

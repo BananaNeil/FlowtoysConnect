@@ -239,7 +239,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
               setState(() => param.setValue(value));
               updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
             },
-            child: speedLines
+            child: param.paramName == 'adjust' ? adjustLines : speedLines
           ),
           Visibility(
             visible: param.multiValueEnabled,
@@ -260,6 +260,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   List<Widget> _Sliders() {
     List<Widget> emptyList = [];
     return [
+      "adjust",
       "brightness",
       "saturation",
       "hue",
@@ -298,6 +299,22 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     return List<int>.generate(13, (int index) => index * 60 % 360).map((degree) {
       return this.color.withHue(1.0 * degree).toColor();
     }).toList();
+  }
+
+  Widget get adjustLines {
+    return Row(
+      children: List<int>.generate(25, (int index) => 17 - index+1).map((size) {
+        return Flexible(
+          flex: 1,
+          child: Container(
+          height: 30,
+            decoration: BoxDecoration(
+              border: Border(right: BorderSide(color: Colors.grey, width: 1)),
+            ),
+          )
+        );
+      }).toList()
+    );
   }
 
   Widget get speedLines {

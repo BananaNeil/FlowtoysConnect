@@ -16,7 +16,7 @@ import 'dart:math';
 class AppController extends StatefulWidget {
   final Function(BuildContext) builder;
 
-  static GlobalKey<NavigatorState> globalKey = new GlobalKey<NavigatorState>();
+  static GlobalKey<NavigatorState> globalKey;
   static Map<String, dynamic> config = {};
   static bool dialogIsOpen = false;
   static String openedPath;
@@ -119,6 +119,16 @@ class AppController extends StatefulWidget {
               },
             ),
             ListTile(
+              title: Text("Neil's Research",
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/neils-research', (Route<dynamic> route) => false);
+              },
+            ),
+            ListTile(
               title: Text("Research",
                 style: TextStyle(
                   fontSize: 18,
@@ -139,10 +149,10 @@ class AppController extends StatefulWidget {
               },
             ),
             ListTile(
-              title: Text('Logout',
+              title: Text(Authentication.isAuthenticated ? 'Logout' : "Sign in",
                 style: TextStyle(
                   fontSize: 18,
-                  color: Colors.red
+                  color: Authentication.isAuthenticated ? Colors.red : AppController.blue,
                 )
               ),
               onTap: () {
@@ -234,13 +244,21 @@ class AppController extends StatefulWidget {
       context: context,
       builder: (context) => AlertDialog(
         content: ListTile(
-          title: Text(title),
+          title: Text(title,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 20)
+          ),
           subtitle: Text(body),
         ),
         actions: <Widget>[
           ...buttons.map((button) {
             return FlatButton(
-              child: Text(button['text']),
+              child: Container(
+                child: Text(button['text']),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
               textColor: button['color'] ?? white,
               onPressed: () {
                 dialogIsOpen = false;

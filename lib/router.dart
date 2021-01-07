@@ -3,6 +3,7 @@ import 'package:fluro/fluro.dart';
 
 import 'package:app/routes/reset_password.dart';
 import 'package:app/routes/create_account.dart';
+import 'package:app/routes/neil_research.dart';
 import 'package:app/routes/new_subshow.dart';
 import 'package:app/routes/edit_show.dart';
 import 'package:app/routes/edit_mode.dart';
@@ -63,6 +64,11 @@ class AppRouter {
       '/lists',
       handler: newHandler(() => Lists()),
       transitionType: TransitionType.fadeIn,
+    );
+    router.define(
+      '/neils-research',
+      handler: newHandler(() => NeilsResearch()),
+      transitionType: TransitionType.inFromRight,
     );
     router.define(
       '/research',

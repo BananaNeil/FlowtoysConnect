@@ -50,7 +50,12 @@ class _NewShowState extends State<NewShowState> {
           },
         ),
       ),
-      body: EditShowWidget(show: show, modes: modes, onSave: (_) => _saved = true)
+      body: EditShowWidget(
+        show: show,
+        modes: modes,
+        onSave: (_) => _saved = true,
+        canEditShowDuration: true
+      )
     );
   }
 

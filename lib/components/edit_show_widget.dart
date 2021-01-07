@@ -1,6 +1,7 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/models/timeline_element.dart';
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/components/show_widget.dart';
@@ -22,9 +23,11 @@ class EditShowWidget extends StatefulWidget {
     this.show,
     this.modes,
     this.onSave,
+    this.canEditShowDuration,
     this.onlyShowCycleGeneration,
   }) : super(key: key);
   bool onlyShowCycleGeneration = false;
+  bool canEditShowDuration;
   List<Mode> modes;
   Function onSave;
   Show show;
@@ -51,36 +54,54 @@ class _EditShowWidgetState extends State<EditShowWidget> {
 
   String bpmError;
   bool useBPM = false;
-  double modeDurationInput = 0.1;
-  double get acceleratedModeDurationInput => pow(modeDurationInput, 2);
+  double modeDurationInput;
+  bool get onlyShowCycleGeneration => widget.onlyShowCycleGeneration ?? false;
+  double get durationInputToFill => 1 / modes.length;
+  double get acceleratedModeDurationInput => modeDurationInput;
+  double get modifiedModeDurationInput => acceleratedModeDurationInput - (acceleratedModeDurationInput % 0.005);
   int get chosenBeatsPerMode => max(1, (modeDurationInput * 20).floor());
-  double get modeDurationRatio => (acceleratedModeDurationInput * (1 - minModeDurationRatio)) + minModeDurationRatio;
+  double get chosenCycleCount => max(1/modes.length, (modeDurationInput * 20 * 20).floor()/20);
+  double get modeDurationRatio => (modifiedModeDurationInput * (1 - minModeDurationRatio)) + minModeDurationRatio;
+  Duration get modeDurationForSingleCycle => divideDuration(show.duration, modes.length);
+  double get cycleCount => exactModeCount / modes.length;
 
   Duration get minModeDuration => Duration(milliseconds: 500);
   double get minModeDurationRatio => (minModeDuration.inMicroseconds / show.duration.inMicroseconds);
 
+  Duration _maximumDuration;
+  Duration get maximumDuration => _maximumDuration ??= maxDuration(show.duration * 2, Duration(minutes: 10));
+
   List<Mode> get modes => widget.modes ?? [];
 
+  Duration _futureDuration;
+
   Duration get modeDuration {
-    if (!useBPM) return Duration(microseconds: (show.duration.inMicroseconds * modeDurationRatio).floor());
+    if (!useBPM) {
+      if (modes.length == 0)
+        return show.duration; 
+      else return show.duration * (1 / (chosenCycleCount * modes.length)); 
+    }
 
     var beatsPerMinute;
-    if (widget.onlyShowCycleGeneration)
+    if (onlyShowCycleGeneration)
       beatsPerMinute = widget.bpm;
     else beatsPerMinute = show.audioElements.first.object.bpm;
 
     return Duration(milliseconds: (1000 * chosenBeatsPerMode / (beatsPerMinute / 60)).floor());
   }
-  int get totalModeCount => modes.length == 0 ? 0 : (show.duration.inMicroseconds / modeDuration.inMicroseconds).ceil();
+  int get totalModeCount => exactModeCount.ceil();
+  double get exactModeCount => modes.length == 0 ? 0 : (show.duration.inMicroseconds / modeDuration.inMicroseconds);
   Duration get lastModeDuration => Duration(microseconds: show.duration.inMicroseconds - ((totalModeCount-1) * modeDuration.inMicroseconds));
 
   @override initState() {
     super.initState();
+     modeDurationInput = onlyShowCycleGeneration ? durationInputToFill : 0.5;
     loadSongs();
   }
 
+  bool _isSaving = false;
   void _saveAndFinish() {
-    if (widget.onlyShowCycleGeneration) {
+    if (onlyShowCycleGeneration) {
       show.generateTimeline(modes, modeDuration);
       Navigator.pop(context, show);
     }
@@ -92,16 +113,23 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     if (isNewShow)
       show.generateTimeline(modes, modeDuration);
 
+    setState(() => _isSaving = true);
     show.save().then((response) {
+      _isSaving = false;
       if (response['success']) {
-        widget.onSave(response['show']);
+        onSave(response['show']);
         setState(() {
           show = response['show'];
-          if (isNewShow)
-            Navigator.pushReplacementNamed(context, "/shows/${show.id}", arguments: {'show': show});
-          else Navigator.pop(context, null);
         });
       } else setState(() => errorMessage = response['message']);
+
+      if (isNewShow)
+        Navigator.pushReplacementNamed(context, "/shows/${show.id}", arguments: {
+          'messageColor': Colors.red,
+          'message': errorMessage,
+          'show': show,
+        });
+      else Navigator.pop(context, null);
     });
   }
 
@@ -114,20 +142,20 @@ class _EditShowWidgetState extends State<EditShowWidget> {
         element = show.addAudioElement(song);
       });
       song.save().then((response) {
-        if (response['success'] && response['song'].status == 'failed')
-          song.status = 'failed';
-        else {
-          song.assignAttributesFromCopy(response['song']);
-          // song.id = response['song'].id;
-          // song.filePath = response['song'].filePath;
-          setState(() {});
-          song.downloadFile().then((_) {
-            setState(() {
-              waveforms[song.id ?? song.hashCode.toString()] = WaveformController.open(song.localPath);
+        if (response['success'])
+          if (response['song'].status == 'failed')
+            song.status = 'failed';
+          else {
+            song.assignAttributesFromCopy(response['song']);
+            setState(() {});
+            song.downloadFile().then((_) {
+              setState(() {
+                waveforms[song.id ?? song.hashCode.toString()] = WaveformController.open(song.localPath);
+              });
             });
-          });
-          if (show.isPersisted) show.save();
-        }
+            if (show.isPersisted) show.save();
+          }
+        else setState(() => errorMessage = response['message']);
       });
     }
   }
@@ -136,7 +164,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     return show?.downloadSongs().then((_) {
       setState(() {
         show.audioElements.forEach((element) {
-          waveforms[element.objectId] = WaveformController.open(element.object.localPath);
+          if (element.object != null)
+            waveforms[element.objectId] = WaveformController.open(element.object.localPath);
         });
       });
     });
@@ -144,10 +173,11 @@ class _EditShowWidgetState extends State<EditShowWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (show == null) return Container();
     if (show.audioElements.isNotEmpty) bpmError = null;
     return GestureDetector(
       onTap: AppController.closeKeyboard,
-      child: Center(
+      child: SingleChildScrollView(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.start,
           children: <Widget>[
@@ -163,9 +193,9 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   child: GestureDetector(
                     onTap: _saveAndFinish,
                     // Add a spinner here!!
-                    child: Text('SAVE',
+                    child: _isSaving ? SpinKitCircle(color: Colors.blue, size: 24) : Text('SAVE',
                       style: TextStyle(
-                        color: (show.name ?? '').isEmpty && !widget.onlyShowCycleGeneration ? Colors.grey : Colors.blue,
+                        color: (show.name ?? '').isEmpty && !onlyShowCycleGeneration ? Colors.grey : Colors.blue,
                       )
                     ),
                   ),
@@ -173,7 +203,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               ],
             ),
             Visibility(
-              visible: !widget.onlyShowCycleGeneration,
+              visible: !onlyShowCycleGeneration,
               child: Container(
                 padding: EdgeInsets.only(left: 20, right: 20, bottom: 10),
                 child: TextFormField(
@@ -192,9 +222,9 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             ),
             ..._SongsListWidgets,
             Visibility(
-              visible: !widget.onlyShowCycleGeneration,
+              visible: !onlyShowCycleGeneration,
               child: Container(
-                margin: EdgeInsets.only(top: 50, bottom: 10),
+                margin: EdgeInsets.only(top: 20, bottom: 10),
                 child: Text("Timeline Preview",
                   style: TextStyle(
                     fontSize: 22,
@@ -220,14 +250,14 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   child: Text(bpmError ?? "", style: TextStyle(color: Colors.red)),
                 ),
                 Visibility(
-                  visible: widget.onlyShowCycleGeneration && widget.bpm != null,
+                  visible: !onlyShowCycleGeneration || widget.bpm != null,
                   child: Container(
                     margin: EdgeInsets.only(top: 5),
                     decoration: BoxDecoration(color: Color(0x22FFFFFF)),
                     child: ToggleButtons(
                       isSelected: [!useBPM, useBPM],
                       onPressed: (int index) {
-                        if (index == 1 && !widget.onlyShowCycleGeneration)
+                        if (index == 1 && !onlyShowCycleGeneration)
                           if (show.audioElements.isEmpty)
                             return setState(() => bpmError = "You must add an audio element to use BPM matching.");
                           else if (show.audioElements.first.object?.bpm == null)
@@ -253,9 +283,34 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                   alignment: FractionalOffset.topLeft,
                   child: Container(
                     margin: EdgeInsets.only(left: 20, top: 20),
+                    child: Text("Mode Durartion: ${twoDigitString(modeDuration, includeMilliseconds: true)}",
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: Color(0xFFBBBBBB),
+                        fontSize: 13,
+                      ),
+                    )
+                  ),
+                ),
+                 !useBPM ? Container() : Align(
+                  alignment: FractionalOffset.topLeft,
+                  child: Container(
+                    margin: EdgeInsets.only(left: 20, top: 20),
+                    child: Text("Change Mode Every ${chosenBeatsPerMode} Beats",
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: Color(0xFFBBBBBB),
+                        fontSize: 13,
+                      ),
+                    )
+                  ),
+                ),
+                Align(
+                  alignment: FractionalOffset.topLeft,
+                  child: Container(
+                    margin: EdgeInsets.only(left: 20, top: 5),
                     child: Text(
-                        useBPM ? "Change Mode Every ${chosenBeatsPerMode} Beats" :
-                        "Mode Durartion ${twoDigitString(modeDuration, includeMilliseconds: true)}",
+                        "Cycle Count: ${cycleCount.toStringAsFixed(2)}",
                       textAlign: TextAlign.left,
                       style: TextStyle(
                         color: Color(0xFFBBBBBB),
@@ -281,6 +336,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               height: 50,
               decoration: BoxDecoration(
                 border: Border(
+                  top: BorderSide(color: Color(0x44FFFFFF)),
                   bottom: BorderSide(color: Colors.white),
                   right: BorderSide(color: Colors.white),
                   left: BorderSide(color: Colors.white),
@@ -301,31 +357,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 )
               )
             ),
-            Container(
-              height: show.audioElements.isEmpty ? 0 : 50,
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: Colors.white),
-                  right: BorderSide(color: Colors.white),
-                  left: BorderSide(color: Colors.white),
-                )
-              ),
-              margin: EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: mapWithIndex(show.audioElements, (index, element) {
-                  var waveform = waveforms[element.object.id ?? element.object.hashCode.toString()];
-                  var color = [Colors.blue, Colors.red][index % 2];
-                  return Flexible(
-                    flex: ((element.duration.inMilliseconds / show.duration.inMilliseconds).clamp(0.0, 1.0) * 1000.0).ceil(),
-                    child: Waveform(
-                      controller: waveform,
-                      song: element.object,
-                      color: color,
-                    )
-                  );
-                }).toList()
-              )
-            ),
+            _AudioPreview(),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -333,22 +365,63 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                 Text(twoDigitString(show.duration)),
               ]
             ),
-            GestureDetector(
-              onTap: () {
-                Navigator.pushNamed(context, '/modes',
-                  arguments: {
-                    'selectAction': "Add Modes",
-                    'isSelecting': true,
-                  }
-                ).then((_modes) {
-                  if (_modes != null) {
-                    widget.modes ??= [];
-                    widget.modes.addAll(_modes);
-                    setState(() {});
-                  }
-                });
-              },
-              child: Text("+ Add Modes (${modes.length})", style: TextStyle(color: Colors.blue)),
+            Visibility(
+              visible: !show.isPersisted,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pushNamed(context, '/modes',
+                    arguments: {
+                      'selectedModes': widget.modes,
+                      'canChangeCurrentList': true,
+                      'selectAction': "Save",
+                      'isSelecting': true,
+                    }
+                  ).then((_modes) {
+                    if (_modes != null) {
+                      widget.modes = List<Mode>.from(_modes);
+                      setState(() {});
+                    }
+                  });
+                },
+                child: Text("Edit Modes (${modes.length})", style: TextStyle(color: Colors.blue)),
+              )
+            ),
+            Visibility(
+              visible: widget.canEditShowDuration == true,
+              child: Column(
+                children: [
+                  Align(
+                    alignment: FractionalOffset.topLeft,
+                    child: Container(
+                      margin: EdgeInsets.only(left: 20, top: 20),
+                      child: Text("Total Duration: ${twoDigitString(_futureDuration ?? show.duration, includeMilliseconds: true)}",
+                        textAlign: TextAlign.left,
+                        style: TextStyle(
+                          color: Color(0xFFBBBBBB),
+                          fontSize: 13,
+                        ),
+                      )
+                    ),
+                  ),
+                  Align(
+                    alignment: FractionalOffset.topLeft,
+                    child: Slider(
+                      value: durationRatio(_futureDuration ?? show.duration, maximumDuration),
+                      onChangeEnd: (value) {
+                        setState(() {
+                          show.setDuration(_futureDuration);
+                        });
+                      },
+                      onChanged: (value){
+                        setState(() {
+                          _futureDuration = maxDuration(Duration(seconds: 10), maximumDuration * value);
+                          show.setDuration(_futureDuration);
+                        });
+                      }
+                    )
+                  ),
+                ]
+              )
             ),
           ],
         ),
@@ -356,13 +429,54 @@ class _EditShowWidgetState extends State<EditShowWidget> {
     );
   }
 
+  Widget _AudioPreview() {
+    if (onlyShowCycleGeneration || show.audioIsEmpty) return Container(height: 0);
+    var visibleElements = show.audioElements.where((el) => el.startOffset < show.duration).toList();
+    if (visibleElements.last.endOffset < show.duration)
+      visibleElements.add(TimelineElement(
+        duration: show.duration - visibleElements.last.endOffset,
+      ));
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white),
+          right: BorderSide(color: Colors.white),
+          left: BorderSide(color: Colors.white),
+        )
+      ),
+      margin: EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: mapWithIndex(visibleElements, (index, element) {
+          var waveform = waveforms[element.object?.id ?? element.object.hashCode.toString()];
+          var color = [Colors.blue, Colors.red][index % 2];
+          var visibleDuration = minDuration(show.duration, element.endOffset) - element.startOffset;
+          return Flexible(
+            flex: (durationRatio(visibleDuration, show.duration).clamp(0.0, 1.0) * 20000.0).ceil(),
+            child: Waveform(
+              scale: durationRatio(visibleDuration, show.duration),
+              // // why is this not working ?
+              // futureScale: durationRatio(_futureDuration ?? show.duration, show.duration) * durationRatio(visibleDuration, show.duration),
+              startOffset: element.contentOffset,
+              visibleDuration: visibleDuration,
+              controller: waveform,
+              song: element.object,
+              color: color,
+            )
+          );
+        }).toList()
+      )
+    );
+  }
+
   Widget _SongCard(element) {
+    var elementName = element.object == null ? "${twoDigitString(element.duration)} of empty space" : "\"${element.object?.name}\"";
     return Card(
       elevation: 8.0,
       child: ListTile(
         trailing: GestureDetector(
           onTap: () {
-            AppController.openDialog("Are you sure?", "This will remove \"${element.object.name}\" from this show.",
+            AppController.openDialog("Are you sure?", "This will remove ${elementName} from this show.",
               buttonText: 'Cancel',
               buttons: [{
                 'text': 'Remove',
@@ -390,15 +504,14 @@ class _EditShowWidgetState extends State<EditShowWidget> {
               margin: EdgeInsets.only(right: 10, top: 2, bottom: 2),
               child: Column(
                 children: [
-                  Container(
+                  element.object?.thumbnailUrl == null ? Container() : Container(
                     height: 40,
                     width: 70,
                     margin: EdgeInsets.only(bottom: 2),
                     decoration: BoxDecoration(
                       color: Colors.black,
                     ),
-                    child: element.object?.thumbnailUrl == null ? null :
-                      Image.network(element.object?.thumbnailUrl),
+                    child: Image.network(element.object?.thumbnailUrl),
                   ),
                 ]
               )
@@ -433,7 +546,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
   }
 
   List<Widget> get _SongsListWidgets {
-    if (widget.onlyShowCycleGeneration) return [];
+    if (onlyShowCycleGeneration) return [];
     return [
       Container(
         margin: EdgeInsets.only(top: 20, bottom: 10),
@@ -443,8 +556,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
           )
         )
       ),
-      Flexible(
-        child: ReorderableListSimple(
+      ReorderableListSimple(
           allowReordering: true,
           childrenAlreadyHaveListener: true,
           onReorder: (int start, int current) {
@@ -458,13 +570,12 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             if (show.isPersisted) show.save();
             setState((){});
           },
-          children: [
+          children: show.audioIsEmpty ? [] : [
             ...show.audioElements.map((element) {
               return _SongCard(element);
             }),
           ],
         ),
-      ),
       GestureDetector(
         onTap: () {
           Navigator.pushNamed(context, '/songs/new').then(_addNewSong);

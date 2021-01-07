@@ -36,6 +36,7 @@ class Mode {
   ModeParam saturation;
   ModeParam brightness;
   ModeParam density;
+  ModeParam adjust;
   ModeParam speed;
   ModeParam hue;
 
@@ -49,6 +50,7 @@ class Mode {
     this.parentId,
     this.position,
     this.density,
+    this.adjust,
     this.number,
     this.speed,
     this.page,
@@ -75,6 +77,7 @@ class Mode {
       'saturation': saturation,
       'brightness': brightness,
       'density': density,
+      'adjust': adjust,
       'speed': speed,
       'hue': hue,
     };
@@ -95,6 +98,7 @@ class Mode {
     saturation = getParam('saturation', propIndex: propIndex, groupIndex: groupIndex);
     brightness = getParam('brightness', propIndex: propIndex, groupIndex: groupIndex);
     density = getParam('density', propIndex: propIndex, groupIndex: groupIndex);
+    adjust = getParam('adjust', propIndex: propIndex, groupIndex: groupIndex);
     speed = getParam('speed', propIndex: propIndex, groupIndex: groupIndex);
     hue = getParam('hue', propIndex: propIndex, groupIndex: groupIndex);
   }
@@ -105,6 +109,7 @@ class Mode {
     saturation = ModeParam.fromModeMap(json, 'saturation', this);
     brightness = ModeParam.fromModeMap(json, 'brightness', this);
     density = ModeParam.fromModeMap(json, 'density', this);
+    adjust = ModeParam.fromModeMap(json, 'adjust', this);
     speed = ModeParam.fromModeMap(json, 'speed', this);
     hue = ModeParam.fromModeMap(json, 'hue', this);
     baseModeId = json['base_mode_id'];
@@ -244,6 +249,7 @@ class Mode {
         'saturation',
         'brightness',
         'density',
+        'adjust',
         'speed',
         'hue',
       ].contains(k);
@@ -266,6 +272,7 @@ class Mode {
       'saturation': saturation.toMap(),
       'brightness': brightness.toMap(),
       'density': density.toMap(),
+      'adjust': adjust.toMap(),
       'speed': speed.toMap(),
       'hue': hue.toMap(),
     } as Map;
@@ -304,6 +311,7 @@ class Mode {
     return Mode.fromMap({
       'hue': { 'value': 0.5 },
       'speed': { 'value': 0.5 },
+      'adjust': { 'value': 0.0 },
       'density': { 'value': 0.5 },
       'saturation': { 'value': 0.5 },
       'brightness': { 'value': 0.5 },
@@ -330,6 +338,7 @@ class Mode {
     mode.saturation = ModeParam.fromModeMap(json, 'saturation', mode);
     mode.brightness = ModeParam.fromModeMap(json, 'brightness', mode);
     mode.density = ModeParam.fromModeMap(json, 'density', mode);
+    mode.adjust = ModeParam.fromModeMap(json, 'adjust', mode);
     mode.speed = ModeParam.fromModeMap(json, 'speed', mode);
     mode.hue = ModeParam.fromModeMap(json, 'hue', mode);
 

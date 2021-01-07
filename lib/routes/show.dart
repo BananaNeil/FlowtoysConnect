@@ -50,9 +50,9 @@ class _ShowPageState extends State<ShowPageState> {
   @override
   Widget build(BuildContext context) {
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
-    if (arguments != null) {
-      show = show ?? arguments['show']; 
-    }
+    if (arguments != null)
+      show ??= arguments['show'];
+
     if (show == null) fetchShow();
 
     return Scaffold(
@@ -62,17 +62,22 @@ class _ShowPageState extends State<ShowPageState> {
         backgroundColor: Color(0xff222222),
         actions: <Widget>[
           IconButton(
-            icon: Icon(Icons.edit),
+            icon: Icon(Icons.settings),
             onPressed: () {
               Navigator.pushNamed(context, "/shows/${show.id}/edit", arguments: {
                 'show': show,
-              }).then((_) => setState(() {}) );
+              }).then((_) {
+                setState(() {}); 
+              });
             }
           ),
         ],
       ),
       body: show == null ?
         SpinKitCircle(color: Colors.blue) : TimelineWidget(
+          messageColor: arguments['messageColor'],
+          reloadPage: () => setState((){}),
+          message: arguments['message'],
           show: show,
         )
     );

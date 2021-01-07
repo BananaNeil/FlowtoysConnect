@@ -33,6 +33,7 @@ class _InlineModeParamsState extends State<InlineModeParams> {
   double initialValue;
 
   var params = [
+    'adjust',
     'hue',
     'saturation',
     'brightness',
@@ -76,13 +77,15 @@ class _InlineModeParamsState extends State<InlineModeParams> {
       'hue': hueColors,
       'saturation': [color.withValue(1.0).withSaturation(0.0).toColor(), color.withValue(1.0).withSaturation(1.0).toColor()],
       'brightness': [color.withValue(0.0).toColor(), color.withValue(1.0).toColor()],
+      'adjust': [Colors.grey, Colors.grey],
     };
     var icons = {
-      'brightness': Icons.brightness_medium,
-      'saturation': Icons.opacity,
-      'speed': Icons.fast_forward,
-      'hue': Icons.color_lens,
-      'density': Icons.waves,
+      'adjust': Container(padding: EdgeInsets.all(5), child: Image(image: AssetImage('assets/images/adjust.png'))),
+      'brightness': Icon(Icons.brightness_medium, size: 22),
+      'saturation': Icon(Icons.opacity, size: 22),
+      'speed': Icon(Icons.fast_forward, size: 22),
+      'hue': Icon(Icons.color_lens, size: 22),
+      'density': Icon(Icons.waves, size: 22),
     };
 
     if (showSlider != null)
@@ -223,19 +226,14 @@ class _InlineModeParamsState extends State<InlineModeParams> {
                   Container(
                     height: 30,
                     width: 30,
-                    padding: EdgeInsets.only(top: 4),
+                    padding: EdgeInsets.only(top: 1),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.black,
                     ),
-                    child: Icon(icons[paramName],
-                      size: 22
-                      // textAlign: TextAlign.center,
-                      // style: TextStyle(
-                      //     color: Colors.white,
-                      //   fontFamily: 'maticon',
-                      //   fontSize: 22,
-                      // )
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcATop),
+                      child: icons[paramName],
                     )
                   )
                 ]

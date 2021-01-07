@@ -57,7 +57,7 @@ class _ModesPageState extends State<ModesPage> {
   List<ModeList> modeLists;
   Mode currentlyEditingMode;
   bool canChangeCurrentList;
-  List<Mode> selectedModes = [];
+  List<Mode> selectedModes;
   bool awaitingResponse = false;
   bool isFetchingAllLists = false;
   bool isAdjustingInlineParam = false;
@@ -70,9 +70,10 @@ class _ModesPageState extends State<ModesPage> {
   bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
 
 
-  List<String> get selectedModesIds => selectedModes.map((mode) => mode.id).toList();
+  List<String> get selectedModeIds => selectedModes.map((mode) => mode.id).toList();
 
   List<Mode> get allModes => modeLists.map((list) => list.modes).expand((m) => m).toList();
+  List<String> get allModesIds => allModes.map((mode) => mode.id).toList();
 
   Future<Map<dynamic, dynamic>> _makeRequest() {
     if (showDefaultLists)
@@ -89,19 +90,16 @@ class _ModesPageState extends State<ModesPage> {
 
   Future<void> _fetchAllLists({initialRequest}) {
     setState(() { isFetchingAllLists = true; });
-    return Client.getModeLists().then((response) {
+    return Preloader.getModeLists().then((lists) {
       isFetchingAllLists = false;
       setState(() {
-        if (response['success']) {
-          allLists = response['modeLists'] ?? [];
-        } else if (initialRequest != true || modeLists.isEmpty)
-          errorMessage = response['message'];
+        allLists = lists;
       });
     });
   }
 
   Future<void> _fetchModes({initialRequest}) {
-    if (!Authentication.isAuthenticated() && modeLists.length > 0) return Future.value(null);
+    if (!Authentication.isAuthenticated && modeLists.length > 0) return Future.value(null);
     setState(() { awaitingResponse = true; });
     return Preloader.downloadData().then((_) {
       return _makeRequest().then((response) {
@@ -113,11 +111,24 @@ class _ModesPageState extends State<ModesPage> {
             var list = response['modeList'];
             if (list != null) modeLists = [list];
             else modeLists = response['modeLists'] ?? [];
+
+
+            _prependSelectedModes();
           } else if (initialRequest != true || modeLists.isEmpty)
             errorMessage = response['message'];
         });
       });
     });
+  }
+
+  _prependSelectedModes() {
+    ModeList selectedModeList = ModeList(name: "Selected", modes: []);
+    selectedModes.forEach((mode) {
+      if (!allModesIds.contains(mode.id))
+        selectedModeList.modes.insert(0, mode);
+    });
+    if (selectedModeList.modes.isNotEmpty)
+      modeLists.insert(0, selectedModeList);
   }
 
   @override initState() {
@@ -131,6 +142,7 @@ class _ModesPageState extends State<ModesPage> {
     modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
     canChangeCurrentList ??= AppController.getParams(context)['canChangeCurrentList'] ?? false;
     isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
+    selectedModes ??= AppController.getParams(context)['selectedModes'] ?? [];
     selectAction ??= AppController.getParams(context)['selectAction'];
     returnList ??= AppController.getParams(context)['returnList'];
     var propCount = Group.currentQuickGroup.props.length;
@@ -281,7 +293,7 @@ class _ModesPageState extends State<ModesPage> {
             child: Container(height: 35,
               child: DropdownButton(
                 isExpanded: true,
-                value: firstList?.id,
+                value: modeLists.firstWhere((list) => list.id != null)?.id,
                 items: allLists.map((ModeList list) {
                   return DropdownMenuItem<String>(
                     value: list.id,
@@ -294,7 +306,7 @@ class _ModesPageState extends State<ModesPage> {
                             margin: EdgeInsets.only(right: 10, top: 3),
                             child: Text(list.name),
                           ),
-                          ...list.modes.map((mode) {
+                          ...list.modes.sublist(0, 9).map((mode) {
                             return Container(
                               margin: EdgeInsets.only(right: 4, bottom: 3),
                               child: ModeImage(mode: mode, size: 12)
@@ -307,7 +319,7 @@ class _ModesPageState extends State<ModesPage> {
                 }).toList(),
                 onChanged: (value) {
                   modeLists = [allLists.firstWhere((list) => list.id == value)];
-                      print("ON CHANGED");
+                  _prependSelectedModes();
                   setState(() {});
                 },
               )
@@ -486,7 +498,7 @@ class _ModesPageState extends State<ModesPage> {
                     Navigator.pushNamed(context, '/lists/new', arguments: {
                       'selectedModes': selectedModes,
                     }).then((saved) {
-                      if (saved) {
+                      if (saved == true) {
                         showExpandedActionButtons = false;
                         isSelecting = false;
                         selectedModes = [];
@@ -530,7 +542,7 @@ class _ModesPageState extends State<ModesPage> {
 
 
   Widget _ModeItem(mode) {
-    var index = selectedModes.indexOf(mode) + 1;
+    var index = selectedModeIds.indexOf(mode.id) + 1;
     var isSelected = index > 0;
     return Card(
       key: Key(mode.id.toString()),
@@ -543,8 +555,8 @@ class _ModesPageState extends State<ModesPage> {
               onTap: () {
                 if (isSelecting)
                   setState(() {
-                    if (selectedModes.contains(mode))
-                      selectedModes.removeWhere((item) => item == mode);
+                    if (selectedModeIds.contains(mode.id))
+                      selectedModes.removeWhere((item) => item.id == mode.id);
                     else selectedModes.add(mode);
                   });
                 else {
@@ -599,6 +611,10 @@ class _ModesPageState extends State<ModesPage> {
                               children: [
                                 Container(child: Text(mode.name,
                                   overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                  ),
                                 )),
                                 Container(
                                   child: isSelecting ? null :
@@ -610,7 +626,7 @@ class _ModesPageState extends State<ModesPage> {
                               child: !Prop.connectedModeIds.contains(mode.id) ? null : Text(
                                 "${Prop.connectedModeIds.where((id) => mode.id == id).length} props activated",
                                 style: TextStyle(
-                                    fontSize: 12,
+                                    fontSize: 14,
                                     color: AppController.purple,
                                 )
                               ),
@@ -758,7 +774,7 @@ class _ModesPageState extends State<ModesPage> {
       child: Column(
         children: [
           // Icon(Icons.edit),
-          Text("EDIT", style: TextStyle(fontSize: 12)),
+          Text("EDIT", style: TextStyle(fontSize: 13)),
         ]
       )
     );
@@ -777,7 +793,7 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   Future<void> _duplicateSelected() {
-    Client.updateList(firstList.id, {'append': selectedModesIds}).then((response) {
+    Client.updateList(firstList.id, {'append': selectedModeIds}).then((response) {
       var list = firstList;
       setState(() {
         if (!response['success'])

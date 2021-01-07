@@ -128,6 +128,7 @@ class ModeParam {
   }
 
   num getMultiValueAverage() {
+    if (presentChildValues.isEmpty) return 0.5;
     return presentChildValues.reduce((a, b) => a + b) / presentChildValues.length;
   }
 

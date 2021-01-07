@@ -66,11 +66,13 @@ class Song {
 
   String downloadTaskId;
   String get durationString => twoDigitString(duration);
-  int get downloadProgress => downloadTaskId == null ? 0 : Preloader.downloadTaskProgress[downloadTaskId];
+  int get downloadProgress => downloadTaskId == null ? 0 : Preloader.downloadTaskProgress[downloadTaskId].clamp(0, 100);
 
   bool get isDownloaded => File(localPath).existsSync();
 
   Future<dynamic> downloadFile() async {
+    if (fileUrl == null)
+      return Future.error("NO FILE URL");
     print('Downloading ${fileUrl} into: '+ Preloader.songDir.path);
 
     if (fileDownloadPending)

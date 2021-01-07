@@ -1,7 +1,9 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/action_button.dart';
+import 'package:app/models/timeline_element.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/authentication.dart';
 import 'package:filesize/filesize.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/show.dart';
@@ -32,6 +34,10 @@ class _ShowsPageState extends State<ShowsPage> {
   bool isTopLevelRoute;
   String errorMessage;
 
+  List<TimelineElement> visibleAudioElementsFor(show) {
+    return show.audioElements.where((el) => el.object != null).toList();
+  }
+
   // Future<void> _deleteShow(show) {
   //   return Client.deleteShow(show.id);
   // }
@@ -60,6 +66,8 @@ class _ShowsPageState extends State<ShowsPage> {
 
   @override
   Widget build(BuildContext context) {
+
+
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -79,7 +87,8 @@ class _ShowsPageState extends State<ShowsPage> {
             ),
           ],
         ),
-        body: Center(
+        body: !Authentication.isAuthenticated ? 
+        _UnauthenticatedMessage(): Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: <Widget>[
@@ -117,6 +126,31 @@ class _ShowsPageState extends State<ShowsPage> {
             ],
           ),
         ),
+      )
+    );
+  }
+
+  Widget _UnauthenticatedMessage() {
+    return Container(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            margin: EdgeInsets.all(10),
+            child: Text("You must be signed in to see your list of shows!"),
+          ),
+          GestureDetector(
+            child: Text("SIGN IN",
+              style: TextStyle(
+                  color: Colors.blue
+              )
+            ),
+            onTap: () {
+              Authentication.logout();
+            }
+          ),
+        ]
       )
     );
   }
@@ -180,7 +214,7 @@ class _ShowsPageState extends State<ShowsPage> {
                     )
                   ]
                 ),
-                ...show.audioElements.map((element) {
+                ...visibleAudioElementsFor(show).map((element) {
                   return Row(
                     children: [
                       // element.object
@@ -188,7 +222,7 @@ class _ShowsPageState extends State<ShowsPage> {
                       Flexible(
                         child: Container(
                           margin: EdgeInsets.only(top: 5),
-                          child: Text( "(${element.durationString}) - ${element.object?.name}",
+                          child: Text( "(${element.durationString}) - ${element.object?.name ?? '(N/A)'}",
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppController.purple,
@@ -261,7 +295,7 @@ class _ShowsPageState extends State<ShowsPage> {
             children: [
               ActionButton(
                 margin: EdgeInsets.only(bottom: 0),
-                text: "Save (${selected.length}) to list",
+                text: "Delete (${selected.length}) shows",
                 onPressed: () {
                 },
               ),

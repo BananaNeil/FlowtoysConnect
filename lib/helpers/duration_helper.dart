@@ -26,6 +26,10 @@ double durationRatio(a, b) {
   return (a.inMicroseconds / b.inMicroseconds);
 }
 
+Duration divideDuration(a, b) {
+  return Duration(microseconds: (a.inMicroseconds ~/ b));
+}
+
 
 Duration parseDuration(String s) {
   int hours = 0;

@@ -31,8 +31,8 @@ class TimelineElement {
 
   TimelineElement({
     this.timelineIndex,
-    this.contentOffset,
     this.timelineType,
+    contentOffset,
     startOffset,
     this.position,
     this.duration,
@@ -41,6 +41,7 @@ class TimelineElement {
     this.id,
   }) {
     this.startOffset = startOffset ?? Duration.zero;
+    this.contentOffset = contentOffset ?? Duration.zero;
   }
 
   bool get isPersisted => id != null;
@@ -51,16 +52,14 @@ class TimelineElement {
 
   String get objectId => object?.id;
   String get objectType => object?.runtimeType.toString();
+  String get timelineKey => [
+    objectType == 'Mode' ?
+        object.baseModeId : objectId,
+    startOffset, duration,
+  ].toString();
 
   static Map<String, List<TimelineElement>> groupSimilar(elements) {
-    return groupBy(elements, (element) {
-      return [
-        element.objectType == 'Mode' ?
-            element.object.baseModeId : element.object?.id,
-        element.startOffset,
-        element.duration,
-      ].toString();
-    });
+    return groupBy(elements, (element) => element.timelineKey);
   }
 
   void stretchBy(ratio) {
@@ -168,9 +167,9 @@ class TimelineElement {
   List<List<TimelineElement>> get localNestedModeTracks {
     if (objectType != 'Show') return [];
     contentOffset ??= Duration.zero;
-    var trackCount = object.trackType == 'groups' ? object.groupCount : object.propCount;
-    List<List<TimelineElement>> tracks = List.generate(trackCount, (index) => []);
-    List.generate(trackCount, (timelineIndex) {
+    var trackCount = object.propCount;
+    List<List<TimelineElement>> tracks = List.generate(object.modeTracks.length, (index) => []);
+    List.generate(object.modeTracks.length, (timelineIndex) {
       object.modeTracks[timelineIndex].forEach((nestedElement) {
         var _nestedElement = nestedElement.dup();
         if (contentOffset < nestedElement.endOffset && duration > nestedElement.startOffset - contentOffset) {

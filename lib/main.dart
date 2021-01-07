@@ -10,7 +10,7 @@ import 'package:app/native_storage.dart'
 
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  // env = 'prod';
+  env = 'prod';
 
   AppController.setEnv(env).then((_) {
     AppController.initSiriSuggestions();
@@ -44,6 +44,7 @@ class FlowtoysConnect extends StatelessWidget {
 
       SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);
 
+      AppController.globalKey ??= new GlobalKey<NavigatorState>();
       return MaterialApp(
         initialRoute: isAuthenticated ? '/modes' : '/login',
         onGenerateRoute: AppRouter.router.generator,

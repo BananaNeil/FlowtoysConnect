@@ -39,6 +39,8 @@ class _LoginPageState extends State<LoginPage> {
           currentFocus.unfocus();
       },
       child: Scaffold(
+        floatingActionButton: _SkipButton(),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
         body: Center(
           child: SingleChildScrollView(
             child: Column(
@@ -56,6 +58,15 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+    );
+  }
+
+  _SkipButton() {
+    return GestureDetector(
+      onTap: () {
+        AppController.closeUntilPath('/modes');
+      },
+      child: Text('SKIP')
     );
   }
 
