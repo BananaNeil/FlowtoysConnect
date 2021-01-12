@@ -51,7 +51,7 @@ class _ShowPageState extends State<ShowPageState> {
   Widget build(BuildContext context) {
     var arguments = (ModalRoute.of(context).settings.arguments as Map);
     if (arguments != null)
-      show ??= arguments['show'];
+      show ??= arguments['show']; 
 
     if (show == null) fetchShow();
 

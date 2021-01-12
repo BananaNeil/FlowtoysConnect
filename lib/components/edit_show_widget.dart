@@ -80,6 +80,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
       if (modes.length == 0)
         return show.duration; 
       else return show.duration * (1 / (chosenCycleCount * modes.length)); 
+      // return show.duration * modeDurationRatio;
     }
 
     var beatsPerMinute;
@@ -147,6 +148,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             song.status = 'failed';
           else {
             song.assignAttributesFromCopy(response['song']);
+            // song.id = response['song'].id;
+            // song.filePath = response['song'].filePath;
             setState(() {});
             song.downloadFile().then((_) {
               setState(() {
@@ -155,7 +158,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             });
             if (show.isPersisted) show.save();
           }
-        else setState(() => errorMessage = response['message']);
+        else setState(() => errorMessage = response['message']); 
       });
     }
   }
@@ -409,14 +412,19 @@ class _EditShowWidgetState extends State<EditShowWidget> {
                       value: durationRatio(_futureDuration ?? show.duration, maximumDuration),
                       onChangeEnd: (value) {
                         setState(() {
+                          // show.duration = Duration(minutes: 12) * value;
                           show.setDuration(_futureDuration);
                         });
                       },
                       onChanged: (value){
                         setState(() {
                           _futureDuration = maxDuration(Duration(seconds: 10), maximumDuration * value);
-                          show.setDuration(_futureDuration);
+                          // if (show.audioIsEmpty)
+                            show.setDuration(_futureDuration);
                         });
+                        // setState(() {
+                        // //   // show.duration = Duration(minutes: 12) * value;
+                        // });
                       }
                     )
                   ),
@@ -556,6 +564,8 @@ class _EditShowWidgetState extends State<EditShowWidget> {
           )
         )
       ),
+      // Flexible(
+      //   child:
       ReorderableListSimple(
           allowReordering: true,
           childrenAlreadyHaveListener: true,
@@ -576,6 +586,7 @@ class _EditShowWidgetState extends State<EditShowWidget> {
             }),
           ],
         ),
+      // ),
       GestureDetector(
         onTap: () {
           Navigator.pushNamed(context, '/songs/new').then(_addNewSong);

@@ -143,7 +143,8 @@ class TimelineElement {
           propCounts: show.propCounts,
           trackType: 'props',
           modes: objects,
-        );
+          // audioTimeline: [],
+        ); 
       else
         object = objects?.firstWhere((obj) {
           return obj.runtimeType.toString() == element['object_type'] &&

@@ -13,6 +13,7 @@ import 'package:app/oscmanager.dart';
 
 
 import 'package:app/app_controller.dart';
+import 'package:app/components/navigation.dart';
 
 class Research extends StatelessWidget {
   @override
@@ -69,7 +70,7 @@ class _ResearchPageState extends State<ResearchPage> {
   void loadPreferences() async {
     if (prefs == null) prefs = await SharedPreferences.getInstance();
     int m = prefs.getInt("mode");
-    print("mode loaded " + m.toString());
+    Fluttertoast.showToast(msg: "mode loaded " + m.toString());
     setMode(m != null ? ConnectionMode.values[m] : ConnectionMode.BLE);
   }
 
@@ -81,11 +82,11 @@ class _ResearchPageState extends State<ResearchPage> {
       if (mode == ConnectionMode.OSC) {
         bleManager.bridge?.disconnect();
       } else {
-        //leManager.scanAndConnect();
+        bleManager.scanAndConnect();
       }
     });
 
-    print("Mode is now " + mode.toString());
+    Fluttertoast.showToast(msg: "Mode is now " + mode.toString());
     prefs.setInt("mode", ConnectionMode.values.indexOf(mode));
   }
 
@@ -146,7 +147,13 @@ class _ResearchPageState extends State<ResearchPage> {
           "," +
           values;
     } else {
-      oscManager.sendPattern(selectedGroup, page, _mode, actives, paramValues);
+      oscManager.sendPattern(
+        paramValues: paramValues,
+        group: selectedGroup,
+        actives: actives,
+        mode: _mode,
+        page: page,
+      );
     }
   }
 
@@ -168,7 +175,7 @@ class _ResearchPageState extends State<ResearchPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        drawer: AppController.drawer(),
+        drawer: Navigation(),
         backgroundColor: Color(0xff333333),
         appBar: AppBar(
             title: Text(widget.title), backgroundColor: Color(0xff222222)),

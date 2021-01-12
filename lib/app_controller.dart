@@ -1,5 +1,6 @@
 import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:bugsnag_crashlytics/bugsnag_crashlytics.dart';
+import 'package:package_info/package_info.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -20,149 +21,65 @@ class AppController extends StatefulWidget {
   static Map<String, dynamic> config = {};
   static bool dialogIsOpen = false;
   static String openedPath;
+  static String appEnv;
+
+  static String buildNumber;
+  static String version;
 
   static Future<void> setEnv(String env) async {
     final contents = await rootBundle.loadString('assets/config/${env ?? 'dev'}.json');
     config = jsonDecode(contents);
+    appEnv = env;
+  }
+
+  static void initBugsnag() {
+    PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
+      buildNumber = packageInfo.buildNumber;
+      version = packageInfo.version;
+      BugsnagCrashlytics.instance.register(
+        androidApiKey: config['bugsnag']['android'],
+        iosApiKey: config['bugsnag']['ios'],
+        releaseStage: appEnv,
+        appVersion: version,
+      );
+      FlutterError.onError = BugsnagCrashlytics.instance.recordFlutterError;
+
+    });
   }
 
   static void initSiriSuggestions() async {
-    FlutterSiriSuggestions.instance.configure(onLaunch: (Map<String, dynamic> message) async {
-      //Awaken from Siri Suggestion
-      ///// TO DO : do something!
-      var arguments = message["key"].split(":");
-
-      if (arguments[0] == "openPath") {
-        Timer(Duration(milliseconds: 1000), () {
-          Navigator.pushNamed(getCurrentContext(), arguments[1]);
-        });
-      }
-    });
-
-    await Preloader.getCachedLists().then((lists) {
-      lists.forEach((list) {
-        list.modes.forEach((mode) async {
-          await FlutterSiriSuggestions.instance.buildActivity(FlutterSiriActivity("Set Mode To ${mode.name}",
-            "openPath:/modes/${mode.id}",
-            isEligibleForSearch: true,
-            isEligibleForPrediction: true,
-            contentDescription: "Sets props to the mode: ${mode.name}",
-            suggestedInvocationPhrase: "Set my props to ${mode.name}")
-          );
-        });
-      }); 
-    }).then((_) {
-      FlutterSiriSuggestions.instance.retryLaunchWithActivity();
-    });
+    // FlutterSiriSuggestions.instance.configure(onLaunch: (Map<String, dynamic> message) async {
+    //   //Awaken from Siri Suggestion
+    //   ///// TO DO : do something!
+    //   var arguments = message["key"].split(":");
+    //
+    //   if (arguments[0] == "openPath") {
+    //     Timer(Duration(milliseconds: 1000), () {
+    //       Navigator.pushNamed(getCurrentContext(), arguments[1]);
+    //     });
+    //   }
+    // });
+    //
+    // await Preloader.getCachedLists().then((lists) {
+    //   lists.forEach((list) {
+    //     list.modes.forEach((mode) async {
+    //       await FlutterSiriSuggestions.instance.buildActivity(FlutterSiriActivity("Set Mode To ${mode.name}",
+    //         "openPath:/modes/${mode.id}",
+    //         isEligibleForSearch: true,
+    //         isEligibleForPrediction: true,
+    //         contentDescription: "Sets props to the mode: ${mode.name}",
+    //         suggestedInvocationPhrase: "Set my props to ${mode.name}")
+    //       );
+    //     });
+    //   }); 
+    // }).then((_) {
+    //   FlutterSiriSuggestions.instance.retryLaunchWithActivity();
+    // });
 
   }
 
   static BaseMode getBaseMode(id) {
     return Preloader.baseModes.firstWhere((baseMode) => baseMode.id == id);
-  }
-
-  static Widget drawer() {
-    return Container(
-      width: 220,
-      child: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: <Widget>[
-            Container(
-              height: 140,
-              child: DrawerHeader(
-                child: Image(
-                  image: AssetImage(AppController.logoImagePath())
-                ),
-                decoration: BoxDecoration(
-                ),
-              ),
-            ),
-            ListTile(
-              title: Text('Modes',
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/modes', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text('My Lists',
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/lists', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text('My Shows',
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/shows', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text('Props',
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/props', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text("Neil's Research",
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/neils-research', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text("Research",
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(getCurrentContext(), '/research', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text('Store',
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                launch("https://flowtoys.com/");
-              },
-            ),
-            ListTile(
-              title: Text(Authentication.isAuthenticated ? 'Logout' : "Sign in",
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Authentication.isAuthenticated ? Colors.red : AppController.blue,
-                )
-              ),
-              onTap: () {
-                Authentication.logout();
-              },
-            ),
-          ],
-        ),
-      )
-    );
   }
 
   static String logoImagePath() {
@@ -321,7 +238,7 @@ class AppControllerState extends State<AppController> {
 
 int sumList(list) {
   if (list.isEmpty) return 0;
-  return list.reduce((a, b) => a + b);
+  return list.reduce((num a, num b) => a + b);
 }
 
 

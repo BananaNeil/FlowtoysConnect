@@ -280,6 +280,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (waveformLengthWas == waveforms.keys.length)
       if (waveforms.keys.length == show.audioElements.length)
         return;
+    //     return setState(() => loading = false);
 
     waveformTimelineController.elements = show.audioElements;
     var offset = Duration();
@@ -326,6 +327,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         return player.open(Audio.file(element.object.localPath,
           metas: Metas(
             title:  show.name,
+            // artist: "Username",
             album: "Flowtoys App",
             // image: MetasImage.asset("assets/images/logo.png"), //can be MetasImage.network
           ),
@@ -428,13 +430,21 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   Widget _dropDownOptions = Container();
   bool _hasShownMessage = false;
+  // Map arguments;
 
   @override
   Widget build(BuildContext context) {
     editMode = show.trackType;
+    // Test this:::::::::
     if (!_hasShownMessage && _initialBuildMessage != null)
       _showNoticeMessage(_initialBuildMessage, color: _initialBuildMessageColor);
 
+    // show.ensureFilledEndSpace();
+    // show.ensureStartOffsets();
+    // reloadModes();
+    // print("SHOW ${trackHeight}");
+    // print("SHOW: ${show.modeTracks[0][2].object.modeTracks[0][1].hashCode}");
+    // print("SHOWw: ${modeTimelineControllers.first.elementAtTime(playOffsetDuration)}");
     loadPlayers();
     loadModes();
 
@@ -455,7 +465,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             // if (audioPlayers.length == 0)
             //   return Container();
 
-
+    
             containerGlobalKey ??= RectGetter.createGlobalKey();
             container = RectGetter(
               key: containerGlobalKey,
@@ -489,7 +499,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                   )
                 ]
               ),
-            );
+            ); 
 
             return Stack(
               children: [
@@ -828,9 +838,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     if (slideModesWhenStretching)
       _stretchSelectedElements(value);
     else if (value > 1)
-      _stretchSelectedElements(value, overwrite: side);
+			_stretchSelectedElements(value, overwrite: side);
     else if (value < 1)
-      _stretchSelectedElements(value, growFrom: side); 
+			_stretchSelectedElements(value, growFrom: side); 
 
     setState(() {
       show.ensureStartOffsets();
@@ -871,7 +881,85 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
-  _replaceSelectedModesWithCycleOfModes() {
+  void _insert(object) {
+    Duration duration;
+    if (object.runtimeType == Show)
+      duration = object.duration;
+    else modeTimelineControllers.forEach((controller) {
+        var currentElement = controller.elementAtTime(playOffsetDuration);
+        duration ??= (currentElement.endOffset - playOffsetDuration) * 0.5;
+        duration = minDuration(duration, (currentElement.endOffset - playOffsetDuration) * 0.5);
+      });
+    modeTimelineControllers.forEach((controller) {
+      var track = show.modeTracks[controller.timelineIndex];
+      var currentElement = controller.elementAtTime(playOffsetDuration);
+      var index = controller.elements.indexOf(currentElement);
+
+
+      var newElement = TimelineElement(
+        startOffset: playOffsetDuration,
+        duration: duration,
+        object: object,
+      );
+      List<TimelineElement> elementsToRemove = [];
+      TimelineElement insertAfterNewElement;
+      // eachWithIndex(controller.elements, (elementIndex, element) {
+      if (slideModesWhenStretching) {
+        if (currentElement.startOffset == playOffsetDuration)
+          index -= 1;
+        else {
+          insertAfterNewElement = TimelineElement(
+            contentOffset: currentElement.contentOffset + (playOffsetDuration - currentElement.startOffset),
+            duration: currentElement.endOffset - playOffsetDuration,
+            startOffset: newElement.endOffset,
+            object: currentElement.object,
+          );
+          currentElement.duration = playOffsetDuration - currentElement.startOffset;
+        }
+      } else {
+        List.from(track.reversed).forEach((element) {
+          print(" ${element.startOffset > newElement.startOffset} | ${element.endOffset > newElement.startOffset}");
+          if (element.startOffset > newElement.startOffset) {
+            if (element.endOffset <= newElement.endOffset)
+              // elementsToRemove.add(element);
+              track.remove(element);
+            else if (element.startOffset < newElement.endOffset)
+              element.duration -= newElement.endOffset - element.startOffset;
+          } else if (element.endOffset > newElement.startOffset) {
+            print(" || ${element.endOffset <= newElement.endOffset}");
+            if (element.endOffset <= newElement.endOffset)
+              element.duration -= element.endOffset - newElement.startOffset;
+            else {
+              print("EEEEEEE: ${element.endOffset}");
+              print("Creating new elementi to add at the end: ${element.endOffset - newElement.endOffset}");
+              insertAfterNewElement = TimelineElement(
+                contentOffset: element.contentOffset + (newElement.endOffset - element.startOffset),
+                duration: element.endOffset - newElement.endOffset,
+                startOffset: newElement.endOffset,
+                object: element.object,
+              );
+              print("element.duration (${element.duration}) -= ${element.endOffset} - ${newElement.startOffset} (${element.endOffset - newElement.startOffset})");
+              element.duration -= element.endOffset - newElement.startOffset;
+            }
+          }
+        });
+      }
+
+      if (insertAfterNewElement != null)
+        track.insert(index+1, insertAfterNewElement);
+      track.insert(index+1, newElement);
+    });
+    if (slideModesWhenStretching)
+      show.setDuration(show.duration + duration);
+    else show.setDuration(maxDuration(show.duration, playOffsetDuration + duration));
+
+    show.setEditMode('props');
+    show.setEditMode(editMode);
+    reloadModes();
+    save();
+  }
+
+  _insertAtPlayHead() {
     Navigator.pushNamed(context, '/modes',
       arguments: {
         'isSelecting': true,
@@ -1011,6 +1099,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
 
     return Container(
+      // height: 120,
       height: min(70 * containerHeight / 600, trackHeight),
       child: waveformTimelineController == null ? SpinKitCircle(color: Colors.blue) : SizedBox.expand(
         child: TimelineTrackWidget(
@@ -1042,12 +1131,14 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               controller: waveforms[element.timelineKey],
               visibleDuration: waveVisibleDuration,
               scale: (element.duration.inMicroseconds / lengthInMicroseconds) * futureScale,
+              // futureScale: futureScale * (element.duration.inMicroseconds / lengthInMicroseconds),
               startOffset: maxDuration(windowStart - element.startOffset, Duration()) + contentOffset,
               visibleBands: containerWidth * 1.5 * (waveVisibleDuration.inMicroseconds / visibleMicroseconds).clamp(0.0, 1.0),
               color: [Colors.blue, Colors.red][waveforms.keys.toList().indexOf(element.timelineKey) % 2],
             );
           },
           onStretchUpdate: (side, value) {
+            // _afterStretch(side, value);
           }
         )
       )
@@ -1420,6 +1511,23 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               ]
             ),
           ),
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.center,
+          //   children: [
+          //     _EditModeControls(),
+          //   ]
+          // ),
+          // Container(
+          //   margin: EdgeInsets.only(bottom: 10),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.center,
+          //     children: [
+          //       _SnapingButtons(),
+          //       _PushModeButtons(),
+          //       _MultiSelectButtons(),
+          //     ]
+          //   ),
+          // ),
           // GestureDetector(
           //   onTap: () {
           //     setState(() => showModeImages = !showModeImages);
@@ -1434,6 +1542,17 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           //        ]
           //      )
           //    )
+          // ),
+          // Container(
+          //   margin: EdgeInsets.only(bottom: 5),
+          //   child: Row(
+          //     mainAxisAlignment: MainAxisAlignment.center,
+          //     children: [
+          //       _SplitAtPlayHead(),
+          //       _DeleteButton(),
+          //       _EditButton(),
+          //     ]
+          //   ),
           // ),
         ]
       )
@@ -1627,7 +1746,9 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     return Container(
       width: 25,
       margin: EdgeInsets.only(right: 10),
-      child: show.isSaving ? Tooltip(
+             // For some reason we were showing a spinner when songs were downloading. Why?
+      child: //show.audioDownloadedPending ? SpinKitCircle(color: Colors.white, size: 20) :
+        show.isSaving ? Tooltip(
           child: Icon(Icons.cloud_upload, color: AppController.darkGrey),
           message: "Saving to the cloud",
         ) :
@@ -1687,6 +1808,7 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   void _showDropDown(key, options) {
     _dropDownOptions = Container(
+        // margin: EdgeInsets.only(left:10),
       child: Stack(
         children: [
           SizedBox.expand(
@@ -1863,6 +1985,64 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  // Future<dynamic> _editSelectedModes() {
+  //   return _replaceSelectedModes();
+    // if (selectedElementControllers.any((controller) => !controller.selectedElementsAreConsecutive))
+    // else
+    //   return AppController.openDialog("How would you like to ${oneElementSelected ? "edit (1)" : "replace (${selectedElements.length})"}?", "",
+    //     buttonText: 'Cancel',
+    //     buttons: [{
+    //       'text': oneModeSelected ? 'Edit Mode Details' : 'Replace with mode',
+    //       'color': Colors.white,
+    //       'onPressed': () {
+    //         _replaceSelectedModesWithMode();
+    //       },
+    //     }, {
+    //       'text': 'Replace with cycle of modes',
+    //       'color': Colors.white,
+    //       'onPressed': () {
+    //         _replaceSelectedModesWithCycleOfModes();
+    //       },
+    //     }]
+    //   );
+  // }
+  //
+  // Widget _EditButton() {
+  //   return Visibility(
+  //     visible: modeTimelineControllers.any((controller) => controller.selectedElements.isNotEmpty),
+  //     child: Container(
+  //       margin: EdgeInsets.all(5),
+  //       child: RaisedButton(
+  //         onPressed: () {
+  //           _editSelectedModes();
+  //         },
+  //         child: Container(
+  //           padding: EdgeInsets.all(2),
+  //           child: Text(oneElementSelected ? "Edit (1)" : "Replace (${selectedElements.length})")
+  //         )
+  //       )
+  //     )
+  //   );
+  // }
+  //
+  // Widget _DeleteButton() {
+  //   return Visibility(
+  //     visible: selectedElements.isNotEmpty,
+  //     child: Container(
+  //       margin: EdgeInsets.all(5),
+  //       child: RaisedButton(
+  //         onPressed: () {
+  //           _afterDelete();
+  //         },
+  //         child: Container(
+  //           padding: EdgeInsets.all(2),
+  //             child: Text("Delete (${selectedElements.length})"),
+  //          )
+  //       ),
+  //     ),
+  //   );
+  // }
+
   void _splitAtPlayhead() {
     var controllerIndexes = [];
     selectedElementControllers.forEach((controller) {
@@ -1911,6 +2091,49 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
+  // Widget _EditModeControls() {
+  //   return Container(
+  //     padding: EdgeInsets.all(2),
+  //     child: Column(
+  //       mainAxisAlignment: MainAxisAlignment.center,
+  //       children: [
+  //         Container(child: Text("Edit As:"), margin: EdgeInsets.only(bottom: 6)),
+  //         Container(
+  //           margin: EdgeInsets.only(bottom: 15),
+  //           decoration: BoxDecoration(color: Color(0x22FFFFFF)),
+  //           child: ToggleButtons(
+  //             isSelected: [
+  //               editMode == 'global',
+  //               editMode == 'groups',
+  //               editMode == 'props'
+  //             ],
+  //             onPressed: (int index) {
+  //               editMode = ['global', 'groups', 'props'][index];
+  //               show.setEditMode(editMode);
+  //               // show.save();
+  //               reloadModes();
+  //               setState(() {});
+  //             },
+  //             children: [
+  //               Container(
+  //                 padding: EdgeInsets.symmetric(horizontal: 10),
+  //                 child: Text("Global"),
+  //               ),
+  //               Container(
+  //                 padding: EdgeInsets.symmetric(horizontal: 10),
+  //                 child: Text("Groups"),
+  //               ),
+  //               Container(
+  //                 padding: EdgeInsets.symmetric(horizontal: 10),
+  //                 child: Text("Props"),
+  //               ),
+  //             ]
+  //           ),
+  //         ),
+  //       ]
+  //     )
+  //   );
+  // }
 
   Widget _ModeColumn({Mode mode, int timelineIndex, double invisibleLeftRatio, double invisibleRightRatio}) {
     var groupIndex; var propIndex;

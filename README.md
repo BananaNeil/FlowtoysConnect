@@ -61,5 +61,6 @@ flutter build ios; open ios/Runner.xcworkspace
 ```
 
 
+- Select Product > (hold option) Clean Build Folder
 - Select Product > Destination > Generic iOS Device
 - Select Product > Archive

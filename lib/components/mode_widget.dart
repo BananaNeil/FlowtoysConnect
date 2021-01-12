@@ -301,6 +301,7 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
               if (invisibleLeftRatio > 0 && invisibleRightRatio > 0)
                 xAlignment = (invisibleLeftRatio - invisibleRightRatio) / (invisibleLeftRatio + invisibleRightRatio);
               double invisibleRatio = invisibleRightRatio + invisibleLeftRatio;
+              // print("WIDTH ${invisibleRatio == 1 ? 0 : max(0, 1 / (1 - (invisibleRatio)))}");
               if (invisibleRatio >= 1) return Container();
               return Expanded(
                 child: ClipRect(

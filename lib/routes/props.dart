@@ -1,5 +1,6 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_groups.dart';
+import 'package:app/components/navigation.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
@@ -34,7 +35,7 @@ class _PropsPageState extends State<PropsPage> {
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
-        drawer: AppController.drawer(),
+        drawer: Navigation(),
         appBar: AppBar(
           title: Text("Connect Props"),
           backgroundColor: Color(0xff222222),

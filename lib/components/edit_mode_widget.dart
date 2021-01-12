@@ -185,7 +185,6 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   }
 
   Widget ParamSlider(param, {title, children, onReset, margin}) {
-    print("SLIDER FOR ${title} ${param.paramName} ::: ${param.multiValueEnabled}");
     return Container(
       margin: margin ?? EdgeInsets.only(bottom: 10),
       child: Column(
@@ -305,13 +304,13 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     return Row(
       children: List<int>.generate(25, (int index) => 17 - index+1).map((size) {
         return Flexible(
-          flex: 1,
-          child: Container(
-          height: 30,
-            decoration: BoxDecoration(
-              border: Border(right: BorderSide(color: Colors.grey, width: 1)),
-            ),
-          )
+            flex: 1,
+            child: Container(
+            height: 30,
+              decoration: BoxDecoration(
+                border: Border(right: BorderSide(color: Colors.grey, width: 1)),
+              ),
+            )
         );
       }).toList()
     );

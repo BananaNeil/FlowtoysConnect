@@ -62,6 +62,8 @@ class WaveformController {
   int chunkSizeWas;
   Map<int, dynamic> chunkedData = {};
 
+  // WaveformPartitioner partitioner;
+  // ReceivePort receivePort;
   Timer partitionTimer;
 
   List<int> chunkedDataFor({bool cache, int chunkSize, int totalChunksForSong}) {
@@ -70,9 +72,13 @@ class WaveformController {
     if (data.length == 0) return [];
     if (chunkSize <= 1.0) return data;
 
+    // if (chunkedData.values.isNotEmpty)
+    //   return chunkedData.values.first;
+
     if (chunkedData[chunkSize] != null)
       return chunkedData[chunkSize];
 
+    // print("${DateTime.now()} RECOMPUTING ${startOffset.inSeconds} chunkSize: ${chunkSize} Memory: ${chunkedData.toString().length / 1000000} MB  keys: ${chunkedData.keys.length}");
 
 
     partitionTimer?.cancel();
@@ -217,7 +223,7 @@ class _WaveformState extends State<Waveform> {
     var minValues = [];
     var maxValues = [];
     dataSet.forEach((value) {
-      if ((minValues.length < numOfOutliers || minValues.last >= value) && value > minThreshold) {
+      if ((minValues.length < numOfOutliers || minValues.last >= value) && value > minThreshold) { 
         minValues.insert(0, value);
         minValues.sort();
         minValues = minValues.sublist(0, min(minValues.length, numOfOutliers));
@@ -260,6 +266,7 @@ class _WaveformState extends State<Waveform> {
 
   @override
   Widget build(BuildContext context) {
+        // return Container();
     if (controller == null)
       if (song == null)
         return Container();

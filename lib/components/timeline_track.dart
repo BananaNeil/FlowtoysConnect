@@ -54,6 +54,7 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
   bool get isStretching => selectionStretch['right'] != 1 || selectionStretch['left'] != 1;
 
   String get stretchedSide => selectionStretch.keys.firstWhere((key) => selectionStretch[key] != 1 );
+  // double get stretchedValue => selectionStretch[stretchedSide];
 
   Duration dragDelta = Duration();
   bool isReordering = false;
@@ -339,13 +340,19 @@ class _TimelineTrackState extends State<TimelineTrackWidget> with TickerProvider
 							),
               child: Row(
                 children: selectedElements.map((element) {
+                  var el = element;
+                  // if (!stretchSubshows) {
+                  //   el = element.dup();
+                  //   el.startOffset = windowStart + start;
+                  //   el.duration = windowStart + end - el.startOffset;
+                  // }
                   return Flexible(
                     flex: element.duration.inMicroseconds,
                     child: Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.white, width: 2),
                       ),
-                      child: buildElement(element),
+                      child: buildElement(el),
                     )
                   );
                 }).toList(),

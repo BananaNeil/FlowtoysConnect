@@ -385,6 +385,7 @@ class Client {
         request.headers[key] = value;
       });
 
+      // print("Is authed: ${Authentication.isAuthenticated}");
       if (Authentication.isAuthenticated)
         Authentication.token.forEach((key, value) {
           request.headers[key] = value;
@@ -399,6 +400,7 @@ class Client {
       var responseHeaders = response.headers;
       var code = response.statusCode;
 
+      print("\n<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======\n");
 
       var errors = responseBody['errors'] ?? {};
       var message;
@@ -447,12 +449,14 @@ class Client {
         'code':  503,
         'body': { },
       };
-    }// } catch (e) {
-    //   return {
-    //     'message': "${e}",
-    //     'success': false,
-    //     'body': { },
-    //   };
-    // }
+     }// catch (e) {
+     //   print("CAUGHT ERROR: ${e}");
+     //   return {
+     //     // Intentioinally putting no message here,
+     //     // so we can fallback to a default
+     //     'success': false,
+     //     'body': { },
+     //   };
+     // }
   }
 }

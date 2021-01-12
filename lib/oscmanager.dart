@@ -39,10 +39,10 @@ class OSCManager {
 
     final MDnsClient client = MDnsClient();
 
-    print("Starting discovery, looking for " + name + " ...");
+    Fluttertoast.showToast(msg: "Starting discovery, looking for " + name + " ...");
     // Start the client with default options.
     await client.start();
-    print("Discovery started");
+    Fluttertoast.showToast(msg: "Discovery started");
 
     zeroconfStream.add(0);
 
@@ -63,7 +63,7 @@ class OSCManager {
         final String bundleId =
             ptr.domainName; //.substring(0, ptr.domainName.indexOf('@'));
 
-        print('OSC instance found at ' + srv.toString());
+        Fluttertoast.showToast(msg: 'OSC instance found at ' + srv.toString());
         if(srv.name.contains("flowtoysconnect"))
         {
           await for (IPAddressResourceRecord ipr
@@ -71,7 +71,7 @@ class OSCManager {
                 ResourceRecordQuery.addressIPv4(srv.target))) {
           // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
 
-          print("IPV4 Found : " + ipr.address.address);
+          Fluttertoast.showToast(msg: "IPV4 Found : " + ipr.address.address);
           autoDetectedBridge = ipr.address.address;
           Fluttertoast.showToast(
               msg: "Bridge detected on " + autoDetectedBridge);
@@ -92,7 +92,7 @@ class OSCManager {
     client.stop();
     zeroconfStream.close();
 
-    print('Discovery Done.');
+    Fluttertoast.showToast(msg: 'Discovery Done.');
   }
 
   void loadPreferences() async {
@@ -101,7 +101,7 @@ class OSCManager {
       remoteHost =
           InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
     } on ArgumentError catch (error) {
-      print("Error getting IP from preferences : " + error.message);
+      Fluttertoast.showToast(msg: "Error getting IP from preferences : " + error.message);
     }
 
     Fluttertoast.showToast(
@@ -117,7 +117,7 @@ class OSCManager {
       remoteHost =
           InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
     } on ArgumentError catch (error) {
-      print("Error getting IP from preferences : " + error.message);
+      Fluttertoast.showToast(msg: "Error getting IP from preferences : " + error.message);
     }
 
     Fluttertoast.showToast(
@@ -131,7 +131,7 @@ class OSCManager {
   //OSC Messages
 
   void sendMessage(OSCMessage m) {
-    print("Send message : " + m.address + " to "+remoteHost?.address);
+    Fluttertoast.showToast(msg: "Send message : " + m.address + " to "+remoteHost?.address);
     socket.send(m.toBytes(), remoteHost, remotePort);
   }
 
@@ -147,7 +147,7 @@ class OSCManager {
     sendMessage(m);
   }
 
-  void sendPattern(int group, int page, int mode, int actives, List<double> paramValues) {
+  void sendPattern({int group, int page, int mode, int actives, List<double> paramValues}) {
     List<Object> args = new List<Object>();
     args.add(group);
     args.add(0);//groupIsPublic = false, force private group

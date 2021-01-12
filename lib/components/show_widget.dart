@@ -46,6 +46,7 @@ class ShowPreview extends StatelessWidget {
                           groupIndex: show.groupIndexFromGlobalPropIndex(index),
                           mode: element.object,
                           propIndex: index,
+                          // showImages: true,
                         ) : (element.objectType == 'Show') ?
                         ShowPreview(
                           show: element.object,
@@ -53,6 +54,7 @@ class ShowPreview extends StatelessWidget {
                         ) : Container(decoration: BoxDecoration(color: Colors.black))
                     ),
                     Container(
+                      // height: 10,
                       width: 1,
                       decoration: BoxDecoration(
                         color: Color(0x88FFFFFF),

@@ -6,6 +6,7 @@ import 'dart:math';
 class ModeParam {
   List<ModeParam> childParams;
   bool multiValueEnabled;
+  double animationSpeed;
   bool hasChildValues;
   String childType;
   String paramName;
@@ -16,6 +17,7 @@ class ModeParam {
 
   ModeParam({
     this.multiValueEnabled,
+    this.animationSpeed,
     this.hasChildValues,
     this.childParams,
     this.parentIndex,
@@ -125,6 +127,10 @@ class ModeParam {
         ..sort((a, b) { return counted[b].compareTo(counted[a]); });
 
     return sortedValues.first;
+  }
+
+  void reverseAnimationSpeed() {
+    animationSpeed *= -1;
   }
 
   num getMultiValueAverage() {

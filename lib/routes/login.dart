@@ -67,7 +67,7 @@ class _LoginPageState extends State<LoginPage> {
         AppController.closeUntilPath('/modes');
       },
       child: Text('SKIP')
-    );
+    ); 
   }
 
   void _submitForm() {

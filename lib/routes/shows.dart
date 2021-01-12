@@ -2,6 +2,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/action_button.dart';
 import 'package:app/models/timeline_element.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/navigation.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:filesize/filesize.dart';
@@ -73,7 +74,7 @@ class _ShowsPageState extends State<ShowsPage> {
       child: Scaffold(
         floatingActionButton: isSelecting ? _SelectionButtons : null,
         backgroundColor: AppController.darkGrey,
-        drawer: isTopLevelRoute ? AppController.drawer() : null,
+        drawer: isTopLevelRoute ? Navigation() : null,
         appBar: AppBar(
           title: Text("My Shows"),
           backgroundColor: Color(0xff222222),

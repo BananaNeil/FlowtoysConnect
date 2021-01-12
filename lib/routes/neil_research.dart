@@ -1,6 +1,7 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter_blue/flutter_blue.dart';
+import 'package:app/components/navigation.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 
@@ -41,27 +42,41 @@ class _NeilsResearchPageState extends State<NeilsResearchPage> {
     return flutterBlue.isOn.then((isOn) {
       if (!isOn) {
         Fluttertoast.showToast(msg: "Bluetooth is not activated.");
-        return;
+        return Future.value(false);
       }
       Fluttertoast.showToast(msg: "Scanning devices...");
 
 
-      flutterBlue.startScan(timeout: Duration(seconds: 10));
 
-      flutterBlue.scanResults.listen((scanResult) {
-        // do something with scan result
 
-        for (var result in scanResult) {
-          //print('${result.device.name} found! rssi: ${result.rssi}');
-          devices.add(result.device);
-          // if (result.device.name.contains("FlowConnect")) {
-          //   bridge = result.device;
-          //   // flutterBlue.stopScan();
-          //   return;
-          // }
+      return flutterBlue.connectedDevices.then((devices) {
+        Fluttertoast.showToast(msg: "DEVICES: ${devices.map((d) => d.name).join(", ")}");
+        for (BluetoothDevice device in devices) {
+          devices.add(device);
         }
-        setState(() {});
+      }).catchError((error) {
+        Fluttertoast.showToast(msg: "Searching for devices failed: ${error}");
       });
+
+
+
+
+    //   flutterBlue.startScan(timeout: Duration(seconds: 10));
+    //
+    //   flutterBlue.scanResults.listen((scanResult) {
+    //     // do something with scan result
+    //
+    //     for (var result in scanResult) {
+    //       //print('${result.device.name} found! rssi: ${result.rssi}');
+    //       devices.add(result.device);
+    //       // if (result.device.name.contains("FlowConnect")) {
+    //       //   bridge = result.device;
+    //       //   // flutterBlue.stopScan();
+    //       //   return;
+    //       // }
+    //     }
+    //     setState(() {});
+    //   });
     }).catchError((e) {
       Fluttertoast.showToast(msg: "Checking if flutterBlue.isOn failed: ${e}");
     });
@@ -73,7 +88,7 @@ class _NeilsResearchPageState extends State<NeilsResearchPage> {
       onTap: AppController.closeKeyboard,
       child: Scaffold(
         backgroundColor: AppController.darkGrey,
-        drawer: AppController.drawer(),
+        drawer: Navigation(),
         appBar: AppBar(
           title: Text("NEil's research"),
           backgroundColor: Color(0xff222222),

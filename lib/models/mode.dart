@@ -72,8 +72,9 @@ class Mode {
   int get groupIndex => brightness.groupIndex;
   int get propIndex => brightness.propIndex;
 
+  Map<String, ModeParam> _modeParams;
   Map<String, ModeParam> get modeParams {
-    return {
+    return _modeParams ??= {
       'saturation': saturation,
       'brightness': brightness,
       'density': density,
@@ -156,9 +157,12 @@ class Mode {
 
   Map<String, num> getParamValues({groupIndex, propIndex}) {
     return {
-      'hue': getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
       'saturation': getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
       'brightness': getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
+      'density': getValue('density', groupIndex: groupIndex, propIndex: propIndex),
+      'adjust': getValue('adjust', groupIndex: groupIndex, propIndex: propIndex),
+      'speed': getValue('speed', groupIndex: groupIndex, propIndex: propIndex),
+      'hue': getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
     };
   }
 
@@ -180,6 +184,18 @@ class Mode {
 
   Color getColor({groupIndex, propIndex}) {
     return getHSVColor(groupIndex: groupIndex, propIndex: propIndex).toColor();
+  }
+
+  double getAnimationSpeed(param, {groupIndex, propIndex}) {
+    return getParam(param, groupIndex: groupIndex, propIndex: propIndex).animationSpeed ?? 0.0;
+  }
+
+  void reverseAnimationSpeed(param) {
+    getParam(param).reverseAnimationSpeed();
+  }
+
+  void setAnimationSpeed(param, speed) {
+    getParam(param).animationSpeed = speed.clamp(-1.0, 1.0);
   }
 
   num getValue(param, {groupIndex, propIndex}) {

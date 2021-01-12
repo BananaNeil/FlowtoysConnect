@@ -1,5 +1,6 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/navigation.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
@@ -68,12 +69,13 @@ class _ListsPageState extends State<ListsPage> {
   @override
   Widget build(BuildContext context) {
     singlePageMode = AppController.screenWidth > 600;
+              print("SSS ${selectedList?.id}");
 
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
         backgroundColor: AppController.darkGrey,
-        drawer: isTopLevelRoute ? AppController.drawer() : null,
+        drawer: isTopLevelRoute ? Navigation() : null,
         appBar: AppBar(
           title: Text("My Lists"),
           backgroundColor: Color(0xff222222),

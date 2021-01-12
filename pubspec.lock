@@ -43,6 +43,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.1.0-nullsafety.3"
+  bugsnag_crashlytics:
+    dependency: "direct main"
+    description:
+      name: bugsnag_crashlytics
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.7"
   characters:
     dependency: transitive
     description:
@@ -368,6 +375,13 @@ packages:
       url: "https://github.com/pq/osc"
     source: git
     version: "0.0.4"
+  package_info:
+    dependency: "direct main"
+    description:
+      name: package_info
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.4.3+2"
   path:
     dependency: transitive
     description:

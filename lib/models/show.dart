@@ -129,6 +129,11 @@ class Show {
     return _audioElements;
   }
 
+  // void setAudioTimeliine(timeline) {
+  //   audioTimelinie = timeline
+  //   _audioElements = null;
+  // }
+
   List<List<TimelineElement>> _modeTracks;
   List<List<TimelineElement>> get modeTracks {
     if (_modeTracks != null) return _modeTracks;
@@ -188,7 +193,7 @@ class Show {
           duration: duration,
         ));
       else if (track.last.endOffset < duration)
-        if (track.isNotEmpty && track.last.object == null)
+        if (track.isNotEmpty && track.last.object == null) 
           track.last.duration = duration - track.last.startOffset;
         else
           track.add(TimelineElement(
@@ -241,6 +246,11 @@ class Show {
     });
 
 
+    // print("Grouped Elements by similarities. keys:\n${elementsByTimeRange.keys.join("\n")}\n\n");
+    // print("Grouped Elements by similarities, values: ${elementsByTimeRange.values.map((r) => r.length)}\n\n");
+    //
+    // print("End Offsets by similarities. keys:\n${elementsByEndOffset.keys.join("\n")}\n\n");
+    // print("End Offsets  by similarities, values: ${elementsByEndOffset.values.map((r) => r.length)}\n\n");
 
     // Move identical siblings into global timeline
     List.from(elementsByTimeRange.keys).forEach((key) {
@@ -261,16 +271,21 @@ class Show {
     sharedEndOffsets = sharedEndOffsets.toSet().toList();
     sharedEndOffsets.sort();
 
+    // print("duration: ${duration}");
+    print("SharedEndOffsets  ${sharedEndOffsets.map((t) => t).join(", ")}");
+
     // Create TimelineElements that fill the incongruent spaces
     var offset = duration;
     var globalTimelineLength = globalTimeline.length;
     var reversedGlobalTimeline = List.from(globalTimeline.reversed);
     reversedGlobalTimeline.add(TimelineElement(duration: Duration.zero, startOffset: Duration.zero));
+    print("reversed globalTimeline  ${reversedGlobalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId]).join(", ")}");
     reversedGlobalTimeline.forEach((globalElement) {
       if (offset > globalElement.endOffset) {
         var breakPoints = sharedEndOffsets.where((sharedEndOffset) {
           return sharedEndOffset > globalElement.endOffset && sharedEndOffset <= offset;
         }).toList();
+        // print("Break points: ${breakPoints} - GlobalElement.endOffset ${globalElement.endOffset}  -- offset: ${offset}");
         [...breakPoints.reversed, globalElement.endOffset].forEach((breakPoint) {
           globalTimeline.add(TimelineElement(
             duration: offset - breakPoint,
@@ -286,7 +301,9 @@ class Show {
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
     globalTimeline = globalTimeline.where((el) => el.duration > Duration.zero).toList();
     // Attach remaining elements to their sub-timeline chunks:
+    print("track count ${trackCount} - globalTimeline: ${globalTimeline.map((t) => [t.startOffset, t.endOffset, t.objectType, t.objectId]).join(", ")}");
     elementsToBeSubGrouped.forEach((elements) {
+      print("FIRST:  id: ${elements.first.id} type: ${elements.first.timelineType} objectType: ${elements.first.objectType} start: ${elements.first.startOffset},   End: ${elements.first.endOffset} - ${elements.first.timelineIndex}");
       var element = globalTimeline.firstWhere((globalElement) {
         return globalElement.startOffset <= elements.first.startOffset &&
             globalElement.endOffset >= elements.first.endOffset;
@@ -308,6 +325,7 @@ class Show {
     });
 
     globalTimeline.sort((a, b) => a.startOffset.compareTo(b.startOffset));
+    // eachWithIndex(globalTimeline, (index, element) => element.position = index + 1);
     return globalTimeline;
   }
 
@@ -479,6 +497,7 @@ class Show {
 
   void setEditMode(editMode) {
     if (editMode == trackType) return;
+    // print("SETTING EDITMODE for ${hashCode}: ${editMode}");
 
     if (trackType == 'global')
       if (editMode == 'props')
@@ -496,6 +515,7 @@ class Show {
 
     trackType = editMode;
     ensureStartOffsets();
+    // ensureFilledEndSpace();
 
     // reloadModeElements();
   }
@@ -509,6 +529,7 @@ class Show {
   void combineTrackToGroups() {
     int trackOffset = 0;
     _modeTracks = mapWithIndex(propCounts, (index, trackCount) {
+      // print("Truning props into groups: group #${index} sublisting:(${trackOffset} ${trackCount}");
       var tracksToCombine = modeTracks.sublist(trackOffset, trackOffset + trackCount);
       trackOffset += trackCount;
       return groupIntoSingleTrack(tracksToCombine);
@@ -527,6 +548,15 @@ class Show {
           element.localNestedModeTracks[timelineIndex].forEach((nestedElement) {
             tracks[timelineIndex].add(nestedElement.dup());
           });
+          // element.object.modeTracks[timelineIndex].forEach((nestedElement) {
+          //   if (element.contentOffset < nestedElement.endOffset && element.duration > nestedElement.startOffset) {
+          //     // if (timelineIndex == 0 && element.object.hashCode == 49055951)
+          //     //   print("ADDING NESTED ELEMENT: minDuration(${nestedElement.endOffset}, ${element.contentOffset + element.duration})} - MAX(${nestedElement.startOffset}, ${element.contentOffset})");
+          //     nestedElement.duration = minDuration(nestedElement.endOffset, element.contentOffset + element.duration)
+          //         - maxDuration(nestedElement.startOffset, element.contentOffset);
+          //     tracks[timelineIndex].add(nestedElement.dup());
+          //   }
+          // });
         } else tracks[timelineIndex].add(element.dup());
       });
     });
@@ -544,6 +574,7 @@ class Show {
     if (trackType != 'groups') return;
     List<List<TimelineElement>> propTracks = List.generate(propCount, (index) => []);
     var timelineIndex = 0;
+    // print("before splitting groups.... ${propCounts}");
     eachWithIndex(propCounts, (groupIndex, count) {
       List.generate(count, (propIndex) {
         modeTracks[groupIndex].forEach((element) {
@@ -553,6 +584,16 @@ class Show {
             element.localNestedModeTracks[propIndex].forEach((nestedElement) {
               propTracks[propIndex + timelineIndex].add(nestedElement.dup());
             });
+            // element.object.modeTracks[propIndex].forEach((nestedElement) {
+            //   propTracks[propIndex + timelineIndex].add(nestedElement.dup());
+            // });
+
+
+
+            // you might need to do something if there is empty space at the end of a show.....
+            // you might need to do something if there is empty space at the end of a show.....
+            // you might need to do something if there is empty space at the end of a show.....
+            // you might need to do something if there is empty space at the end of a show.....
           } else propTracks[propIndex + timelineIndex].add(element.dup());
         });
       });

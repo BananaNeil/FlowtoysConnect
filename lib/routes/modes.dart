@@ -8,6 +8,7 @@ import 'package:app/components/edit_mode_widget.dart';
 import 'package:app/components/action_button.dart';
 import 'package:app/components/edit_groups.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/navigation.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
@@ -18,6 +19,7 @@ import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:async';
+import 'dart:math';
 
 class Modes extends StatelessWidget {
   Modes({this.id});
@@ -89,6 +91,7 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   Future<void> _fetchAllLists({initialRequest}) {
+    // Pulling from cache... maybe you'll need to request too?
     setState(() { isFetchingAllLists = true; });
     return Preloader.getModeLists().then((lists) {
       isFetchingAllLists = false;
@@ -96,6 +99,16 @@ class _ModesPageState extends State<ModesPage> {
         allLists = lists;
       });
     });
+    // setState(() { isFetchingAllLists = true; });
+    // return Client.getModeLists().then((response) {
+    //   isFetchingAllLists = false;
+    //   setState(() {
+    //     if (response['success']) {
+    //       allLists = response['modeLists'] ?? [];
+    //     } else if (initialRequest != true || modeLists.isEmpty)
+    //       errorMessage = response['message'];
+    //   });
+    // });
   }
 
   Future<void> _fetchModes({initialRequest}) {
@@ -106,6 +119,9 @@ class _ModesPageState extends State<ModesPage> {
         setState(() {
           if (response['success']) {
             awaitingResponse = false;
+
+
+            // There is bug where selected modes get overridden when the fetch finishes...
 
 
             var list = response['modeList'];
@@ -129,6 +145,7 @@ class _ModesPageState extends State<ModesPage> {
     });
     if (selectedModeList.modes.isNotEmpty)
       modeLists.insert(0, selectedModeList);
+
   }
 
   @override initState() {
@@ -150,7 +167,7 @@ class _ModesPageState extends State<ModesPage> {
     return Scaffold(
       floatingActionButton: _FloatingActionButton,
       backgroundColor: AppController.darkGrey,
-      drawer: !hideNavigation && isTopLevelRoute ? AppController.drawer() : null,
+      drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
       appBar: AppBar(
         title: Text(_getTitle()), backgroundColor: Color(0xff222222),
         leading: isTopLevelRoute ? null : IconButton(
@@ -192,11 +209,9 @@ class _ModesPageState extends State<ModesPage> {
           )
         ],
       ),
-      body: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: _ModeLists,
-        ),
+      body: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: _ModeLists,
       ),
     );
   }
@@ -306,7 +321,7 @@ class _ModesPageState extends State<ModesPage> {
                             margin: EdgeInsets.only(right: 10, top: 3),
                             child: Text(list.name),
                           ),
-                          ...list.modes.sublist(0, 9).map((mode) {
+                          ...list.modes.sublist(0, min(list.modes.length, 9)).map((mode) {
                             return Container(
                               margin: EdgeInsets.only(right: 4, bottom: 3),
                               child: ModeImage(mode: mode, size: 12)
@@ -542,6 +557,7 @@ class _ModesPageState extends State<ModesPage> {
 
 
   Widget _ModeItem(mode) {
+    // print("SElected ${selectedModeIds} contaiins ${mode.id}");
     var index = selectedModeIds.indexOf(mode.id) + 1;
     var isSelected = index > 0;
     return Card(
@@ -609,6 +625,7 @@ class _ModesPageState extends State<ModesPage> {
                           children: [
                             Row(
                               children: [
+                                // This was not enough.. why is it still overflowng names?
                                 Container(child: Text(mode.name,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(

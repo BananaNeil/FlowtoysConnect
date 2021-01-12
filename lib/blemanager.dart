@@ -60,6 +60,16 @@ class BLEManager {
     });
   }
 
+  void sendPattern({int group, int page, int mode, int actives, List<double> paramValues}) {
+    List<Object> args = new List<Object>();
+    args.add(group);
+    args.add(0);//groupIsPublic = false, force private group
+    args.add(page);
+    args.add(mode);
+    args.add(actives);
+    for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
+  }
+
   void scanAndConnect() async {
     if (flutterBlue == null) 
     {
@@ -75,7 +85,33 @@ class BLEManager {
     isConnected = false;
     changeStream.add(null);
 
+    Fluttertoast.showToast(msg: "Looking for DEVICES");
+
+    // // Start scanning
+    // flutterBlue.startScan(timeout: Duration(seconds: 4));
+    //
+    // Fluttertoast.showToast(msg: "Scan Started");
+    // // Listen to scan results
+    //  flutterBlue.scanResults.listen((results) {
+    //   // do something with scan results
+    //   Fluttertoast.showToast(msg: "SCAN RES DEVICES: ${results.map((r) => r.device.name).join(", ")}");
+    //   for (ScanResult r in results) {
+    //     if (r.device.name.contains("FlowConnect")) {
+    //       //print("Found");
+    //       bridge = r.device;
+    //       break;
+    //     }
+    //   }
+    // });
+    //
+    // // Stop scanning
+    // flutterBlue.stopScan();
+
+
+
+
     await flutterBlue.connectedDevices.then((devices) {
+      Fluttertoast.showToast(msg: "DEVICES: ${devices.map((d) => d.name).join(", ")}");
       for (BluetoothDevice d in devices) {
         if (d.name.contains("FlowConnect")) {
           //print("Found");
@@ -83,23 +119,27 @@ class BLEManager {
           break;
         }
       }
+    }).catchError((error) {
+      Fluttertoast.showToast(msg: "Searching for devices failed: ${error}");
     });
+    // Fluttertoast.showToast(msg: "Done looking for devices?");
 
     if (bridge != null) {
-      print("Already connected but not assigned");
+      Fluttertoast.showToast(msg: "Already connected but not assigned");
       isConnected = false;
       isReadyToSend = txChar != null;
-       connectToBridge();
+       // connectToBridge();
       return;
     }
 
     //Not already there, start scanning
 
     if (isScanning) {
-      print("Already scanning");
+      Fluttertoast.showToast(msg: "Already scanning");
       return;
     }
 
+    // Fluttertoast.showToast(msg: "CHECK IF ON");
     flutterBlue.isOn.then((isOn) {
       if (!isOn) {
         Fluttertoast.showToast(msg: "Bluetooth is not activated.");
@@ -121,6 +161,7 @@ class BLEManager {
       subscription = flutterBlue.scanResults.listen((scanResult) {
         // do something with scan result
 
+        Fluttertoast.showToast(msg: "SCAN RES DEVICES: ${scanResult.map((r) => r.device.name).join(", ")}");
         for (var result in scanResult) {
           //print('${result.device.name} found! rssi: ${result.rssi}');
           if (result.device.name.contains("FlowConnect")) {
@@ -144,7 +185,7 @@ class BLEManager {
       return;
     }
 
-    print("Connect to bridge : " + bridge?.name);
+    Fluttertoast.showToast(msg: "Connect to bridge : " + bridge?.name);
     Fluttertoast.showToast(
           msg: 
               ("Connecting to bridge..."));
@@ -177,7 +218,7 @@ class BLEManager {
     try {
       await bridge.connect();
     } on PlatformException catch (error) {
-      print("Error connecting : " + error.toString());
+      Fluttertoast.showToast(msg: "Error connecting : " + error.toString());
     }
   }
 
@@ -222,7 +263,7 @@ class BLEManager {
 
   void sendString(String message) async {
 
-    print("Sending : " + message);
+    Fluttertoast.showToast(msg: "Sending : " + message);
    
     if (bridge == null || !isConnected) {
       Fluttertoast.showToast(msg: "Bridge is disconnected, not sending");
@@ -246,12 +287,12 @@ class BLEManager {
           ),
           withoutResponse: true);
     } on PlatformException catch (error) {
-      print("Error writing : " + error.toString()+" : "+error.code.toString());
+      Fluttertoast.showToast(msg: "Error writing : " + error.toString()+" : "+error.code.toString());
       Fluttertoast.showToast(
           msg: "Error sending Bluetooth command :\n${error.toString()}",
           textColor: Colors.deepOrange);
     } on Exception catch (error) {
-      print("Error writing (exception) : " + error.toString());
+      Fluttertoast.showToast(msg: "Error writing (exception) : " + error.toString());
       Fluttertoast.showToast(
           msg: "Error sending Bluetooth command :\n${error.toString()}",
           textColor: Colors.deepOrange);
@@ -293,14 +334,13 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
   _BLEConnectIconState(BLEManager _manager) : manager = _manager {
     connect();
     subscription = manager.changeStream.stream.listen((data) {
-      print("connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
+      // Fluttertoast.showToast(msg: "connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
       setState(() {});
     });
   }
 
   @override
   void dispose() {
-    print("DISPOSE");
     subscription.cancel();
     super.dispose();
   }
