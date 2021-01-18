@@ -1,12 +1,14 @@
-import 'package:app/models/group.dart';
+import 'package:app/helpers/duration_helper.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'dart:math';
 
 class ModeParam {
+  DateTime animationStartedAt;
   List<ModeParam> childParams;
   bool multiValueEnabled;
-  double animationSpeed;
+  double _animationSpeed;
   bool hasChildValues;
   String childType;
   String paramName;
@@ -17,16 +19,32 @@ class ModeParam {
 
   ModeParam({
     this.multiValueEnabled,
-    this.animationSpeed,
     this.hasChildValues,
     this.childParams,
     this.parentIndex,
     this.childIndex,
     this.childType,
     this.paramName,
+    animationSpeed,
     this.value,
     this.mode,
-  });
+  }) {
+    _animationSpeed = animationSpeed;
+  }
+
+  static final maxAnimationDuration = Duration(seconds: 5);
+
+  set animationSpeed(speed) {
+    _animationSpeed = speed;
+    startAnimation();
+  }
+  double get animationSpeed => _animationSpeed ?? 0.0;
+  bool get isAnimating => animationSpeed != 0;
+
+  startAnimation() {
+    if (isAnimating)
+      animationStartedAt = DateTime.now();
+  }
 
   Group get currentGroup =>
     Group.currentGroupAt(groupIndex);
@@ -148,9 +166,22 @@ class ModeParam {
     return mode.getParam(paramName, groupIndex: groupIndex, propIndex: propIndex);
   }
 
+  num get animatedValue {
+    if (isAnimating) {
+      var fullCycleDuration = maxAnimationDuration * (2 / animationSpeed);
+      var fullCycleValue = (value + durationRatio(DateTime.now().difference(animationStartedAt), fullCycleDuration)) % 2.0;
+      print("FFFFFFF: ${fullCycleDuration} VVVVVV: ${fullCycleValue}");
+
+      if (fullCycleValue > 1.0)
+        return 2 - fullCycleValue;
+      else return fullCycleValue;
+    } else return value;
+  }
+
   num getValue({indexes}) {
     indexes = (indexes ?? [])..removeWhere((index) => index == null);
-    if (!multiValueEnabled || Group.currentProps.length == 0) return value;
+    if (Group.currentProps.length == 0) return animatedValue;
+    if (!multiValueEnabled) return animatedValue;
 
     if (indexes.length == 0)
       return getMultiValueAverage();

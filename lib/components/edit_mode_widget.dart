@@ -211,15 +211,36 @@ class _EditModeWidgetState extends State<EditModeWidget> {
                     ),
                   ]
                 ),
-                Container(
-                  child: onReset == null ? null : GestureDetector(
-                    onTap: onReset,
-                    child: Transform(
-                      alignment: Alignment.center,
-                      transform: Matrix4.rotationY(pi),
-                      child: Icon(Icons.refresh),
+                Row(
+                  children: [
+                    Container(
+                      child: onReset == null ? null : GestureDetector(
+                        onTap: onReset,
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.rotationY(pi),
+                          child: Icon(Icons.refresh),
+                        )
+                      )
+                    ),
+                    Container(
+                      child: GestureDetector(
+                        onTap: onReset,
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.rotationY(pi),
+                          child: Container(
+                            height: 25,
+                            width: 25,
+                            child: ColorFiltered(
+                              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcATop),
+                              child: Image(image: AssetImage('assets/images/infinity.png')),
+                            )
+                          )
+                        )
+                      )
                     )
-                  )
+                  ]
                 )
               ]
             )

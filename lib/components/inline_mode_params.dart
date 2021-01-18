@@ -1,4 +1,5 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
+import 'package:app/models/mode_param.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
@@ -325,7 +326,10 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       var speed = mode.getAnimationSpeed(paramName);
       var param = mode.getParam(paramName);
       animators[paramName] = AnimationController(
-        duration: Duration(milliseconds: speed == 0 ? 1 : (5000 / speed.abs()).toInt()),
+        duration: Duration(
+          microseconds: speed == 0 ? 1 :
+            (ModeParam.maxAnimationDuration.inMicroseconds / speed.abs()
+        ).toInt()),
         upperBound: 1,
         lowerBound: 0,
         vsync: this,
@@ -340,6 +344,15 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         }
       });
       animators[paramName].value = paramValue;
+
+
+      // I'm pretty sure there is a bug here
+      // close the inline params at 0.75, wait a couple of seconds,
+      // open it back up, and the direction should be reversed,
+      // but it's not
+
+
+
       if (speed > 0)
         animators[paramName].forward();
       else if (speed < 0)
