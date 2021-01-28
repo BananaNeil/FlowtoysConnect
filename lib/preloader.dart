@@ -35,6 +35,9 @@ class Preloader {
 
 
   static void initDownloader() async {
+    // TODO: Implaement a macos version of the downloader?
+    if (!Platform.isAndroid && !Platform.isIOS) return; 
+
     await FlutterDownloader.initialize(
       debug: true // optional: set false to disable printing logs to console
     );

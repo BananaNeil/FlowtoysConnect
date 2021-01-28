@@ -18,6 +18,7 @@ class ModeParam {
   Mode mode;
 
   ModeParam({
+    this.animationStartedAt,
     this.multiValueEnabled,
     this.hasChildValues,
     this.childParams,
@@ -30,20 +31,62 @@ class ModeParam {
     this.mode,
   }) {
     _animationSpeed = animationSpeed;
+    if (isAnimating) animationStartedAt ??= DateTime.now();
+  }
+
+  String get uniqueIdentifier {
+    return [paramName, childType, parentIndex, childIndex].join(",");
   }
 
   static final maxAnimationDuration = Duration(seconds: 5);
 
   set animationSpeed(speed) {
+    // var wasAnimating = isAnimating;
+    var directionWas = animatedSpeedDirection;
+    value = animatedValue;
     _animationSpeed = speed;
-    startAnimation();
+    if (isAnimating) {
+      animationStartedAt = DateTime.now();
+      if (directionWas == -1) {
+        value = numberOfCycles - value;
+        animationStartedAt = animationStartedAt.subtract(animationCycleDuration * (numberOfCycles));
+      }
+    }
   }
   double get animationSpeed => _animationSpeed ?? 0.0;
-  bool get isAnimating => animationSpeed != 0;
+  bool get isAnimating {
+    return animationSpeed != 0;
+  }
 
-  startAnimation() {
-    if (isAnimating)
-      animationStartedAt = DateTime.now();
+  ModeParam get animatedParamDependency {
+    if (isAnimating) return this;
+    var animatedParam;
+
+    // Check if any immediate children are animating
+    presentChildParams.forEach((param) {
+      if (param.isAnimating) animatedParam ??= param;
+    });
+    if (animatedParam != null) return animatedParam;
+
+    // Check if any immediate children are dependent on animated params
+    presentChildParams.forEach((param) {
+      animatedParam ??= param.animatedParamDependency;
+    });
+    if (animatedParam != null) return animatedParam;
+
+    // Check if any immediate dependent siblings are animated
+    dependentSiblingParams.forEach((param) {
+      animatedParam ??= param.animatedParamDependency;
+    });
+    if (animatedParam != null) return animatedParam;
+  }
+
+  List<ModeParam> get dependentSiblingParams {
+    if (paramName == 'brightness')
+      return [getSiblingParam('saturation'), getSiblingParam('hue')];
+    else if (paramName == 'saturation')
+      return [getSiblingParam('hue')];
+    else return [];
   }
 
   Group get currentGroup =>
@@ -98,6 +141,7 @@ class ModeParam {
 
   ModeParam newChildParam(index) {
     return ModeParam.fromMap({
+        'animationSpeed': animationSpeed,
         'parentIndex': childIndex,
         'childIndex': index,
         'value': value,
@@ -147,10 +191,6 @@ class ModeParam {
     return sortedValues.first;
   }
 
-  void reverseAnimationSpeed() {
-    animationSpeed *= -1;
-  }
-
   num getMultiValueAverage() {
     if (presentChildValues.isEmpty) return 0.5;
     return presentChildValues.reduce((a, b) => a + b) / presentChildValues.length;
@@ -166,15 +206,36 @@ class ModeParam {
     return mode.getParam(paramName, groupIndex: groupIndex, propIndex: propIndex);
   }
 
+  int get animatedSpeedDirection {
+    return -1 * (fullCycleAnimationPosition - numberOfCycles).sign.toInt();
+  }
+
+  Duration get animationCycleDuration {
+    if (!isAnimating) return Duration.zero;
+    return maxAnimationDuration * (1.0 / animationSpeed);
+  }
+
+  Duration get animationStartedAgo {
+    if (!isAnimating) return Duration.zero;
+    return DateTime.now().difference(animationStartedAt);
+  }
+
+  num get fullCycleAnimationPosition {
+    if (!isAnimating) return value;
+    Duration fullCycleDuration = animationCycleDuration;
+    return  (value + durationRatio(animationStartedAgo, fullCycleDuration)) % (2 * numberOfCycles);
+  }
+
+  int get numberOfCycles {
+    return paramName == 'hue' ? 2 : 1;
+  }
+
   num get animatedValue {
     if (isAnimating) {
-      var fullCycleDuration = maxAnimationDuration * (2 / animationSpeed);
-      var fullCycleValue = (value + durationRatio(DateTime.now().difference(animationStartedAt), fullCycleDuration)) % 2.0;
-      print("FFFFFFF: ${fullCycleDuration} VVVVVV: ${fullCycleValue}");
 
-      if (fullCycleValue > 1.0)
-        return 2 - fullCycleValue;
-      else return fullCycleValue;
+      if (fullCycleAnimationPosition > numberOfCycles)
+        return 2 * numberOfCycles - fullCycleAnimationPosition;
+      else return fullCycleAnimationPosition;
     } else return value;
   }
 
@@ -194,7 +255,7 @@ class ModeParam {
 
   void setValue(newValue) {
     newValue = num.parse(newValue.toStringAsFixed(3));
-    newValue = newValue.clamp(0.0, paramName == 'hue' ? 2.0 : 1.0);
+    newValue = newValue.clamp(0.0, numberOfCycles.toDouble());
     if (multiValueEnabled) {
       childParams = presentChildParams;
       var delta = newValue - getValue();
@@ -234,8 +295,10 @@ class ModeParam {
       value: json['value'] ?? 0.0,
       childIndex: json['childIndex'],
       parentIndex: json['parentIndex'],
+      animationSpeed: json['animationSpeed'] ?? 0.0,
       hasChildValues: json['hasChildValues'] ?? false,
       multiValueEnabled: json['multiValueEnabled'] ?? false,
+      animationStartedAt: DateTime.fromMicrosecondsSinceEpoch(json['animationStartedAt'] ?? 0),
       childParams: childParams ?? [],
     );
   }
@@ -246,8 +309,10 @@ class ModeParam {
       'childType': childType,
       'childIndex': childIndex,
       'parentIndex': parentIndex,
+      'animationSpeed': animationSpeed,
       'hasChildValues': hasChildValues,
       'multiValueEnabled': multiValueEnabled,
+      'animationStartedAt': animationStartedAt?.microsecondsSinceEpoch,
       'childValues': childParams.map((param) => param.toMap()).toList(),
     };
   }

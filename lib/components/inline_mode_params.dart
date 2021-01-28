@@ -185,6 +185,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       },
       onUpdate: (value) {
         mode.getParam(showSlider).setValue(value);
+        mode.save();
       },
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -205,11 +206,9 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           initialValue =  mode.getAnimationSpeed(showSlider).abs();
         },
         onUpdate: (value) {
-          var paramValue = animators[showSlider].value;
-          if (showSlider == 'hue') paramValue *= 2;
-          mode.getParam(showSlider).setValue(paramValue);
           var speed = mode.getAnimationSpeed(showSlider);
-          mode.setAnimationSpeed(showSlider, value * (speed.sign.toInt() | 1));
+          mode.setAnimationSpeed(showSlider, value);
+          mode.save();
         },
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -322,13 +321,15 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
   }
 
   Widget DialValueIndicator(paramName, paramValue) {
+    var param = mode.getParam(paramName);
+    // THIS IS THE SAME AS: inline_mode_params.dart
+    // THIS IS THE SAME AS: edit_mode_widget.dart
     if (animators[paramName] == null){
       var speed = mode.getAnimationSpeed(paramName);
-      var param = mode.getParam(paramName);
       animators[paramName] = AnimationController(
         duration: Duration(
-          microseconds: speed == 0 ? 1 :
-            (ModeParam.maxAnimationDuration.inMicroseconds / speed.abs()
+          microseconds: speed == 0 ? 10000 :
+            (param.numberOfCycles * ModeParam.maxAnimationDuration.inMicroseconds / speed.abs()
         ).toInt()),
         upperBound: 1,
         lowerBound: 0,
@@ -336,28 +337,19 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       );
       animators[paramName].addStatusListener((status) {
         if (status == AnimationStatus.completed) {
-          param.reverseAnimationSpeed();
           animators[paramName].reverse();
         } else if (status == AnimationStatus.dismissed) {
-          param.reverseAnimationSpeed();
           animators[paramName].forward();
         }
       });
-      animators[paramName].value = paramValue;
-
-
-      // I'm pretty sure there is a bug here
-      // close the inline params at 0.75, wait a couple of seconds,
-      // open it back up, and the direction should be reversed,
-      // but it's not
-
-
-
-      if (speed > 0)
-        animators[paramName].forward();
-      else if (speed < 0)
-        animators[paramName].reverse();
     }
+    animators[paramName].value = paramValue;
+
+    if (param.isAnimating)
+      if (param.animatedSpeedDirection > 0)
+        animators[paramName].forward();
+      else
+        animators[paramName].reverse();
 
     Widget indicator = Container(
       height: 40,
@@ -377,6 +369,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       ),
     );
     var rotationOffset = adjustmentRange * pi;
+    var was;
     return AnimatedBuilder(
       animation: animators[paramName],
       builder: (ctx, w) {

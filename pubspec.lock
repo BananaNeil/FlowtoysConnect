@@ -198,9 +198,11 @@ packages:
   flutter_blue:
     dependency: "direct main"
     description:
-      name: flutter_blue
-      url: "https://pub.dartlang.org"
-    source: hosted
+      path: "."
+      ref: HEAD
+      resolved-ref: c19bb9aadde250970353d22b3cd100db8bde28ff
+      url: "git@github.com:pauldemarco/flutter_blue.git"
+    source: git
     version: "0.7.3"
   flutter_downloader:
     dependency: "direct main"

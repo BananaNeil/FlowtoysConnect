@@ -4,6 +4,7 @@ import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
+import 'dart:async';
 import 'dart:math';
 
 class RadiallySlicedModeImage extends StatelessWidget {
@@ -170,51 +171,82 @@ class ModeRow extends StatelessWidget {
   }
 }
 
-Widget ModeImageFilter({mode, hsvColor, child}) {
-  hsvColor = hsvColor ?? mode.getHSVColor();
+class ModeImageFilter extends StatefulWidget {
+  ModeImageFilter({
+    this.mode, this.hsvColor, this.child, Key key,
+  }) : super(key: key);
+
+  Mode mode;
+  Widget child;
+  HSVColor hsvColor;
 
 
-  // return ColorFiltered(
-  //   colorFilter: ColorFilter.matrix(
-  //     ColorFilterGenerator.brightnessAdjustMatrix(
-  //       initialValue: mode.initialValue('brightness'),
-  //       value: hsvColor.value,
-  //     )
-  //   ),
-  //   child: child
-  // );
+  @override
+  _ModeImageFilterState createState() => _ModeImageFilterState(
+    mode: mode, hsvColor: hsvColor, child: child
+  );
+}
+// class _ModeImageFilterState extends State<ModeImageFilter> with TickerProviderStateMixin {
+class _ModeImageFilterState extends State<ModeImageFilter> {
+  _ModeImageFilterState({
+    this.mode, this.hsvColor, this.child
+  });
 
+  Mode mode;
+  Widget child;
+  HSVColor hsvColor;
 
+  Timer refreshTimer;
 
-  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
-  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
-  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
-  // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
-  return ColorFiltered(
-    colorFilter: ColorFilter.matrix(
-      ColorFilterGenerator.brightnessAdjustMatrix(
-        initialValue: mode.initialValue('brightness'),
-        value: hsvColor.value,
-      )
-    ),
-    child: ColorFiltered(
+  @override initState() {
+    super.initState();
+  }
+
+  @override dispose() {
+    refreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  build(BuildContext context) {
+    if (mode.colorIsAnimating)
+      refreshTimer ??= Timer.periodic(Duration(milliseconds: 200), (_) => setState(() {}));
+    // We used to cache this value.... but we don't want to if it's animating.
+    // The change that I made here will also prevent it from passing in hsvColor.
+    // I need to run through the code base and find any instacnce where we passed it in
+    hsvColor = hsvColor ?? mode.getHSVColor();
+    hsvColor = mode.getHSVColor();
+
+    // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+    // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+    // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+    // THIS IS NOT WORKING IN WEB:::::::::::::::::::::::::::::::
+    return ColorFiltered(
       colorFilter: ColorFilter.matrix(
-        ColorFilterGenerator.saturationAdjustMatrix(
-          initialValue: mode.initialValue('saturation'),
-          value: hsvColor.saturation,
+        ColorFilterGenerator.brightnessAdjustMatrix(
+          initialValue: mode.initialValue('brightness'),
+          value: hsvColor.value,
         )
       ),
       child: ColorFiltered(
         colorFilter: ColorFilter.matrix(
-          ColorFilterGenerator.hueAdjustMatrix(
-            initialValue: mode.initialValue('hue'),
-            value: hsvColor.hue / 360,
+          ColorFilterGenerator.saturationAdjustMatrix(
+            initialValue: mode.initialValue('saturation'),
+            value: hsvColor.saturation,
           )
         ),
-        child: child,
+        child: ColorFiltered(
+          colorFilter: ColorFilter.matrix(
+            ColorFilterGenerator.hueAdjustMatrix(
+              initialValue: mode.initialValue('hue'),
+              value: hsvColor.hue / 360,
+            )
+          ),
+          child: child,
+        )
       )
-    )
-  );
+    );
+  }
 }
 
 List<HSVColor> hsvColorsForProps(mode, {multiprop, multigroup, groupIndex, propIndex}) {

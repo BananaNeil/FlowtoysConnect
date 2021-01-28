@@ -66,8 +66,8 @@ class _ModesPageState extends State<ModesPage> {
   ModeList get firstList => modeLists.isEmpty ? null : modeLists[0];
   bool showExpandedActionButtons = false;
 
-  List<Mode> expandedModes = [];
-  bool isExpanded(mode) => expandedModes.contains(mode);
+  List<String> expandedModeIds = [];
+  bool isExpanded(mode) => expandedModeIds.contains(mode.id);
 
   bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
 
@@ -616,8 +616,8 @@ class _ModesPageState extends State<ModesPage> {
                       GestureDetector(
                         onTap: () {
                           if (isExpanded(mode))
-                            expandedModes.remove(mode);
-                          else expandedModes.add(mode);
+                            expandedModeIds.remove(mode.id);
+                          else expandedModeIds.add(mode.id);
                           setState(() {});
                         },
                         child: Column(

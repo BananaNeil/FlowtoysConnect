@@ -24,7 +24,8 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
   String _errorMessage = '';
-  bool _submitting = false;
+  bool get _submitting => _submittedAt != null && DateTime.now().difference(_submittedAt) < Duration(seconds: 20);
+  DateTime _submittedAt;
 
   final email = TextEditingController();
   final password = TextEditingController();
@@ -73,11 +74,11 @@ class _LoginPageState extends State<LoginPage> {
   void _submitForm() {
     if (_formKey.currentState.validate()) {
       setState(() {
-        _submitting = true;
+        _submittedAt = DateTime.now();
         _errorMessage = "";
       });
       Client.authenticate(email.text, password.text).then((response) {
-        _submitting = false;
+        _submittedAt = null;
         if (response['success'])
           AppController.closeUntilPath('/modes');
         else setState(() {

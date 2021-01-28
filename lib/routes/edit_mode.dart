@@ -92,8 +92,8 @@ class _EditModePageState extends State<EditModePage> {
                   Text(
                     saveMessage ?? 'SAVE',
                     style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
                       fontSize: 16,
                     )
                   ),

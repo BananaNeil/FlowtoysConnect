@@ -45,7 +45,7 @@ class EditModeWidget extends StatefulWidget {
   );
 }
 
-class _EditModeWidgetState extends State<EditModeWidget> {
+class _EditModeWidgetState extends State<EditModeWidget> with TickerProviderStateMixin {
   _EditModeWidgetState({this.mode, this.editDetails, this.sliderHeight});
 
   List<BaseMode> baseModes = [];
@@ -62,6 +62,14 @@ class _EditModeWidgetState extends State<EditModeWidget> {
   bool get autoUpdate => widget.autoUpdate ?? true;
 
   Function get onChange => widget.onChange ?? (mode){};
+
+  @override dispose() {
+    animators.values.forEach((animator) => animator.dispose());
+    super.dispose();
+  }
+
+  Map<String, AnimationController> animators = {};
+
 
   @override initState() {
     super.initState();
@@ -184,7 +192,46 @@ class _EditModeWidgetState extends State<EditModeWidget> {
     );
   }
 
+  AnimationController animatorFor(param) {
+    AnimationController animator = animators[param.uniqueIdentifier];
+    // THIS IS THE SAME AS: inline_mode_params.dart
+    // THIS IS THE SAME AS: edit_mode_widget.dart
+    if (animator == null) {
+      var speed = mode.getAnimationSpeed(param.paramName);
+      animator = animators[param.uniqueIdentifier] = AnimationController(
+        duration: Duration(
+          microseconds: speed == 0 ? 10000 :
+            (param.numberOfCycles * ModeParam.maxAnimationDuration.inMicroseconds / speed.abs()
+        ).toInt()),
+        upperBound: 1,
+        lowerBound: 0,
+        vsync: this,
+      );
+      animator.addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          animator.reverse();
+        } else if (status == AnimationStatus.dismissed) {
+          animator.forward();
+        }
+      });
+    }
+
+    return animator;
+  }
+
   Widget ParamSlider(param, {title, children, onReset, margin}) {
+    var animatedParam = param.animatedParamDependency ?? param;
+    var animator = animatorFor(animatedParam);
+
+    if (animatedParam.isAnimating) {
+      animator.value = animatedParam.getValue();//.clamp(0.0, param.numberOfCycles;
+      if (animatedParam.animatedSpeedDirection > 0)
+        animator.forward();
+      else
+        animator.reverse();
+    }
+
+
     return Container(
       margin: margin ?? EdgeInsets.only(bottom: 10),
       child: Column(
@@ -214,6 +261,30 @@ class _EditModeWidgetState extends State<EditModeWidget> {
                 Row(
                   children: [
                     Container(
+                      child: GestureDetector(
+                        onTap: () {
+                          if (param.isAnimating)
+                            param.animationSpeed = 0.0;
+                          else param.animationSpeed = 0.5;
+                          onChange(mode);
+                          setState(() {});
+                        },
+                        child: Transform(
+                          alignment: Alignment.center,
+                          transform: Matrix4.rotationY(pi),
+                          child: Container(
+                            height: 30,
+                            width: 35,
+                            child: ColorFiltered(
+                              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcATop),
+                              child: Image(image: AssetImage('assets/images/infinity.png')),
+                            )
+                          )
+                        )
+                      )
+                    ),
+                    Container(
+                      margin: EdgeInsets.only(left: 10),
                       child: onReset == null ? null : GestureDetector(
                         onTap: onReset,
                         child: Transform(
@@ -223,43 +294,57 @@ class _EditModeWidgetState extends State<EditModeWidget> {
                         )
                       )
                     ),
-                    Container(
-                      child: GestureDetector(
-                        onTap: onReset,
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.rotationY(pi),
-                          child: Container(
-                            height: 25,
-                            width: 25,
-                            child: ColorFiltered(
-                              colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcATop),
-                              child: Image(image: AssetImage('assets/images/infinity.png')),
-                            )
-                          )
-                        )
-                      )
-                    )
                   ]
                 )
               ]
             )
           ),
-          SliderPicker(
-            min: 0,
-            max: param.paramName == 'hue' ? 2.0 : 1.0,
-            height: sliderHeight,
-            value: param.getValue().clamp(0.0, param.paramName == 'hue' ? 2.0 : 1.0),
-            colorRows: gradients(param),
-            gradientStops: gradientStops(param),
-            thumbColor: thumbColorFor(param),
-            onChanged: (value){
-              onChange(mode);
-              updateModeTimer?.cancel();
-              setState(() => param.setValue(value));
-              updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
-            },
-            child: param.paramName == 'adjust' ? adjustLines : speedLines
+          AnimatedBuilder(
+            animation: animator,
+            builder: (ctx, w) {
+              return SliderPicker(
+                min: 0.0,
+                height: sliderHeight,
+                // value: animator.value,
+                max: param.numberOfCycles.toDouble(),
+                value: param.getValue().clamp(0.0, param.numberOfCycles),
+                colorRows: gradients(param),
+                gradientStops: gradientStops(param),
+                thumbColor: thumbColorFor(param),
+                onChanged: (value){
+                  onChange(mode);
+                  updateModeTimer?.cancel();
+                  setState(() => param.setValue(value));
+                  updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+                },
+                child: param.paramName == 'adjust' ? adjustLines : speedLines
+              );
+            }
+          ),
+          !param.isAnimating ? Container() : Container(
+            margin: EdgeInsets.only(top: 5, left: 10, right: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SliderPicker(
+                  min: 0.0,
+                  max: 1.0,
+                  height: sliderHeight/2,
+                  value: param.animationSpeed,
+                  colorRows: [[Color(0xBB000000), Color(0x99000000)]],
+                  // colorRows: [],
+                  gradientStops: gradientStops(param),
+                  thumbColor: Colors.green.withOpacity(0.75),
+                  onChanged: (value){
+                    param.animationSpeed = value;
+                    onChange(mode);
+                    updateModeTimer?.cancel();
+                    updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+                  },
+                  child: speedLines
+                ),
+              ]
+            )
           ),
           Visibility(
             visible: param.multiValueEnabled,
@@ -290,7 +375,7 @@ class _EditModeWidgetState extends State<EditModeWidget> {
       ModeParam param = mode.getParam(paramName);
 
       return ParamSlider(param,
-        margin: EdgeInsets.only(bottom: 20),
+        margin: EdgeInsets.only(bottom: 10),
         title: toBeginningOfSentenceCase(paramName),
         onReset: () {
           setState(() => mode.resetParam(paramName));
@@ -372,27 +457,30 @@ class _EditModeWidgetState extends State<EditModeWidget> {
 
   List<Color> gradientColors(param, {hue, saturation, brightness}) {
     // includeMiddleValue makes the sliders seem more acurate when sub-sliders are active.
-    return {
-      'hue': hueColors,
-      'saturation': [
-          color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(0).toColor(),
-          param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation).toColor() : null,
-          color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(1).toColor(),
-        ]..removeWhere((color) => color == null),
-      'brightness': [
+    if (param.paramName == 'hue')
+      return hueColors;
+    else if (param.paramName == 'saturation') {
+      return [
+        color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(0).toColor(),
+        param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation).toColor() : null,
+        color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(1).toColor(),
+      ]..removeWhere((color) => color == null);
+    } else if (param.paramName == 'brightness')
+      return [
         Colors.black,
         param.multiValueActive == true ? color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation ?? mode.saturation.value).withValue(brightness).toColor() : null,
         color.withHue((hue ?? mode.hue.value) * 360 % 360).withSaturation(saturation ?? mode.saturation.value).toColor(),
-      ]..removeWhere((color) => color == null),
-      'speed': [
+      ]..removeWhere((color) => color == null);
+    else if (param.paramName == 'speed')
+      return [
         Color(0x44000000),
         Color(0x44FFFFFF),
-      ],
-      'density': [
+      ];
+    else if (param.paramName == 'density')
+      return [
         Color(0x44000000),
         Color(0x44FFFFFF),
-      ]
-    }[param.paramName] ?? null;
+      ];
   }
 
   bool showMultiProp(param) {
@@ -455,7 +543,6 @@ class _EditModeWidgetState extends State<EditModeWidget> {
       indexes = distinctSliderRowIndexes(param);
     else
       indexes = [{'group': param.groupIndex, 'prop': param.propIndex}];
-
 
     return indexes.map((indexes) {
       return gradientColors(param,

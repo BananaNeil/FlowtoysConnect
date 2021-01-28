@@ -1,6 +1,7 @@
 import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
 import 'package:bugsnag_crashlytics/bugsnag_crashlytics.dart';
 import 'package:package_info/package_info.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -10,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
+import 'dart:io' show Platform;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:math';
@@ -32,18 +34,25 @@ class AppController extends StatefulWidget {
     appEnv = env;
   }
 
+  static showGlobalMessage(message) {
+    if (Platform.isAndroid || Platform.isIOS)
+      Fluttertoast.showToast(msg: message);
+    else print("GLOABL MESSAGE: ${message}");
+  }
+
   static void initBugsnag() {
     PackageInfo.fromPlatform().then((PackageInfo packageInfo) {
       buildNumber = packageInfo.buildNumber;
       version = packageInfo.version;
-      BugsnagCrashlytics.instance.register(
-        androidApiKey: config['bugsnag']['android'],
-        iosApiKey: config['bugsnag']['ios'],
-        releaseStage: appEnv,
-        appVersion: version,
-      );
-      FlutterError.onError = BugsnagCrashlytics.instance.recordFlutterError;
-
+      if (Platform.isAndroid || Platform.isIOS) {
+        BugsnagCrashlytics.instance.register(
+          androidApiKey: config['bugsnag']['android'],
+          iosApiKey: config['bugsnag']['ios'],
+          releaseStage: appEnv,
+          appVersion: version,
+        );
+        FlutterError.onError = BugsnagCrashlytics.instance.recordFlutterError;
+      }
     });
   }
 

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:convert';
+import 'dart:async';
 
 class Mode {
   bool get isPersisted => id != null;
@@ -32,6 +33,8 @@ class Mode {
   num number;
   String id;
   num page;
+
+  Timer saveTimer;
 
   ModeParam saturation;
   ModeParam brightness;
@@ -85,6 +88,7 @@ class Mode {
   }
 
   void resetParam(name) {
+    modeParams[name].animationSpeed = 0.0;
     modeParams[name].multiValueEnabled = false;
     modeParams[name].value = initialValue(name);
   }
@@ -131,18 +135,21 @@ class Mode {
   }
 
   Future<Map<dynamic, dynamic>> save() {
-    var method = (id == null) ? Client.createMode : Client.updateMode;
-    return method(this).then((response) {
-      if (response['success']) {
-        this.id = response['mode'].id ?? id;
-        // assignAttributesFromCopy(response['mode']); // This isn't really necessary, but seems right for good measure?
-        response['id'] = id;
-        response['mode'] = this;
-      } else {
-        print("FAIL SAVE MODE: ${response['message']}");
-      }
-      // else Fail some how?
-      return response;
+    saveTimer?.cancel();
+    saveTimer = Timer(Duration(seconds: 1), () {
+      var method = (id == null) ? Client.createMode : Client.updateMode;
+      return method(this).then((response) {
+        if (response['success']) {
+          this.id = response['mode'].id ?? id;
+          // assignAttributesFromCopy(response['mode']); // This isn't really necessary, but seems right for good measure?
+          response['id'] = id;
+          response['mode'] = this;
+        } else {
+          print("FAIL SAVE MODE: ${response['message']}");
+        }
+        // else Fail some how?
+        return response;
+      });
     });
   }
 
@@ -186,12 +193,12 @@ class Mode {
     return getHSVColor(groupIndex: groupIndex, propIndex: propIndex).toColor();
   }
 
-  double getAnimationSpeed(param, {groupIndex, propIndex}) {
-    return getParam(param, groupIndex: groupIndex, propIndex: propIndex).animationSpeed ?? 0.0;
+  bool get colorIsAnimating {
+    return colorModeParams.values.any((param) => param.isAnimating);
   }
 
-  void reverseAnimationSpeed(param) {
-    getParam(param).reverseAnimationSpeed();
+  double getAnimationSpeed(param, {groupIndex, propIndex}) {
+    return getParam(param, groupIndex: groupIndex, propIndex: propIndex).animationSpeed ?? 0.0;
   }
 
   void setAnimationSpeed(param, speed) {
