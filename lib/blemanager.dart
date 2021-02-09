@@ -194,7 +194,10 @@ class BLEManager {
     try {
       await bridge.connect();
     } on PlatformException catch (error) {
+      if (error.message == "Peripheral not found")
+        scanAndConnect();
       print("Error connecting : " + error.toString());
+      print("Error message : " + error.message);
     }
   }
 
@@ -221,7 +224,8 @@ class BLEManager {
               isReadyToSend = true;
               networkName = bridge.name.substring(12);
 
-              await characteristic.setNotifyValue(true);
+              print("TRY TO LISTTEN TO TX!!!");
+              // await characteristic.setNotifyValue(true);
               print("LISTTENING TO TX!!!");
               characteristic.value.listen((value) {
                 print("RECEIVED FROM TX BLE: ${value}"); 
@@ -284,7 +288,7 @@ class BLEManager {
 
    void sendConfig({String networkName, String ssid, String password}) async 
    {
-      sendString("n"+ssid + "," + password);
+      sendString("n${ssid ?? networkName},${password}");
       this.ssid = ssid;
       pass = password;
       

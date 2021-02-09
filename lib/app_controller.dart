@@ -78,7 +78,9 @@ class AppController extends StatefulWidget {
       print("Connected to wifi.......");
       try {
         currentWifiNetworkName = await NetworkInfo().getWifiName();
+        print("Connected to wifi  NAME: ${currentWifiNetworkName}.......");
         currentWifiSSID = await NetworkInfo().getWifiBSSID();
+        print("Connected to wifi  NAME: ${currentWifiSSID}.......");
       } on PlatformException catch (e) {
           print(e.toString());
       }

@@ -57,7 +57,8 @@ dependencies:
   html_unescape: ^1.0.2
   flutter_blue: #^0.7.3
     # git: git@github.com:pauldemarco/flutter_blue.git
-    git: git@github.com:BananaNeil/flutter_blue.git
+    # git: git@github.com:BananaNeil/flutter_blue.git
+    path: /Users/neil/Projects/flowtoys/flutter_blue
   url_launcher: ^5.6.0
   fluttertoast: ^7.1.1
   youtube_api: #^0.8.0

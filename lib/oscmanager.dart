@@ -13,7 +13,7 @@ import 'package:multicast_dns/multicast_dns.dart';
 
 class OSCManager {
   InternetAddress remoteHost;
-  int remotePort = 8888;
+  int remotePort = 9000;
 
   String autoDetectedBridge;
 
@@ -44,10 +44,10 @@ class OSCManager {
 
     final MDnsClient client = MDnsClient();
 
-    Fluttertoast.showToast(msg: "Starting discovery, looking for " + name + " ...");
+    print("Starting discovery, looking for " + name + " ...");
     // Start the client with default options.
     await client.start();
-    Fluttertoast.showToast(msg: "Discovery started");
+    print("Discovery started");
 
     zeroconfStream.add(0);
 
@@ -68,7 +68,7 @@ class OSCManager {
         final String bundleId =
             ptr.domainName; //.substring(0, ptr.domainName.indexOf('@'));
 
-        Fluttertoast.showToast(msg: 'OSC instance found at ' + srv.toString());
+        print('OSC instance found at ' + srv.toString());
         if(srv.name.contains("flowtoysconnect"))
         {
           await for (IPAddressResourceRecord ipr
@@ -76,10 +76,9 @@ class OSCManager {
                 ResourceRecordQuery.addressIPv4(srv.target))) {
           // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
 
-          Fluttertoast.showToast(msg: "IPV4 Found : " + ipr.address.address);
+          print("IPV4 Found : " + ipr.address.address);
           autoDetectedBridge = ipr.address.address;
-          Fluttertoast.showToast(
-              msg: "Bridge detected on " + autoDetectedBridge);
+          print("Bridge detected on " + autoDetectedBridge);
           found = true;
           if(!zeroconfStream.isClosed) zeroconfStream.add(1);
           client.stop();
@@ -97,46 +96,38 @@ class OSCManager {
     client.stop();
     zeroconfStream.close();
 
-    Fluttertoast.showToast(msg: 'Discovery Done.');
+    print('Discovery Done.');
   }
 
   void loadPreferences() async {
     if (prefs == null) prefs = await SharedPreferences.getInstance();
     try {
-      remoteHost =
-          InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
+      remoteHost = InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
     } on ArgumentError catch (error) {
-      Fluttertoast.showToast(msg: "Error getting IP from preferences : " + error.message);
+      print("Error getting IP from preferences : " + error.message);
     }
 
-    Fluttertoast.showToast(
-        msg: "Now sending OSC to " +
-            remoteHost?.address +
-            ":" +
-            remotePort.toString());
+    print("Now sending OSC to " + remoteHost?.address + ":" + remotePort.toString());
   }
 
   void setRemoteHost(String value) {
     prefs.setString("oscRemoteHost", value);
     try {
-      remoteHost =
-          InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
+      remoteHost = InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.1.43");
     } on ArgumentError catch (error) {
-      Fluttertoast.showToast(msg: "Error getting IP from preferences : " + error.message);
+      print("Error getting IP from preferences : " + error.message);
     }
 
-    Fluttertoast.showToast(
-        msg: "Now sending OSC to " +
-            remoteHost?.address +
-            ":" +
-            remotePort.toString());
+    print("Now sending OSC to " + remoteHost?.address + ":" + remotePort.toString());
   }
 
 
   //OSC Messages
 
   void sendMessage(OSCMessage m) {
-    Fluttertoast.showToast(msg: "Send message : " + m.address + " to "+remoteHost?.address);
+    remotePort = 9000;
+    remoteHost = InternetAddress("192.168.1.43");
+    print("Send message : " + m.address + " to ${remoteHost?.address}:${remotePort}");
     socket.send(m.toBytes(), remoteHost, remotePort);
   }
 
@@ -156,8 +147,8 @@ class OSCManager {
     List<Object> args = new List<Object>();
     args.add(group);
     args.add(0);//groupIsPublic = false, force private group
-    args.add(page);
-    args.add(mode);
+    args.add(page - 1);
+    args.add(mode - 1);
     args.add(actives);
     for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
     OSCMessage m = new OSCMessage("/pattern", arguments: args);
