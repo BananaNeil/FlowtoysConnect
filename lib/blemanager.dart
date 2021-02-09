@@ -25,7 +25,7 @@ class BLEManager {
   StreamController<void> changeStream;
 
   BridgeMode bridgeMode;
-  String deviceName = "";
+  String networkName = "";
   String ssid = "";
   String pass = "";
 
@@ -45,9 +45,11 @@ class BLEManager {
 
 
   void initBLE() async {
+    print("CHECK IF AVAILABLE?"); 
     FlutterBlue.instance.isAvailable.then((value) {
+      print("IS AVAILABLE? ${value}"); 
       if (!value) {
-        Fluttertoast.showToast(msg: "Bluetooth device not available on this device");
+        print("Bluetooth device not available on this device");
         return;
       }
 
@@ -57,7 +59,14 @@ class BLEManager {
         isScanning = result;
         changeStream?.add(null);
       });
+
+      scanAndConnect();
     });
+  }
+
+  void setSyncing(bool val) {
+    if (val) sendString("s0");
+    else sendString("S");
   }
 
   void sendPattern({int group, int page, int mode, int actives, List<double> paramValues}) {
@@ -67,65 +76,33 @@ class BLEManager {
     args.add(page);
     args.add(mode);
     args.add(actives);
-    for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
+    var values = paramValues.map((value) => (value*255).round());
+    sendString("p${group},${page - 1},${mode - 1},${actives+1},${values.join(',')}");
   }
 
   void scanAndConnect() async {
-    if (flutterBlue == null) 
-    {
-      Fluttertoast.showToast(msg: "BLE not supported");
-
-      return;
-    }
-
+    if (flutterBlue == null)
+      return print("BLE not supported");
     sleep(Duration(milliseconds: 100));
 
     bridge = null;
-
     isConnected = false;
     changeStream.add(null);
 
-    Fluttertoast.showToast(msg: "Looking for DEVICES");
-
-    // // Start scanning
-    // flutterBlue.startScan(timeout: Duration(seconds: 4));
-    //
-    // Fluttertoast.showToast(msg: "Scan Started");
-    // // Listen to scan results
-    //  flutterBlue.scanResults.listen((results) {
-    //   // do something with scan results
-    //   Fluttertoast.showToast(msg: "SCAN RES DEVICES: ${results.map((r) => r.device.name).join(", ")}");
-    //   for (ScanResult r in results) {
-    //     if (r.device.name.contains("FlowConnect")) {
-    //       //print("Found");
-    //       bridge = r.device;
-    //       break;
-    //     }
-    //   }
-    // });
-    //
-    // // Stop scanning
-    // flutterBlue.stopScan();
-
-
-
-
     await flutterBlue.connectedDevices.then((devices) {
-      Fluttertoast.showToast(msg: "DEVICES: ${devices.map((d) => d.name).join(", ")}");
+      print("DEVICES: ${devices.map((d) => d.name).join(", ")}");
       for (BluetoothDevice d in devices) {
         if (d.name.contains("FlowConnect")) {
-          //print("Found");
           bridge = d;
           break;
         }
       }
     }).catchError((error) {
-      Fluttertoast.showToast(msg: "Searching for devices failed: ${error}");
+      print("Searching for devices failed: ${error}");
     });
-    // Fluttertoast.showToast(msg: "Done looking for devices?");
 
     if (bridge != null) {
-      Fluttertoast.showToast(msg: "Already connected but not assigned");
+      print("Already connected but not assigned (${txChar != null})");
       isConnected = false;
       isReadyToSend = txChar != null;
        // connectToBridge();
@@ -135,33 +112,34 @@ class BLEManager {
     //Not already there, start scanning
 
     if (isScanning) {
-      Fluttertoast.showToast(msg: "Already scanning");
+      print("Already scanning");
       return;
     }
 
-    // Fluttertoast.showToast(msg: "CHECK IF ON");
+    // print("CHECK IF ON");
     flutterBlue.isOn.then((isOn) {
       if (!isOn) {
-        Fluttertoast.showToast(msg: "Bluetooth is not activated.");
+        print("Bluetooth is not activated.");
         return;
       }
-      Fluttertoast.showToast(msg: "Scanning devices...");
+      print("Scanning devices...");
       
+      print("SETTING BRIDGE TO NULL");
       bridge = null;
       isConnected = false;
       isConnecting = true;
       isReadyToSend = false;
       changeStream.add(null);
+      flutterBlue.stopScan();
 
       flutterBlue
           .startScan(timeout: Duration(seconds: 5))
           .whenComplete(connectToBridge);
 
-      StreamSubscription<List<ScanResult>> subscription;
+      subscription?.cancel();
       subscription = flutterBlue.scanResults.listen((scanResult) {
         // do something with scan result
 
-        Fluttertoast.showToast(msg: "SCAN RES DEVICES: ${scanResult.map((r) => r.device.name).join(", ")}");
         for (var result in scanResult) {
           //print('${result.device.name} found! rssi: ${result.rssi}');
           if (result.device.name.contains("FlowConnect")) {
@@ -174,26 +152,27 @@ class BLEManager {
     });
   }
 
+      StreamSubscription<List<ScanResult>> subscription;
+  var stateSubscription;
   void connectToBridge() async {
 
     if (bridge == null) {
       //print("Bridge not found");
-      Fluttertoast.showToast(msg: "No FlowConnect bridge found.");
+      print("No FlowConnect bridge found.");
       isConnected = false;
       isConnecting = false;
       changeStream.add(null);
       return;
     }
 
-    Fluttertoast.showToast(msg: "Connect to bridge : " + bridge?.name);
-    Fluttertoast.showToast(
-          msg: 
-              ("Connecting to bridge..."));
+    print("Connect to bridge : " + bridge?.name);
+    print(("Connecting to bridge..."));
 
 
-    var stateSubscription = bridge.state.listen((state) {
-      // do something with scan result
-      //print("State changed : " + state.toString());
+    stateSubscription?.cancel();
+    stateSubscription = bridge.state.listen((state) {
+      // This is getting called a ton of times
+      // 
       
       bool newConnected = state == BluetoothDeviceState.connected;
       isConnected = newConnected;
@@ -202,10 +181,7 @@ class BLEManager {
 
       if(isConnected || newConnected)
       {
-        Fluttertoast.showToast(
-          msg: 
-              (isConnected ? "Connected to " : "Disconnected from ") +
-              bridge.name+".");
+        print((isConnected ? "Connected to " : "Disconnected from ") + bridge.name+".");
       }
 
       if (isConnected) {
@@ -218,37 +194,43 @@ class BLEManager {
     try {
       await bridge.connect();
     } on PlatformException catch (error) {
-      Fluttertoast.showToast(msg: "Error connecting : " + error.toString());
+      print("Error connecting : " + error.toString());
     }
   }
 
   void getRXTXCharacteristics() async {
-    //print("Discover services");
+    print("Discover services");
     List<BluetoothService> services = await bridge.discoverServices();
     for (BluetoothService service in services) {
-      //print("Service : "+service.uuid.toString()+" <> "+uartUUID);
       if (service.uuid.toString() == uartUUID) {
-        //print("Service found");
         uartService = service;
 
-        for (BluetoothCharacteristic c in service.characteristics) {
-          //print("Characteristic : "+c.uuid.toString());
-          if (c.uuid.toString() == txUUID) {
-            //print("Characteristic found");
-            txChar = c;
-            
-            if(bridge != null)
-            {
-              final mtu = await bridge.mtu.first;
-              await bridge.requestMtu(48);
+        for (BluetoothCharacteristic characteristic in service.characteristics) {
+          print("Characteristic : "+characteristic.uuid.toString());
 
+          if (characteristic.uuid.toString() == txUUID) {
+            txChar = characteristic;
+            
+            if(bridge != null) {
+              final mtu = await bridge.mtu.first;
+              try { await bridge.requestMtu(48); } catch (e) {
+                // THis was failing on iOS and Mac
+              }
+
+              print("SETTING IS READY TO TRUE: (MTU: ${mtu})");
               isReadyToSend = true;
-              deviceName = bridge.name.substring(12);
+              networkName = bridge.name.substring(12);
+
+              await characteristic.setNotifyValue(true);
+              print("LISTTENING TO TX!!!");
+              characteristic.value.listen((value) {
+                print("RECEIVED FROM TX BLE: ${value}"); 
+              });
               
               changeStream.add(null);
             }
       
-            return;
+            // return;
           }
         }
         //print("Characteristic not found");
@@ -263,16 +245,18 @@ class BLEManager {
 
   void sendString(String message) async {
 
-    Fluttertoast.showToast(msg: "Sending : " + message);
+    print("Sending : " + message);
    
-    if (bridge == null || !isConnected) {
-      Fluttertoast.showToast(msg: "Bridge is disconnected, not sending");
+    if (bridge == null)
+      return scanAndConnect();
+    else if (!isConnected) {
+      print("Bridge is disconnected, reconnecting (brige is null? ${bridge == null })");
+      await connectToBridge();
       return;
     }
 
     if (txChar == null || !isReadyToSend) {
-      Fluttertoast.showToast(
-          msg: "Bridge is broken (tx characteristic not found), not sending");
+      print("Bridge is broken (tx characteristic not found), not sending (isReady: ${isReadyToSend})");
       return;
     }
 
@@ -287,35 +271,34 @@ class BLEManager {
           ),
           withoutResponse: true);
     } on PlatformException catch (error) {
-      Fluttertoast.showToast(msg: "Error writing : " + error.toString()+" : "+error.code.toString());
-      Fluttertoast.showToast(
-          msg: "Error sending Bluetooth command :\n${error.toString()}",
-          textColor: Colors.deepOrange);
+      print("Error writing : " + error.toString()+" : "+error.code.toString());
+      print("Error sending Bluetooth command :\n${error.toString()}");
     } on Exception catch (error) {
-      Fluttertoast.showToast(msg: "Error writing (exception) : " + error.toString());
-      Fluttertoast.showToast(
-          msg: "Error sending Bluetooth command :\n${error.toString()}",
-          textColor: Colors.deepOrange);
+      print("Error writing (exception) : " + error.toString());
+      print("Error sending Bluetooth command :\n${error.toString()}");
     }
 
     isSending = false;
   }
 
 
-   void sendConfig(String _deviceName, BridgeMode mode,String _ssid, String _pass) async 
+   void sendConfig({String networkName, String ssid, String password}) async 
    {
-      sendString("n"+ssid + "," + pass);
-      ssid = _ssid;
-      pass = _pass;
+      sendString("n"+ssid + "," + password);
+      this.ssid = ssid;
+      pass = password;
       
       sleep(Duration(milliseconds: 40)); //safe between 2 calls
-      if(_deviceName.isEmpty) deviceName = "*";
-      sendString("g" + _deviceName + "," + BridgeMode.values.indexOf(mode).toString());
+      if(networkName.isEmpty) this.networkName = "*";
+
+      // 0 for WiFi, 1 for BLE, 2 for Both:
+      sendString("g" + networkName + ",0");
       
-      if(deviceName != _deviceName)
+      if(this.networkName != networkName)
       {
-        deviceName = _deviceName;
+        this.networkName = networkName;
         if(bridge != null) bridge.disconnect();
+        print("Start scanning after 6 seconds:");
         Future.delayed(Duration(seconds:6),scanAndConnect);
       }
     }  
@@ -332,9 +315,9 @@ class BLEConnectIcon extends StatefulWidget {
 
 class _BLEConnectIconState extends State<BLEConnectIcon> {
   _BLEConnectIconState(BLEManager _manager) : manager = _manager {
-    connect();
+    // connect();
     subscription = manager.changeStream.stream.listen((data) {
-      // Fluttertoast.showToast(msg: "connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
+      // print("connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
       setState(() {});
     });
   }
@@ -349,6 +332,7 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
   BLEManager manager;
 
   void connect() {
+    print("CONNECT....");
     manager.scanAndConnect();
     
   }
@@ -406,7 +390,7 @@ class BLEWifiSettingsDialogState extends State<BLEWifiSettingsDialog> {
                         "Setup Device",
                         style: TextStyle(color: Color(0xffcccccc)),
                       )),
-                  InputTF(controller: nameController, labelText: "Name",initialValue:widget.manager.deviceName),
+                  InputTF(controller: nameController, labelText: "Name",initialValue:widget.manager.networkName),
                   Padding(
                     padding: EdgeInsets.only(top: 12),
                     child: Row(
@@ -454,8 +438,11 @@ class BLEWifiSettingsDialogState extends State<BLEWifiSettingsDialog> {
                         child: RaisedButton(
                           child: Text("Save"),
                           onPressed: () {
-                            widget.manager.sendConfig(nameController.text, widget.manager.bridgeMode,
-                                ssidController.text, passController.text);
+                            widget.manager.sendConfig(
+                              networkName: nameController.text,
+                              password: passController.text,
+                              ssid: ssidController.text,
+                            );
                             Navigator.of(context).pop();
                           },
                         ))

@@ -1,8 +1,10 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:app/components/navigation.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/blemanager.dart';
 
 class NeilsResearch extends StatelessWidget {
   @override
@@ -20,6 +22,7 @@ class NeilsResearchPage extends StatefulWidget {
 }
 
 class _NeilsResearchPageState extends State<NeilsResearchPage> {
+  BLEManager ble;
   @override
   Widget build(BuildContext context) {
     return Scaffold(

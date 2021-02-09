@@ -173,7 +173,8 @@ class Mode {
     };
   }
 
-  bool get isMultivalue => colorModeParams.values.any((param) => !!param.multiValueActive);
+  bool get isMultivalue => modeParams.values.any((param) => !!param.multiValueActive);
+  bool get colorIsMultivalue => colorModeParams.values.any((param) => !!param.multiValueActive);
 
   void recursivelySetMultiValue() {
     modeParams.values.forEach((param) => param.recursivelySetMultiValue());
@@ -191,6 +192,10 @@ class Mode {
 
   Color getColor({groupIndex, propIndex}) {
     return getHSVColor(groupIndex: groupIndex, propIndex: propIndex).toColor();
+  }
+
+  bool get isAnimating {
+    return modeParams.values.any((param) => param.isAnimating);
   }
 
   bool get colorIsAnimating {

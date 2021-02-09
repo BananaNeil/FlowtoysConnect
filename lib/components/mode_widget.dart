@@ -15,13 +15,13 @@ class RadiallySlicedModeImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    bool isMultivalue = mode.isMultivalue;
-    int sliceCount = isMultivalue ? Group.currentProps.length : 1;
+    bool colorIsMultivalue = mode.colorIsMultivalue;
+    int sliceCount = colorIsMultivalue ? Group.currentProps.length : 1;
     return CircleAvatar(
       radius: size.toDouble(),
       backgroundColor: Colors.black,
       child: Stack(
-        children: mapWithIndex(hsvColorsForProps(mode, multiprop: isMultivalue), (index, color) {
+        children: mapWithIndex(hsvColorsForProps(mode, multiprop: colorIsMultivalue), (index, color) {
           return ClipPath(
             clipper: PieClipper(
               ratio: 1 / sliceCount,
@@ -30,6 +30,7 @@ class RadiallySlicedModeImage extends StatelessWidget {
             child: ModeImageFilter(
               mode: mode,
               hsvColor: color,
+              key: Key(mode.id),
               child: CircleAvatar(
                 radius: size - (size > 20 ? 5.0 : size * 0.2),
                 backgroundColor: Colors.transparent,
@@ -67,11 +68,12 @@ class BaseModeImage extends StatelessWidget {
 class ModeImage extends StatelessWidget {
   ModeImage({this.mode, this.size});
 
-  Mode mode;
+  final Mode mode;
   num size;
 
   @override
   Widget build(BuildContext context) {
+    this.size ??= 20;
     return Container(
       // This is a shadow, but it looks pretty bad:
       //
@@ -90,6 +92,7 @@ class ModeImage extends StatelessWidget {
         backgroundColor: Colors.black,
         child: ModeImageFilter(
           mode: mode,
+          key: Key(mode.id),
           child: CircleAvatar(
             radius: size - (size > 20 ? 5.0 : size * 0.2),
             backgroundColor: Colors.transparent,
@@ -100,6 +103,25 @@ class ModeImage extends StatelessWidget {
     );
   }
 }
+// class ModeImageState extends StatefulWidget {
+//   ModeImageState({Key key, this.mode, this.size}) : super(key: key);
+//
+//   final Mode mode;
+//   final num size;
+//
+//   @override
+//   __ModeImage createState() {return __ModeImage(mode: mode, size: size); }
+// }
+// class __ModeImage extends State<ModeImageState> {
+//   __ModeImage({this.mode, this.size});
+//
+//   Mode mode;
+//   num size;
+//
+//   @override
+//   Widget build(BuildContext context) {
+//   }
+// }
 
 class ModeColumn extends StatelessWidget {
   ModeColumn({
@@ -171,8 +193,26 @@ class ModeRow extends StatelessWidget {
   }
 }
 
-class ModeImageFilter extends StatefulWidget {
+class ModeImageFilter extends StatelessWidget {
   ModeImageFilter({
+    this.mode, this.hsvColor, this.child, Key key,
+  }) : super(key: key);
+
+  final Mode mode;
+  Widget child;
+  HSVColor hsvColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ModeImageFilterState(mode: mode,
+      hsvColor: hsvColor,
+      child: child
+    );
+  }
+}
+
+class ModeImageFilterState extends StatefulWidget {
+  ModeImageFilterState({
     this.mode, this.hsvColor, this.child, Key key,
   }) : super(key: key);
 
@@ -187,7 +227,7 @@ class ModeImageFilter extends StatefulWidget {
   );
 }
 // class _ModeImageFilterState extends State<ModeImageFilter> with TickerProviderStateMixin {
-class _ModeImageFilterState extends State<ModeImageFilter> {
+class _ModeImageFilterState extends State<ModeImageFilterState> {
   _ModeImageFilterState({
     this.mode, this.hsvColor, this.child
   });
@@ -267,8 +307,7 @@ List<HSVColor> hsvColorsForProps(mode, {multiprop, multigroup, groupIndex, propI
 
 
 List<Color> colorsForProps(mode) {
-  bool isMultivalue = mode.isMultivalue;
-  return hsvColorsForProps(mode, multiprop: mode.isMultivalue).map((hsvColor) {
+  return hsvColorsForProps(mode, multiprop: mode.colorIsMultivalue).map((hsvColor) {
     return hsvColor.toColor();
   }).toList();
 }
@@ -287,7 +326,7 @@ List<Widget> widgetsForProps(mode) {
 }
 
 List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, multiprop, multigroup}) {
-  // var colors = hsvColorsForProps(mode, multiprop: mode.isMultivalue);
+  // var colors = hsvColorsForProps(mode, multiprop: mode.colorIsMultivalue);
   var colors = hsvColorsForProps(mode, groupIndex: groupIndex, propIndex: propIndex, multiprop: multiprop);
   vertical = vertical ?? false;
   return colors.map((color) {
@@ -298,6 +337,7 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
           child: Container(
             height: (mode.hasTrailImage ? 1 : 4) * (size ?? 500) / (vertical ? colors.length : 1),
             child: ModeImageFilter(
+              key: Key(mode.id),
               hsvColor: color,
               mode: mode,
               child: Container(
@@ -342,6 +382,7 @@ List<Widget> imagesForProps(mode, {size, fit, vertical, groupIndex, propIndex, m
                       heightFactor: (mode.hasTrailImage ? 1 : 4),
                       alignment: Alignment(xAlignment, 1),
                       child: ModeImageFilter(
+                        key: Key(mode.id),
                         hsvColor: color,
                         mode: mode,
                         child: Container(

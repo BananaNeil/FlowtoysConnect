@@ -31,6 +31,11 @@ class OSCManager {
     autoDetectedBridge = "";
   }
 
+  void setSyncing(bool val) {
+    if (val) sendSync(0);
+    else sendSimpleMessage("/stopSync");
+  }
+
   void discoverServices() async {
    
     zeroconfStream = new StreamController<int>();

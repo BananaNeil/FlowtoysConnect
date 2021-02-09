@@ -14,6 +14,7 @@ void main({String env}) async {
 
   AppController.setEnv(env).then((_) {
     AppController.initSiriSuggestions();
+    AppController.initConnectionManagers();
     AppController.initBugsnag();
     Preloader.ensureSongDir();
     Preloader.downloadData();

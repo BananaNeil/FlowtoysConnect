@@ -6,6 +6,7 @@ import 'package:app/components/inline_mode_params.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_mode_widget.dart';
 import 'package:app/components/action_button.dart';
+import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/edit_groups.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/components/navigation.dart';
@@ -42,11 +43,55 @@ class ModesPage extends StatefulWidget {
   _ModesPageState createState() => _ModesPageState(id);
 }
 
-class _ModesPageState extends State<ModesPage> {
+class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
   _ModesPageState(this.id);
-  bool get hideNavigation => widget.hideNavigation ?? false;
 
   final String id;
+
+  bool get hideNavigation => widget.hideNavigation ?? false;
+  bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
+
+  @override initState() {
+    isTopLevelRoute = !Navigator.canPop(context);
+    requestFromCache().then((_) => _fetchModes(initialRequest: true));
+    super.initState();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
+    canChangeCurrentList ??= AppController.getParams(context)['canChangeCurrentList'] ?? false;
+    isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
+    selectedModes ??= AppController.getParams(context)['selectedModes'] ?? [];
+    selectAction ??= AppController.getParams(context)['selectAction'];
+    returnList ??= AppController.getParams(context)['returnList'];
+
+    return Scaffold(
+      floatingActionButton: _FloatingActionButton,
+      backgroundColor: AppController.darkGrey,
+      drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
+      appBar: AppBar(
+        title: Text(_getTitle()), backgroundColor: Color(0xff222222),
+        leading: isTopLevelRoute ? null : IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context, returnList == true ? firstList : null);
+          },
+        ),
+        actions: _EditGroupButton(),
+      ),
+      body: Stack(
+        children:[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: _ModeLists,
+          ),
+          _NowPlayingBar,
+        ]
+      )
+    );
+  }
+
 
   bool returnList;
   bool isSelecting;
@@ -69,7 +114,6 @@ class _ModesPageState extends State<ModesPage> {
   List<String> expandedModeIds = [];
   bool isExpanded(mode) => expandedModeIds.contains(mode.id);
 
-  bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
 
 
   List<String> get selectedModeIds => selectedModes.map((mode) => mode.id).toList();
@@ -148,72 +192,173 @@ class _ModesPageState extends State<ModesPage> {
 
   }
 
-  @override initState() {
-    isTopLevelRoute = !Navigator.canPop(context);
-    requestFromCache().then((_) => _fetchModes(initialRequest: true));
-    super.initState();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
-    canChangeCurrentList ??= AppController.getParams(context)['canChangeCurrentList'] ?? false;
-    isSelecting ??= AppController.getParams(context)['isSelecting'] ?? false;
-    selectedModes ??= AppController.getParams(context)['selectedModes'] ?? [];
-    selectAction ??= AppController.getParams(context)['selectAction'];
-    returnList ??= AppController.getParams(context)['returnList'];
-    var propCount = Group.currentQuickGroup.props.length;
-
-    return Scaffold(
-      floatingActionButton: _FloatingActionButton,
-      backgroundColor: AppController.darkGrey,
-      drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
-      appBar: AppBar(
-        title: Text(_getTitle()), backgroundColor: Color(0xff222222),
-        leading: isTopLevelRoute ? null : IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pop(context, returnList == true ? firstList : null);
-          },
+  bool isPlaying = false;
+  Widget get _NowPlayingBar {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: 65,
+        decoration: BoxDecoration(
+          color: Color(0xEa000000),
         ),
-        actions: hideNavigation ? [] : <Widget>[
-          GestureDetector(
-            onTap: () {
-              showDialog(context: context,
-                builder: (context) => Dialog(
-                  child: _editGroupsWidget(),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+        child: Column(
+          children: [
+            _NowPlayingProgressBar,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  flex: 10,
+                  child: Container(
+                    width: double.infinity,
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: Prop.propsByMode.entries.map<Widget>((entry) {
+                        var mode = entry.key;
+                        var props = entry.value;
+                        return Container(
+                          margin: EdgeInsets.symmetric(horizontal: 10),
+                          // width: 70,
+                          child: Wrap(
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Container(
+                                margin: EdgeInsets.symmetric(horizontal: 3),
+                                child: ModeImage(mode: mode, size: 15),
+                              ),
+                              Text("X${props.length}")
+                            ]
+                          )
+                        );
+                      }).toList()
+                    ),
                   ),
-                  elevation: 0,
-                  backgroundColor: Colors.transparent,
-                )
-              ).then((_) { setState(() {}); });
-            },
-            child: Container(
-              padding: EdgeInsets.all(15),
-              child: Icon(
-                  propCount <= 0 ? Icons.warning : {
-                    1: Icons.filter_1,
-                    2: Icons.filter_2,
-                    3: Icons.filter_3,
-                    4: Icons.filter_4,
-                    5: Icons.filter_5,
-                    6: Icons.filter_6,
-                    7: Icons.filter_7,
-                    8: Icons.filter_8,
-									}[propCount] ?? Icons.filter_9_plus,
-                  size: 24,
-              ),
+                ),
+                Flexible(
+                  flex: 8,
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: EdgeInsets.all(3),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.skip_previous, size: 38),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  isPlaying = !isPlaying;
+                                });
+                              },
+                              child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 38),
+                            ),
+                            Icon(Icons.skip_next, size: 38),
+                          ]
+                        )
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                        ]
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Expanded(child:
+                            SliderPicker(
+                              max: Duration(minutes: 1).inMilliseconds.toDouble(),
+                              value: cycleDuration.inMilliseconds.toDouble(),
+                              thumbColor: Colors.black,
+                              height: 15,
+                              min: 0.0,
+                              onChanged: (value) {
+                                cycleDuration = Duration(milliseconds: value.toInt());
+                                setState((){});
+                              },
+                            )
+                          ),
+                          Container(
+                            margin: EdgeInsets.only(left: 5),
+                            child: Text(
+                              twoDigitString(cycleDuration),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          )
+                        ]
+                      )
+                    ]
+                  )
+                ),
+                Flexible(
+                  flex: 10,
+                  child: Container(
+                    width: double.infinity,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      // visible: !isShowingMultipleLists,
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() { showExpandedActionButtons = true; });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 25, vertical: 10),
+                          child: Icon(
+                            Icons.more_horiz,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    )
+                  ),
+                ),
+              ]
             ),
-          )
-        ],
-      ),
-      body: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: _ModeLists,
+          ]
+        )
       ),
     );
+  }
+
+  Duration cycleProgress = Duration.zero;
+  Duration cycleDuration = Duration(seconds: 8);
+  AnimationController isPlayingAnimation;
+  Widget get _NowPlayingProgressBar {
+    cycleProgress ??= Duration.zero;
+    isPlayingAnimation ??= AnimationController(
+      duration: cycleDuration,
+      upperBound: 1,
+      lowerBound: 0,
+      vsync: this,
+    );
+    return AnimatedBuilder(
+      animation: isPlayingAnimation,
+      builder: (ctx, w) {
+        return Container(
+          height: 5,
+          width: 400,
+          child: Row(
+            children: [
+              Flexible(
+                  flex: cycleProgress.inMicroseconds,
+                  child: Container(
+                decoration: BoxDecoration(
+                    color: Colors.blue
+                )
+                  )
+              ),
+              Flexible(
+                flex: (cycleDuration - cycleProgress).inMicroseconds,
+                child: Container(
+                  decoration: BoxDecoration(
+                      color: Colors.red
+                  )
+                )
+              ),
+            ]
+          )
+        );
+      }
+    ); 
   }
 
   List<Widget> get _ModeLists {
@@ -255,6 +400,44 @@ class _ModesPageState extends State<ModesPage> {
         ),
       ),
     );
+  }
+
+  List<Widget> _EditGroupButton() {
+    if (hideNavigation) return [];
+    var propCount = Group.currentQuickGroup.props.length;
+
+    return <Widget>[
+      GestureDetector(
+        onTap: () {
+          showDialog(context: context,
+            builder: (context) => Dialog(
+              child: _editGroupsWidget(),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(50),
+              ),
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+            )
+          ).then((_) { setState(() {}); });
+        },
+        child: Container(
+          padding: EdgeInsets.all(15),
+          child: Icon(
+              propCount <= 0 ? Icons.warning : {
+                1: Icons.filter_1,
+                2: Icons.filter_2,
+                3: Icons.filter_3,
+                4: Icons.filter_4,
+                5: Icons.filter_5,
+                6: Icons.filter_6,
+                7: Icons.filter_7,
+                8: Icons.filter_8,
+              }[propCount] ?? Icons.filter_9_plus,
+              size: 24,
+          ),
+        ),
+      )
+    ]; 
   }
 
   bool addingMore = false;
@@ -412,16 +595,6 @@ class _ModesPageState extends State<ModesPage> {
           ),
         ]
       );
-    else return ActionButton(
-      // visible: !isShowingMultipleLists,
-      child: Icon(
-        Icons.more_horiz,
-        color: Colors.white,
-      ),
-      onPressed: () {
-        setState(() { showExpandedActionButtons = true; });
-      },
-    );
   }
 
   Widget _SelectionButtons() {
@@ -577,7 +750,7 @@ class _ModesPageState extends State<ModesPage> {
                   });
                 else {
                   if (isAdjustingInlineParam) return;
-                  Group.currentProps.forEach((prop) => prop.currentMode = mode );
+                  Group.setCurrentProps(mode);
                   setState(() {});
                 }
               },
@@ -749,6 +922,7 @@ class _ModesPageState extends State<ModesPage> {
       },
       onTouchUp: () {
         _adjustingInlineParamTimer = Timer(Duration(seconds: 1), () => isAdjustingInlineParam = false);
+        Prop.propsByModeId[mode.id].forEach((prop) => prop.currentMode = mode );
         setState(() {});
       },
       mode: mode,

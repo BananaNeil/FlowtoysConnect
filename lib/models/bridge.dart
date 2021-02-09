@@ -6,20 +6,36 @@ import 'dart:math';
 class Bridge {
 
   static String currentChannel = 'bluetooth';
+  static bool _isSyncing = false;
 
-  // List<bool> paramsEnabled = [false, false, false, false, false];
-  // List<double> paramValues = [.5, 1, 1, .5, .5];
+  static void toggleSyncing() {
+    isSyncing = !isSyncing;
+  }
 
-  static void setGroup({groupId, page, position, params}) {
-    var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
+  static get isSyncing => _isSyncing;
+  static set isSyncing(val) {
+    _isSyncing = val;
+    channel.setSyncing(val); //infinite
+  }
+
+  static void setGroup({groupId, page, number, params}) {
+    var paramNames = ["hue", "saturation", "brightness", "speed", "density", "adjust"];
     print("SET GROUP: ${paramNames.map<double>((name) => params[name]).toList()}");
     channel.sendPattern(
       actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1))),
-      paramValues: paramNames.map<double>((name) => params[name]).toList(),
-      group: groupId,
-      mode: position,
+      paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll([0.0, 0.0, 0.0]),
+      group: groupId ?? 0, // Fix this .....
+      mode: number,
       page: page,
     );
+  }
+
+  static void connectToCurrentWifiNetwork() {
+     AppController.bleManager.sendConfig(
+       networkName: AppController.currentWifiNetworkName,
+       password: AppController.currentWifiPassword,
+       ssid: AppController.currentWifiSSID,
+     );
   }
 
   static BLEManager _bleManager;
@@ -28,8 +44,11 @@ class Bridge {
   static OSCManager _oscManager;
   static OSCManager get oscManager => _oscManager ??= OSCManager();
 
+  static get isBle => currentChannel == 'bluetooth'; 
+  static get isWifi => currentChannel == 'wifi';
+
   static dynamic get channel {
-    return currentChannel == 'bluetooth' ? 
+    return isBle ? 
       bleManager : oscManager;
   }
 

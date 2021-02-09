@@ -345,7 +345,9 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     }
     animators[paramName].value = paramValue;
 
-    if (param.isAnimating)
+    if (!param.isAnimating)
+      animators[paramName].stop();
+    else
       if (param.animatedSpeedDirection > 0)
         animators[paramName].forward();
       else
@@ -373,6 +375,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     return AnimatedBuilder(
       animation: animators[paramName],
       builder: (ctx, w) {
+        // if (paramName == 'density')
+        // print("..... ${animators[paramName].value}");
         return Transform(
           alignment: FractionalOffset.center,
           transform: Matrix4.rotationZ(adjustmentRange * 2 * pi * animators[paramName].value - rotationOffset),

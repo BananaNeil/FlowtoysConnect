@@ -2,6 +2,7 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/edit_groups.dart';
 import 'package:app/components/navigation.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/models/bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
 
@@ -41,9 +42,118 @@ class _PropsPageState extends State<PropsPage> {
           backgroundColor: Color(0xff222222),
         ),
         body: Center(
-          child: EditGroups(),
+          child: Column(
+            children: [
+              _CommunicationTypeButtons,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Center(child: Text("Syncing:")),
+                  _SyncingSwitch,
+                ]
+              ),
+            ]
+          ),
         )
       )
+    );
+  }
+
+  // bool wifiConnectionStream;
+  Widget get _WifiDetails {
+    // if (!Bridge.isWifi) return Container();
+    // wifiConnectionStream ??= Connectivity().onConnectivityChanged.listen(updateWifiConnection);
+    if (AppController.wifiIsConnected)
+      return Container(
+        width: 300,
+        height: 200,
+        // margin: EdgeInsets.only(top: 20),
+        child: Column(
+          children: [
+            Container(
+              margin: EdgeInsets.only(top: 20, bottom: 5),
+              padding: EdgeInsets.only(top: 25, bottom: 25),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.35),
+              ),
+              width: double.infinity,
+              child: Text(
+                AppController.currentWifiNetworkName ?? "Current Connection: Unknown Network",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.white,
+                )
+              ),
+            ),
+            Container(
+              child: TextFormField(
+                textAlign: TextAlign.center,
+                decoration: InputDecoration(
+                  hintText: 'enter password here',
+                ),
+                onChanged: (text) {
+                  AppController.currentWifiPassword = text;
+                }
+              )
+            ),
+          ]
+        )
+      );
+    else return Text("TODO: suggest user to Connect to bridge's wifi? (this may cause issues with internet connectivity)");
+  }
+
+  Future updateWifiConnection(connectionResult) {
+    return AppController.updateWifiConnection(connectionResult).then((_) => setState(() {}));
+  }
+
+  Widget get _CommunicationTypeButtons {
+    return Container(
+      child: ToggleButtons(
+        isSelected: [Bridge.isBle, Bridge.isWifi],
+        onPressed: (int index) {
+          setState(() {
+            Bridge.currentChannel = ['bluetooth', 'wifi'][index];
+            if (Bridge.isWifi)
+             AppController.checkWifiConnection().then((_) {
+                return AppController.openDialog("Your Bridge wants to join your WiFi network:",
+                  "Bluetooth is cool, but WiFi is better. For a more stable and consistent connection to your props, please enter your wifi network's password.",
+                  reverseButtons: true,
+                  buttonText: 'Cancel',
+                  child: _WifiDetails,
+                  buttons: [
+                    {
+                      'text': "Connect",
+                      'color': Colors.blue,
+                      'onPressed': () {
+                        Bridge.connectToCurrentWifiNetwork();
+                      }
+                    }
+                  ]
+                );
+             });
+          });
+        },
+        children: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Text("Bluetooth"),
+          ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Text("WiFi"),
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget get _SyncingSwitch {
+    return Switch(
+      value: Bridge.isSyncing,
+      onChanged: (_) {
+        setState(() => Bridge.toggleSyncing());
+      }
     );
   }
 }

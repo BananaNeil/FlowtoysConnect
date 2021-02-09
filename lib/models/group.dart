@@ -1,4 +1,7 @@
+import 'package:app/models/bridge.dart';
 import 'package:app/models/prop.dart';
+import 'package:app/models/mode.dart';
+import 'dart:async';
 
 class Group {
   static List<Group> _quickGroups;
@@ -28,6 +31,38 @@ class Group {
       );
     });
     return _quickGroups;
+  }
+
+  static void setCurrentProps(mode) {
+    currentGroups.forEach((group) => group.currentMode = mode );
+  }
+
+  Timer animationUpdater;
+  Mode _currentMode;
+  Mode get currentMode {
+    if (props.any((prop) => prop.currentModeId != props.first.currentModeId))
+      return null;
+    return _currentMode;
+  }
+
+  void set currentMode(mode) {
+    _currentMode = mode;
+    animationUpdater?.cancel();
+    if (mode.isMultivalue)
+      return props.forEach((prop) => prop.currentMode = mode);
+    else
+      props.forEach((prop) => prop.internalMode = mode);
+
+    if (mode.isAnimating)
+      animationUpdater = Timer.periodic(Duration(milliseconds: 100), (_) {
+        this.currentMode = _currentMode;
+      });
+    Bridge.setGroup(
+      groupId: 0,
+      page: currentMode.page,
+      number: currentMode.number,
+      params: props.first.currentModeParamValues, 
+    );
   }
 
   static List<Prop> get connectedProps {
@@ -69,11 +104,11 @@ class Group {
           name: "Neil's Clubs",
           props: List.generate(3, (index) => Prop(id: index.toString(), index: index, groupIndex: 0)),
       ),
-      Group(
-          id: "2",
-          name: "Ben's Clubs",
-          props: List.generate(2, (index) => Prop(id: (200 + index).toString(), index: index, groupIndex: 1)),
-      ),
+      // Group(
+      //     id: "2",
+      //     name: "Ben's Clubs",
+      //     props: List.generate(2, (index) => Prop(id: (200 + index).toString(), index: index, groupIndex: 1)),
+      // ),
       // Group(
       //     id: "3",
       //     name: "Seans's Props",

@@ -3,6 +3,9 @@ PODS:
     - FlutterMacOS
   - assets_audio_player_web (0.0.1):
     - FlutterMacOS
+  - connectivity_plus_macos (0.0.1):
+    - FlutterMacOS
+    - Reachability
   - Firebase/CoreOnly (6.33.0):
     - FirebaseCore (= 6.10.3)
   - firebase_core (0.5.2-1):
@@ -35,12 +38,16 @@ PODS:
     - nanopb/encode (= 1.30906.0)
   - nanopb/decode (1.30906.0)
   - nanopb/encode (1.30906.0)
+  - network_info_plus_macos (0.0.1):
+    - FlutterMacOS
+    - Reachability
   - package_info (0.0.1):
     - FlutterMacOS
   - path_provider_macos (0.0.1):
     - FlutterMacOS
   - PromisesObjC (1.2.11)
   - Protobuf (3.11.4)
+  - Reachability (3.2)
   - shared_preferences_macos (0.0.1):
     - FlutterMacOS
   - url_launcher_macos (0.0.1):
@@ -49,9 +56,11 @@ PODS:
 DEPENDENCIES:
   - assets_audio_player (from `Flutter/ephemeral/.symlinks/plugins/assets_audio_player/macos`)
   - assets_audio_player_web (from `Flutter/ephemeral/.symlinks/plugins/assets_audio_player_web/macos`)
+  - connectivity_plus_macos (from `Flutter/ephemeral/.symlinks/plugins/connectivity_plus_macos/macos`)
   - firebase_core (from `Flutter/ephemeral/.symlinks/plugins/firebase_core/macos`)
   - flutter_blue (from `Flutter/ephemeral/.symlinks/plugins/flutter_blue/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
+  - network_info_plus_macos (from `Flutter/ephemeral/.symlinks/plugins/network_info_plus_macos/macos`)
   - package_info (from `Flutter/ephemeral/.symlinks/plugins/package_info/macos`)
   - path_provider_macos (from `Flutter/ephemeral/.symlinks/plugins/path_provider_macos/macos`)
   - shared_preferences_macos (from `Flutter/ephemeral/.symlinks/plugins/shared_preferences_macos/macos`)
@@ -67,18 +76,23 @@ SPEC REPOS:
     - nanopb
     - PromisesObjC
     - Protobuf
+    - Reachability
 
 EXTERNAL SOURCES:
   assets_audio_player:
     :path: Flutter/ephemeral/.symlinks/plugins/assets_audio_player/macos
   assets_audio_player_web:
     :path: Flutter/ephemeral/.symlinks/plugins/assets_audio_player_web/macos
+  connectivity_plus_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/connectivity_plus_macos/macos
   firebase_core:
     :path: Flutter/ephemeral/.symlinks/plugins/firebase_core/macos
   flutter_blue:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_blue/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
+  network_info_plus_macos:
+    :path: Flutter/ephemeral/.symlinks/plugins/network_info_plus_macos/macos
   package_info:
     :path: Flutter/ephemeral/.symlinks/plugins/package_info/macos
   path_provider_macos:
@@ -91,6 +105,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   assets_audio_player: be2578e6f11dd4d183412e97143673c3c4cb2e8a
   assets_audio_player_web: 917101123b6db8f73156835c0fa266c11340ff15
+  connectivity_plus_macos: dbac1dc9b113dfb69a5691831313b1d8ac1c8269
   Firebase: 8db6f2d1b2c5e2984efba4949a145875a8f65fe5
   firebase_core: 09e8d5c09a96a071cd20c8b3fe812a7fe9c4b8fa
   FirebaseCore: d889d9e12535b7f36ac8bfbf1713a0836a3012cd
@@ -100,10 +115,12 @@ SPEC CHECKSUMS:
   GoogleDataTransport: f56af7caa4ed338dc8e138a5d7c5973e66440833
   GoogleUtilities: 7f2f5a07f888cdb145101d6042bc4422f57e70b3
   nanopb: 59317e09cf1f1a0af72f12af412d54edf52603fc
+  network_info_plus_macos: 38ec4a578ecdfcddab609f61da3026d0b32900e5
   package_info: 6eba2fd8d3371dda2d85c8db6fe97488f24b74b2
   path_provider_macos: a0a3fd666cb7cd0448e936fb4abad4052961002b
   PromisesObjC: 8c196f5a328c2cba3e74624585467a557dcb482f
   Protobuf: 176220c526ad8bd09ab1fb40a978eac3fef665f7
+  Reachability: 33e18b67625424e47b6cde6d202dce689ad7af96
   shared_preferences_macos: 480ce071d0666e37cef23fe6c702293a3d21799e
   url_launcher_macos: 45af3d61de06997666568a7149c1be98b41c95d4
 

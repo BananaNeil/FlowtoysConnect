@@ -1,5 +1,7 @@
 import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
 import 'package:bugsnag_crashlytics/bugsnag_crashlytics.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:network_info_plus/network_info_plus.dart';
 import 'package:package_info/package_info.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:app/models/base_mode.dart';
@@ -11,6 +13,8 @@ import 'package:flutter/services.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
+import 'package:app/oscmanager.dart';
+import 'package:app/blemanager.dart';
 import 'dart:io' show Platform;
 import 'dart:convert';
 import 'dart:async';
@@ -27,6 +31,59 @@ class AppController extends StatefulWidget {
 
   static String buildNumber;
   static String version;
+
+  static OSCManager _oscManager;
+  static OSCManager get oscManager => _oscManager ??= OSCManager();
+
+  static BLEManager _bleManager;
+  static BLEManager get bleManager => _bleManager ??= BLEManager();
+
+  static void initConnectionManagers() {
+    print(bleManager);
+    print(oscManager);
+  }
+
+  static bool wifiIsConnected;
+  static DateTime wifiLastCheckedAt;
+  static Connectivity _connectivity;
+
+  static String currentWifiNetworkName;
+  static String currentWifiPassword;
+  static String currentWifiSSID;
+
+  static bool get wifiRecentlyChecked => wifiLastCheckedAt != null && DateTime.now().difference(wifiLastCheckedAt) < Duration(seconds: 1);
+  static Future checkWifiConnection() async {
+    wifiLastCheckedAt ??= DateTime.fromMillisecondsSinceEpoch(0);
+    _connectivity ??= Connectivity();
+
+
+    // .............................
+    //
+    // I fear that we need this for ios devices.... but it's throwing an error
+    // (on macos... maybe we should try limiting it to ios and running again)
+    //
+    // var status = await NetworkInfo().getLocationServiceAuthorization();
+    // if (status == LocationAuthorizationStatus.notDetermined) {
+    //   status = await NetworkInfo().requestLocationServiceAuthorization();
+    // }
+
+    return _connectivity.checkConnectivity().then(updateWifiConnection);
+  }
+
+  static Future updateWifiConnection(connectionResult) async {
+    // print("UPDATEwIFIcONNECTION ${connectionResult}");
+    wifiLastCheckedAt = DateTime.now();
+    wifiIsConnected = connectionResult == ConnectivityResult.wifi;
+    if (wifiIsConnected) {
+      print("Connected to wifi.......");
+      try {
+        currentWifiNetworkName = await NetworkInfo().getWifiName();
+        currentWifiSSID = await NetworkInfo().getWifiBSSID();
+      } on PlatformException catch (e) {
+          print(e.toString());
+      }
+    }
+  }
 
   static Future<void> setEnv(String env) async {
     final contents = await rootBundle.loadString('assets/config/${env ?? 'dev'}.json');
@@ -160,49 +217,64 @@ class AppController extends StatefulWidget {
     return value.toDouble();
   }
 
-  static Future<dynamic> openDialog(title, body, {path: null, buttonText: null, buttons: null}) async {
+  static Future<dynamic> openDialog(title, body, {child, path, buttonText, buttons, reverseButtons}) async {
     if (dialogIsOpen) return Future.value(false);
     dialogIsOpen = true;
 
     var context = getCurrentContext();
     buttons ??= [];
+
+    var buttonWidgets = <Widget>[
+      ...buttons.map((button) {
+        return FlatButton(
+          child: Container(
+            child: Text(button['text']),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          textColor: button['color'] ?? white,
+          onPressed: () {
+            dialogIsOpen = false;
+            Navigator.pop(context, button['returnValue'] ?? true);
+            button['onPressed']();
+          },
+        );
+      }),
+      FlatButton(
+        child: Text(buttonText ?? 'Ok'),
+        onPressed: () {
+          dialogIsOpen = false;
+          Navigator.pop(context, null);
+          if (path != null)
+            openPath(path);
+        },
+      ),
+    ];
+
+    if (reverseButtons == true)
+      buttonWidgets = buttonWidgets.reversed.toList();
+
+
+
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
+        actionsPadding: EdgeInsets.all(5),
         content: ListTile(
           title: Text(title,
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 20)
           ),
-          subtitle: Text(body),
+          subtitle: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              child ?? Container(),
+              Container(width: 500, child: Text(body, textAlign: TextAlign.center, )),
+            ]
+          )
         ),
-        actions: <Widget>[
-          ...buttons.map((button) {
-            return FlatButton(
-              child: Container(
-                child: Text(button['text']),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              textColor: button['color'] ?? white,
-              onPressed: () {
-                dialogIsOpen = false;
-                Navigator.pop(context, button['returnValue'] ?? true);
-                button['onPressed']();
-              },
-            );
-          }),
-          FlatButton(
-            child: Text(buttonText ?? 'Ok'),
-            onPressed: () {
-              dialogIsOpen = false;
-              Navigator.pop(context, null);
-              if (path != null)
-                openPath(path);
-            },
-          ),
-        ],
+        actions: buttonWidgets,
       ),
     ).then((result) {
       dialogIsOpen = false;
@@ -229,7 +301,7 @@ class AppController extends StatefulWidget {
   AppControllerState createState() => new AppControllerState();
 
   static AppControllerState of(BuildContext context) {
-    return context.ancestorStateOfType(const TypeMatcher<AppControllerState>());
+    return context.findAncestorStateOfType();
   }
 }
 

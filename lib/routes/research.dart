@@ -52,7 +52,7 @@ class _ResearchPageState extends State<ResearchPage> {
   SharedPreferences prefs;
 
   _ResearchPageState() {
-    bleManager = new BLEManager();
+    bleManager = AppController.bleManager;
     oscManager = new OSCManager();
 
     patternTimer = Timer.periodic(Duration(milliseconds: 50), (timer) {
@@ -70,7 +70,7 @@ class _ResearchPageState extends State<ResearchPage> {
   void loadPreferences() async {
     if (prefs == null) prefs = await SharedPreferences.getInstance();
     int m = prefs.getInt("mode");
-    Fluttertoast.showToast(msg: "mode loaded " + m.toString());
+    print("mode loaded " + m.toString());
     setMode(m != null ? ConnectionMode.values[m] : ConnectionMode.BLE);
   }
 
@@ -82,11 +82,11 @@ class _ResearchPageState extends State<ResearchPage> {
       if (mode == ConnectionMode.OSC) {
         bleManager.bridge?.disconnect();
       } else {
-        bleManager.scanAndConnect();
+        // bleManager.scanAndConnect();
       }
     });
 
-    Fluttertoast.showToast(msg: "Mode is now " + mode.toString());
+    print("Mode is now " + mode.toString());
     prefs.setInt("mode", ConnectionMode.values.indexOf(mode));
   }
 

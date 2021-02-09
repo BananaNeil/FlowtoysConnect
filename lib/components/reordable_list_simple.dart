@@ -1,5 +1,8 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
-import 'package:flutter/material.dart';
+
+// With a flutter upgrade, it was necessary to hide Flutter's ReorderableList.
+// This should not be a long term solution. Fix it soon. <3
+import 'package:flutter/material.dart' hide ReorderableList;
 
 
 

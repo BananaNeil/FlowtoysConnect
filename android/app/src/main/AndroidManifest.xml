@@ -37,8 +37,9 @@
      <uses-permission android:name="android.permission.BLUETOOTH"/>
      <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"/>
 
-    <!-- CAn we remove this? -->
+    <!-- Needed for access to current wifi network-->
      <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>  
+     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>  
 
 
      <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
