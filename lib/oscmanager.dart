@@ -16,6 +16,7 @@ class OSCManager {
   int remotePort = 9000;
 
   String autoDetectedBridge;
+  bool isConnected = false;
 
   RawDatagramSocket socket;
   SharedPreferences prefs;

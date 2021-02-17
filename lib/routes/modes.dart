@@ -14,6 +14,7 @@ import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/bridge.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/prop.dart';
@@ -57,6 +58,12 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     super.initState();
   }
 
+  String get _BridgeConnectionStatus {
+    var oscState = Bridge.oscManager.isConnected ? 'Connected' : 'Disconnected';
+    var bleState = Bridge.bleManager.isConnected ? 'Connected' : 'Disconnected';
+    return "Bluetooth: ${bleState} - Wifi: ${bleState}";
+  }
+
   @override
   Widget build(BuildContext context) {
     modeLists ??= [AppController.getParams(context)['modeList']]..removeWhere((v) => v == null);
@@ -71,7 +78,13 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
       backgroundColor: AppController.darkGrey,
       drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
       appBar: AppBar(
-        title: Text(_getTitle()), backgroundColor: Color(0xff222222),
+        backgroundColor: Color(0xff222222),
+        title: Column(
+          children: [
+            Text(_getTitle()),
+            Text(_BridgeConnectionStatus,style: TextStyle(fontSize: 11)),
+          ]
+        ),
         leading: isTopLevelRoute ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
