@@ -26,21 +26,35 @@ dependencies:
     git: https://github.com/pq/osc
   rect_getter: ^0.1.0
   flutter_siri_suggestions: #^1.0.2+hotfix1
-    path: /Users/neil/Projects/flowtoys/flutter_siri_suggestions
+    # path: /Users/neil/Projects/flowtoys/flutter_siri_suggestions
+    # Patched to fix an issue with cold starting the app from siri suggestions
+    git:
+      url: https://github.com/BananaNeil/flutter_siri_suggestions.git
+      ref: 6b7b654dba695f01cb18c25713e8b077edc8a384
   flutter_reorderable_list: #^0.1.5
+    # path: /Users/neil/Projects/flowtoys/flutter_reorderable_list
     # Patched to support a new version of flutter where the nullOk was deprecated on MediaQuery.of(...)
-    path: /Users/neil/Projects/flowtoys/flutter_reorderable_list
+    git:
+      url: https://github.com/BananaNeil/flutter_reorderable_list.git
+      ref: fea0bd74d89d728ad59e864a83e2fdf2c2cad7fa
   youtube_player_flutter: ^7.0.0+7
 
   flutter_hsvcolor_picker: #^0.0.1
     path: /Users/neil/Projects/flowtoys/hsvcolor_picker
-    # git: 
-    #   # Patched to allow for setting the color of the circle on SliderPicker
-    #   url: https://github.com/BananaNeil/flutter_hsvcolor_picker
-    #   ref: bceccc5bef521184f548608d6dcc90f8dc43280e
+    git: 
+      # Patched to allow for setting the color of the circle on SliderPicker
+      # and setting the height (and other things that I didn't need to patch,
+      # like gradientStops and colorRows which should have been managed by
+      # passing in a custom child widget)
+      url: https://github.com/BananaNeil/flutter_hsvcolor_picker
+      ref: 0e9ceb81d04c987e0b9a7083ba5a6bc7fd128278
   flutter_secure_storage: ^3.3.5
   assets_audio_player: #^2.0.13+1
-    path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
+    # path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
+    # Patched to allow seeking to work with milliseconds instead of seconds
+    git:
+      url: https://github.com/BananaNeil/Flutter-AssetsAudioPlayer.git
+      ref: 0981b955e1c3dc9ecf07c4d7d0e53392162c4472
   firebase_messaging: ^7.0.3
   # firebase_analytics: ^5.0.16
   flutter_speed_dial: ^1.2.5
@@ -59,8 +73,11 @@ dependencies:
   html_unescape: ^1.0.2
   flutter_blue: #^0.7.3
     # git: git@github.com:pauldemarco/flutter_blue.git
-    # git: git@github.com:BananaNeil/flutter_blue.git
-    path: /Users/neil/Projects/flowtoys/flutter_blue
+    # path: /Users/neil/Projects/flowtoys/flutter_blue
+    # Patched to get MacOS (and probalby ios) working
+    git: 
+      url: git@github.com:BananaNeil/flutter_blue.git
+      ref: 6c97b805b8e3b1321ee6aa92379c140c5db01f58
   url_launcher: ^5.6.0
   fluttertoast: ^7.1.1
   youtube_api: #^0.8.0
