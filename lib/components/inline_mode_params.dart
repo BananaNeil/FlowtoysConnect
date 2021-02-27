@@ -1,10 +1,12 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:app/models/mode_param.dart';
+import 'package:app/app_controller.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
 import 'package:intl/intl.dart';
 import 'dart:math';
+import 'dart:async';
 
 class InlineModeParams extends StatefulWidget {
   InlineModeParams({
@@ -29,6 +31,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
   _InlineModeParamsState({this.mode});
 
   final Mode mode;
+  String showControlsForParam;
   String showSlider;
   String sliderType;
   double containerWidth;
@@ -45,14 +48,15 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
   Map<String, AnimationController> animators = {};
 
-  var params = [
+  List<String> _params;
+  List<String> get params => _params ??= [
     'adjust',
     'hue',
     'saturation',
     'brightness',
     'density',
     'speed',
-  ];
+  ].where((name) => name != 'adjust' || !mode.hueIsAdjust).toList();
 
   List<Color> _hueColors;
   List<Color> get hueColors {
@@ -64,34 +68,50 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
   }
 
   Widget get adjustLines {
-    return Row(
-      children: List<int>.generate(30, (int index) => index).map((index) {
-        return Flexible(
-            flex: 1,
-            child: Container(
-            height: 30,
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey, width: 1)),
-              ),
-            )
-        );
-      }).toList()
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(1.0), Colors.black.withOpacity(0.8), Colors.black.withOpacity(1.0)]
+        )
+      ),
+      child: Row(
+        children: List<int>.generate(30, (int index) => index).map((index) {
+          return Flexible(
+              flex: 1,
+              child: Container(
+              height: 30,
+                decoration: BoxDecoration(
+                  border: Border(right: BorderSide(color: Colors.grey, width: 1)),
+                ),
+              )
+          );
+        }).toList()
+      ),
     );
   }
 
   Widget get speedLines {
-    return Row(
-      children: List<int>.generate(17, (int index) => 17 - index+1).map((size) {
-        return Flexible(
-            flex: size * size,
-            child: Container(
-            height: 30,
-              decoration: BoxDecoration(
-                border: Border(right: BorderSide(color: Colors.grey, width: 1)),
-              ),
-            )
-        );
-      }).toList()
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.5),
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(1.0), Colors.black.withOpacity(0.8), Colors.black.withOpacity(1.0)]
+        )
+      ),
+      child: Row(
+        children: List<int>.generate(17, (int index) => 17 - index+1).map((size) {
+          return Flexible(
+              flex: size * size,
+              child: Container(
+              height: 30,
+                decoration: BoxDecoration(
+                  border: Border(right: BorderSide(color: Colors.grey, width: 1)),
+                ),
+              )
+          );
+        }).toList()
+      )
     );
   }
 
@@ -112,13 +132,13 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     'brightness': [color.withValue(0.0).toColor(), color.withValue(1.0).toColor()],
   };
 
-  Map<String, Widget> icons = {
+  Map<String, Widget> get icons => {
     'adjust': Container(padding: EdgeInsets.all(5), child: Image(image: AssetImage('assets/images/adjust.png'))),
-    'brightness': Icon(Icons.brightness_medium, size: 22),
-    'saturation': Icon(Icons.opacity, size: 22),
-    'speed': Icon(Icons.fast_forward, size: 22),
-    'hue': Icon(Icons.color_lens, size: 22),
-    'density': Icon(Icons.waves, size: 22),
+    'brightness': Icon(Icons.brightness_medium, size: dialSize - 8),
+    'saturation': Icon(Icons.opacity, size: dialSize - 8),
+    'speed': Icon(Icons.fast_forward, size: dialSize - 8),
+    'hue': Icon(Icons.color_lens, size: dialSize - 8),
+    'density': Icon(Icons.waves, size: dialSize - 8),
   };
 
   void _bustCache() {
@@ -126,41 +146,130 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     _colors = null;
   }
 
+  bool sliderVisible = false;
+
   @override
   build(BuildContext context) {
     color = mode.getHSVColor();
     if (color != colorWas) _bustCache();
     colorWas = color;
 
-    if (showSlider != null)
-      return _Slider();
+    if (showControlsForParam != null)
+      return _ParamControls(paramName: showControlsForParam);
 
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints box) {
-        containerWidth = box.maxWidth;
-        return Column(
-          children: [
-            Dials(),
-            AnimationSwitches(),
-          ]
-        );
-      }
+    if (showSlider != null && sliderVisible)
+      return _Slider(
+        paramName: showSlider,
+        sliderType: sliderType,
+      );
+
+    return Container(
+      margin: EdgeInsets.only(top: 8),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints box) {
+          containerWidth = box.maxWidth;
+          return Column(
+            children: [
+              Dials(),
+              AnimationSwitches(),
+            ]
+          );
+        }
+      )
     );
   }
 
   bool get isShowingHueParam =>  showSlider == 'hue' && sliderType == 'param';
 
-  Widget _Slider() {
-    var label = toBeginningOfSentenceCase(showSlider);
-    if (sliderType == 'speed')
-      label += " Animation Speed";
-
-    var speed = mode.getAnimationSpeed(showSlider);
-    var sliderValue = mode.getValue(showSlider).clamp(0.0, isShowingHueParam ? 2.0 : 1.0);
+  Widget _ParamControls({paramName}) {
+    var label = toBeginningOfSentenceCase(paramName);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GestureDetector(
+              child: Text("x", style: TextStyle(fontWeight: FontWeight.bold)),
+              onTap: () {
+                showControlsForParam = null;
+                // showSlider = null;
+                if (this.mounted)
+                  setState(() {});
+                mode.save();
+                widget.onTouchUp();
+              },
+            ),
+          ]
+        ),
+        Row(
+          children: [
+            Container(
+              margin: EdgeInsets.only(right: 30),
+              child: Column(
+                children: [
+                  Container(child: Text("Bypass Sliders"), padding: EdgeInsets.only(top: 5)),
+                  Transform.scale(
+                    scale: 0.9,
+                    child: Switch(
+                      value: mode.getParam(paramName).bypass,
+                      onChanged: (value) {
+                        mode.getParam(paramName).bypass = value;
+                        setState(() {});
+                      },
+                    ),
+                  )
+                ]
+              )
+            ),
+            paramName != 'adjust' ? Container() : Column(
+              children: [
+                Container(child: Text("Use Internal $label Cycle"), padding: EdgeInsets.only(top: 5)),
+                Transform.scale(
+                  scale: 0.9,
+                  child: Switch(
+                    value: true,
+                    onChanged: (bool) {
+                      // mode.setAnimating(paramName, bool);
+                      if (bool)
+                        animators[paramName].forward();
+                      else {
+                        animators[paramName].stop();
+                        widget.onTouchUp();
+                      }
+                      setState((){});
+                    },
+                  ),
+                )
+              ]
+            ),
+          ]
+        ),
+
+        AnimatedBuilder(
+          animation: animators[paramName],
+          builder: (ctx, w) {
+            return _Slider(paramName: paramName, sliderType: 'param');
+          }
+        ),
+        _Slider(paramName: paramName, sliderType: 'speed'),
+      ]
+    );
+  }
+
+  Widget _Slider({paramName, sliderType}) {
+    var label = toBeginningOfSentenceCase(paramName);
+    if (sliderType == 'speed')
+      label += " Animation Speed";
+
+    var speed = mode.getAnimationSpeed(paramName);
+    var sliderValue = mode.getValue(paramName).clamp(0.0, isShowingHueParam ? 2.0 : 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(child: Text(label), padding: EdgeInsets.only(top: 8, bottom: 4)),
         SliderPicker(
           min: 0,
           max: isShowingHueParam ? 2.0 : 1.0,
@@ -168,9 +277,17 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           thumbColor: sliderType != 'speed' ? null : (speed == 0 ? Color(0xAAAAAAAA) : Colors.green.withOpacity(0.75)),
 
           value: sliderType == 'param' ? sliderValue : speed.abs(),
-          colorRows: sliderType == 'speed' ? null : [gradients[showSlider]],
-          onChanged: (value){ },
-          child: sliderType == 'param' && showSlider == 'adjust' ? adjustLines : speedLines
+          colorRows: sliderType == 'speed' ? null : [gradients[paramName]],
+          onChanged: (value){
+            if (sliderType == 'param')
+              mode.getParam(paramName).setValue(value.clamp(0.0, 1.1 + (isShowingHueParam ? 1 : 0)));
+            else if (sliderType == 'speed') {
+              mode.setAnimationSpeed(paramName, value);
+              ensureAnimationControllerFor(paramName);
+            }
+            setState((){});
+          },
+          child: sliderType == 'param' && paramName == 'adjust' ? adjustLines : speedLines
         )
       ]
     );
@@ -206,7 +323,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           initialValue =  mode.getAnimationSpeed(showSlider).abs();
         },
         onUpdate: (value) {
-          var speed = mode.getAnimationSpeed(showSlider);
           mode.setAnimationSpeed(showSlider, value);
           mode.save();
         },
@@ -252,6 +368,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
   }
 
   double gradientBlackSpace = 0.1;
+  double get dialSize => containerWidth < 380 ? 24.0 : 30.0;
   double get adjustmentRange => (1 - 2 * gradientBlackSpace);
 
   Widget Dial(paramName) {
@@ -278,8 +395,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           alignment: FractionalOffset.center,
           transform: Matrix4.rotationZ(pi / 2),
           child: Container(
-            height: 37,
-            width: 37,
+            height: dialSize + 7,
+            width: dialSize + 7,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
@@ -304,8 +421,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         ),
         DialValueIndicator(paramName, paramValue),
         Container(
-          height: 30,
-          width: 30,
+          height: dialSize,
+          width: dialSize,
           padding: EdgeInsets.only(top: 1),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -320,12 +437,13 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     );
   }
 
-  Widget DialValueIndicator(paramName, paramValue) {
+  void ensureAnimationControllerFor(paramName) {
     var param = mode.getParam(paramName);
+    var paramValue = mode.getValue(paramName);
     // THIS IS THE SAME AS: inline_mode_params.dart
     // THIS IS THE SAME AS: edit_mode_widget.dart
+    var speed = mode.getAnimationSpeed(paramName);
     if (animators[paramName] == null){
-      var speed = mode.getAnimationSpeed(paramName);
       animators[paramName] = AnimationController(
         duration: Duration(
           microseconds: speed == 0 ? 10000 :
@@ -347,19 +465,25 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
     if (!param.isAnimating)
       animators[paramName].stop();
-    else
+    else {
+      animators[paramName].duration = Duration(microseconds: (param.numberOfCycles * ModeParam.maxAnimationDuration.inMicroseconds / speed.abs()).toInt());
       if (param.animatedSpeedDirection > 0)
         animators[paramName].forward();
       else
         animators[paramName].reverse();
+    }
+  }
+
+  Widget DialValueIndicator(paramName, paramValue) {
+    ensureAnimationControllerFor(paramName);
 
     Widget indicator = Container(
-      height: 40,
-      width: 40,
+      height: dialSize + 10,
+      width: dialSize + 10,
       child: Align(
         alignment: Alignment.topCenter,
         child: Container(
-          height: 20,
+          height: dialSize - 10,
           width: 3,
           decoration: BoxDecoration(
             border: Border(
@@ -371,12 +495,9 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       ),
     );
     var rotationOffset = adjustmentRange * pi;
-    var was;
     return AnimatedBuilder(
       animation: animators[paramName],
       builder: (ctx, w) {
-        // if (paramName == 'density')
-        // print("..... ${animators[paramName].value}");
         return Transform(
           alignment: FractionalOffset.center,
           transform: Matrix4.rotationZ(adjustmentRange * 2 * pi * animators[paramName].value - rotationOffset),
@@ -386,32 +507,42 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     );
   }
 
+  int sliderIndexFromPosition(xPosition) {
+    return (params.length * xPosition / containerWidth).floor();
+  }
+
   Widget SliderListener({child, onStart, onUpdate}) {
     double dx = 0;
     return Listener(
       onPointerDown: (PointerEvent details) {
-        var index = (params.length * details.localPosition.dx / containerWidth).floor();
+        var index = sliderIndexFromPosition(details.localPosition.dx);
         onStart(index);
+        Timer(Duration(milliseconds: 800), () {
+          if (showControlsForParam == null)
+            setState(() => sliderVisible = true);
+        });
         if (this.mounted)
           setState(() {});
         widget.onTouchDown();
       },
       onPointerUp: (PointerEvent details) {
         showSlider = null;
-        // dx = null;
-
-        if (this.mounted)
-          setState(() {});
-        widget.onTouchUp();
+        if (dx == 0.0 && !sliderVisible) {
+          var index = sliderIndexFromPosition(details.localPosition.dx);
+          showControlsForParam = params[index];
+        } else widget.onTouchUp();
+        sliderVisible = false;
+        if (this.mounted) setState(() {});
       },
       onPointerMove: (PointerEvent details) {
         dx += details.delta.dx;
+        sliderVisible = true;
 
         // var val = mode.getValue(showSlider);
         var delta;
         delta = 2 * (dx) / containerWidth;
         delta *= 2 * (1 + (initialValue - (params.indexOf(showSlider) / params.length)).abs()); 
-        onUpdate((initialValue + delta).clamp(0.0, 1.1));
+        onUpdate((initialValue + delta).clamp(0.0, 1.1 + (isShowingHueParam ? 1 : 0)));
         if (this.mounted)
           setState(() {});
       },

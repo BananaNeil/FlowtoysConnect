@@ -5,16 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:app/preloader.dart';
 import 'package:app/router.dart';
 
-import 'package:app/native_storage.dart'
-  if (dart.library.html) 'package:app/web_storage.dart';
-
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  env = 'prod';
+  // env = 'prod';
 
   AppController.setEnv(env).then((_) {
     AppController.initSiriSuggestions();
-    AppController.initConnectionManagers();
+    Preloader.recallSavedGroupIds();
     AppController.initBugsnag();
     Preloader.ensureSongDir();
     Preloader.downloadData();

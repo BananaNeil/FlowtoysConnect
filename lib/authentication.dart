@@ -23,22 +23,25 @@ class Authentication {
     return await Client.getAccount().then((response) {
       if (response['success'])
         setCurrentAccount(Account.fromMap(response['body']));
+      print("BACK FROM GETTIN GACCOUNT WITH :${response['body']}");
 
       return currentAccount;
     });
   }
 
-  static Future<Map<dynamic, dynamic>> updateAccount([data]) async {
+  static Future<Map<dynamic, dynamic>> updateAccount({data, submit}) async {
     var accountData = currentAccount.toMap();
     var newAccount = Account.fromMap({
       ...accountData,
       ...data
     });
-    return await Client.updateAccount(newAccount.toMap()).then((response) {
-      if (response['success'])
-        setCurrentAccount(newAccount);
-      return response;
-    });
+    if (submit ?? true)
+      return await Client.updateAccount(newAccount.toMap()).then((response) {
+        if (response['success'])
+          setCurrentAccount(newAccount);
+        return response;
+      });
+    else setCurrentAccount(newAccount);
   }
 
   static Future<void> setToken(data) {
@@ -71,14 +74,15 @@ class Authentication {
       if (accessToken == 'null' || accessToken == null) accessToken = null;
       else token = json.decode(accessToken) as Map;
 
-      if (isAuthenticated)
+      if (isAuthenticated) {
+        getAccount();
         return readFromDisk('currentAccount').then((json) {
           if (json != null)
             setCurrentAccount(Account.fromJson(json));
 
           return true;
         });
-      else return false;
+      } else return false;
     });
   }
 

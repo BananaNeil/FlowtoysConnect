@@ -41,6 +41,7 @@ class ModeList {
   }
 
   factory ModeList.fromResource(Resource resource, {included}) {
+    if (resource == null) return null; 
     var modes = resource.toMany['modes'].map((mode) {
       var modeData = (included ?? []).firstWhere((item) => item.id == mode.id);
       return Mode.fromMap(modeData.attributes);

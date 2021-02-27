@@ -1,14 +1,12 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
-import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
-import 'package:app/components/reordable_list_simple.dart';
+import 'package:app/components/bridge_connection_status.dart';
 import 'package:app/helpers/color_filter_generator.dart';
-import 'package:app/components/inline_mode_params.dart';
-import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/components/modes_filter_bar.dart';
 import 'package:app/components/edit_mode_widget.dart';
+import 'package:app/components/mode_list_widget.dart';
+import 'package:app/helpers/animated_clip_rect.dart';
+import 'package:app/components/now_playing_bar.dart';
 import 'package:app/components/action_button.dart';
-import 'package:app/helpers/duration_helper.dart';
-import 'package:app/components/edit_groups.dart';
-import 'package:app/components/mode_widget.dart';
 import 'package:app/components/navigation.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -19,18 +17,27 @@ import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
+import 'package:rxdart/rxdart.dart';
+import 'package:badges/badges.dart';
 import 'package:app/client.dart';
-import 'dart:async';
-import 'dart:math';
 
 class Modes extends StatelessWidget {
-  Modes({this.id});
-
+  Modes({this.id, this.hideNavigation, this.canShowDefaultLists});
   final String id; 
+
+  final bool hideNavigation;
+  final bool canShowDefaultLists;
 
   @override
   Widget build(BuildContext context) {
-    return ModesPage(id: id);
+    // Bridge.oscManager.discoverServices();
+    print("BUILD MODES: ${Authentication.currentAccount.toMap()}");
+    return ModesPage(
+      canShowDefaultLists: canShowDefaultLists,
+      hideNavigation: hideNavigation,
+      key: Key(id),
+      id: id,
+    );
   }
 }
 
@@ -44,24 +51,15 @@ class ModesPage extends StatefulWidget {
   _ModesPageState createState() => _ModesPageState(id);
 }
 
-class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
+class _ModesPageState extends State<ModesPage> {
   _ModesPageState(this.id);
-
   final String id;
 
-  bool get hideNavigation => widget.hideNavigation ?? false;
-  bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
-
   @override initState() {
+    AppController.initConnectionManagers();
     isTopLevelRoute = !Navigator.canPop(context);
     requestFromCache().then((_) => _fetchModes(initialRequest: true));
     super.initState();
-  }
-
-  String get _BridgeConnectionStatus {
-    var oscState = Bridge.oscManager.isConnected ? 'Connected' : 'Disconnected';
-    var bleState = Bridge.bleManager.isConnected ? 'Connected' : 'Disconnected';
-    return "Bluetooth: ${bleState} - Wifi: ${bleState}";
   }
 
   @override
@@ -73,38 +71,67 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     selectAction ??= AppController.getParams(context)['selectAction'];
     returnList ??= AppController.getParams(context)['returnList'];
 
+    print("BUILD MODE ROUTEc!!cA;  ${id}");
     return Scaffold(
       floatingActionButton: _FloatingActionButton,
       backgroundColor: AppController.darkGrey,
       drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
       appBar: AppBar(
         backgroundColor: Color(0xff222222),
-        title: Column(
-          children: [
-            Text(_getTitle()),
-            Text(_BridgeConnectionStatus,style: TextStyle(fontSize: 11)),
-          ]
-        ),
+        title: Text(_getTitle()),
         leading: isTopLevelRoute ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pop(context, returnList == true ? firstList : null);
           },
         ),
-        actions: _EditGroupButton(),
+        actions: [
+
+          hideNavigation ? Container() :
+            BridgeConnectionStatus(),
+          // _EditGroupButton(),
+          // _EditGroupButton(),
+        ],
       ),
-      body: Stack(
+      body: Column(
         children:[
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: _ModeLists,
+          showOneColumn ? Container() : _FilterBar(),
+          Container(width: double.infinity,
+            height: errorMessage == null ? 0 : null,
+            padding: errorMessage == null ? null : EdgeInsets.symmetric(vertical: 5),
+            child: Text(errorMessage ?? "",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: AppController.red
+              )
+            )
           ),
-          _NowPlayingBar,
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: _ModeLists,
+            )
+          ),
+          NowPlayingBar(
+            shuffle: shuffle,
+            toggleShuffle: () {
+              setState(() => shuffle = !shuffle);
+            },
+            onMenuTap: () {
+              setState(() { showExpandedActionButtons = true; });
+            },
+            onNext: () {
+              switchCurrentPropsToComputedMode(modeAfterMode);
+            },
+            onPrevious: () {
+              switchCurrentPropsToComputedMode( modeBeforeMode);
+            },
+          ),
+
         ]
       )
     );
   }
-
 
   bool returnList;
   bool isSelecting;
@@ -113,19 +140,14 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
   bool isTopLevelRoute;
   List<Mode> modes = [];
   bool isEditing = false;
-  List<ModeList> allLists;
   List<ModeList> modeLists;
   Mode currentlyEditingMode;
   bool canChangeCurrentList;
   List<Mode> selectedModes;
   bool awaitingResponse = false;
-  bool isFetchingAllLists = false;
-  bool isAdjustingInlineParam = false;
   ModeList get firstList => modeLists.isEmpty ? null : modeLists[0];
   bool showExpandedActionButtons = false;
 
-  List<String> expandedModeIds = [];
-  bool isExpanded(mode) => expandedModeIds.contains(mode.id);
 
 
 
@@ -133,6 +155,14 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
 
   List<Mode> get allModes => modeLists.map((list) => list.modes).expand((m) => m).toList();
   List<String> get allModesIds => allModes.map((mode) => mode.id).toList();
+
+  bool shuffle = false;
+  List<Mode> _shuffledModes;
+  List<Mode> get shuffledModes => _shuffledModes ??= List.from(allModes)..shuffle();
+  List<String> get shuffledModesIds => shuffledModes.map((mode) => mode.id).toList();
+
+  bool get hideNavigation => widget.hideNavigation ?? false;
+  bool get showDefaultLists => (widget.canShowDefaultLists ?? true) && id == null;
 
   Future<Map<dynamic, dynamic>> _makeRequest() {
     if (showDefaultLists)
@@ -147,31 +177,15 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     });
   }
 
-  Future<void> _fetchAllLists({initialRequest}) {
-    // Pulling from cache... maybe you'll need to request too?
-    setState(() { isFetchingAllLists = true; });
-    return Preloader.getModeLists().then((lists) {
-      isFetchingAllLists = false;
-      setState(() {
-        allLists = lists;
-      });
-    });
-    // setState(() { isFetchingAllLists = true; });
-    // return Client.getModeLists().then((response) {
-    //   isFetchingAllLists = false;
-    //   setState(() {
-    //     if (response['success']) {
-    //       allLists = response['modeLists'] ?? [];
-    //     } else if (initialRequest != true || modeLists.isEmpty)
-    //       errorMessage = response['message'];
-    //   });
-    // });
+  Future<void> _forceFetchModes() {
+    return _fetchModes(forceReload: true);
   }
 
-  Future<void> _fetchModes({initialRequest}) {
-    if (!Authentication.isAuthenticated && modeLists.length > 0) return Future.value(null);
+  Future<void> _fetchModes({initialRequest, forceReload}) {
+    if (!Authentication.isAuthenticated && modeLists.length > 0 && forceReload != true) return Future.value(null);
     setState(() { awaitingResponse = true; });
     return Preloader.downloadData().then((_) {
+      errorMessage = null;
       return _makeRequest().then((response) {
         setState(() {
           if (response['success']) {
@@ -194,6 +208,12 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     });
   }
 
+  void _setCurrentLists(lists) {
+    modeLists = lists;
+    _prependSelectedModes();
+    setState(() {});
+  }
+
   _prependSelectedModes() {
     ModeList selectedModeList = ModeList(name: "Selected", modes: []);
     selectedModes.forEach((mode) {
@@ -202,365 +222,93 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     });
     if (selectedModeList.modes.isNotEmpty)
       modeLists.insert(0, selectedModeList);
-
   }
 
-  bool isPlaying = false;
-  Widget get _NowPlayingBar {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        height: 65,
-        decoration: BoxDecoration(
-          color: Color(0xEa000000),
-        ),
-        child: Column(
-          children: [
-            _NowPlayingProgressBar,
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  flex: 10,
-                  child: Container(
-                    width: double.infinity,
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: Prop.propsByMode.entries.map<Widget>((entry) {
-                        var mode = entry.key;
-                        var props = entry.value;
-                        return Container(
-                          margin: EdgeInsets.symmetric(horizontal: 10),
-                          // width: 70,
-                          child: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Container(
-                                margin: EdgeInsets.symmetric(horizontal: 3),
-                                child: ModeImage(mode: mode, size: 15),
-                              ),
-                              Text("X${props.length}")
-                            ]
-                          )
-                        );
-                      }).toList()
-                    ),
-                  ),
-                ),
-                Flexible(
-                  flex: 8,
-                  child: Column(
-                    children: [
-                      Container(
-                        margin: EdgeInsets.all(3),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.skip_previous, size: 38),
-                            GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  isPlaying = !isPlaying;
-                                });
-                              },
-                              child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 38),
-                            ),
-                            Icon(Icons.skip_next, size: 38),
-                          ]
-                        )
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                        ]
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Expanded(child:
-                            SliderPicker(
-                              max: Duration(minutes: 1).inMilliseconds.toDouble(),
-                              value: cycleDuration.inMilliseconds.toDouble(),
-                              thumbColor: Colors.black,
-                              height: 15,
-                              min: 0.0,
-                              onChanged: (value) {
-                                cycleDuration = Duration(milliseconds: value.toInt());
-                                setState((){});
-                              },
-                            )
-                          ),
-                          Container(
-                            margin: EdgeInsets.only(left: 5),
-                            child: Text(
-                              twoDigitString(cycleDuration),
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                            ),
-                          )
-                        ]
-                      )
-                    ]
-                  )
-                ),
-                Flexible(
-                  flex: 10,
-                  child: Container(
-                    width: double.infinity,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      // visible: !isShowingMultipleLists,
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() { showExpandedActionButtons = true; });
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.white,
-                          ),
-                        ),
-                      )
-                    )
-                  ),
-                ),
-              ]
-            ),
-          ]
-        )
-      ),
-    );
+  void switchCurrentPropsToComputedMode(computeMode) {
+    Prop.quickGroupPropsByGroupId.forEach((groupId, props) {
+      Group group = props.first.group;
+      bool isEntireGroup = group.props.length == props.length;
+      bool allPropsHaveSameMode;
+      if (isEntireGroup)
+        allPropsHaveSameMode = props.every((prop) => prop.currentModeId == props.first.currentModeId);
+
+      if (isEntireGroup && allPropsHaveSameMode)
+        group.currentMode = computeMode(props.first.currentMode);
+      else
+        props.forEach((prop) {
+          prop.currentMode = computeMode(prop.currentMode);
+        });
+    });
+
+    setState(() {});
   }
 
-  Duration cycleProgress = Duration.zero;
-  Duration cycleDuration = Duration(seconds: 8);
-  AnimationController isPlayingAnimation;
-  Widget get _NowPlayingProgressBar {
-    cycleProgress ??= Duration.zero;
-    isPlayingAnimation ??= AnimationController(
-      duration: cycleDuration,
-      upperBound: 1,
-      lowerBound: 0,
-      vsync: this,
-    );
-    return AnimatedBuilder(
-      animation: isPlayingAnimation,
-      builder: (ctx, w) {
-        return Container(
-          height: 5,
-          width: 400,
-          child: Row(
-            children: [
-              Flexible(
-                  flex: cycleProgress.inMicroseconds,
-                  child: Container(
-                decoration: BoxDecoration(
-                    color: Colors.blue
-                )
-                  )
-              ),
-              Flexible(
-                flex: (cycleDuration - cycleProgress).inMicroseconds,
-                child: Container(
-                  decoration: BoxDecoration(
-                      color: Colors.red
-                  )
-                )
-              ),
-            ]
-          )
-        );
-      }
-    ); 
+  Mode modeBeforeMode(mode) {
+    var ids = shuffle ? shuffledModesIds : allModesIds;
+    var modes = shuffle ? shuffledModes : allModes;
+
+    var currentModeIndex = ids.indexOf(mode.id);
+    if (currentModeIndex <= 0)
+      currentModeIndex = modes.length - 1;
+    else currentModeIndex -= 1;
+    return modes[currentModeIndex];
+  }
+
+  Mode modeAfterMode(mode) {
+    var ids = shuffle ? shuffledModesIds : allModesIds;
+    var modes = shuffle ? shuffledModes : allModes;
+
+    var currentModeIndex = ids.indexOf(mode.id);
+    if (currentModeIndex >= modes.length - 1)
+      currentModeIndex = 0;
+    else currentModeIndex += 1;
+    return modes[currentModeIndex];
   }
 
   List<Widget> get _ModeLists {
-    if (AppController.screenWidth < 300 * modeLists.length)
-      return [_ModeList(modeLists)];
+    if (showOneColumn)
+      return [_ModeList(modeLists, filterBar: _FilterBar())];
     else return modeLists.map<Widget>((list) {
       return _ModeList([list]);
     }).toList();
   }
 
-  Widget _ModeList(lists) {
-    return Container(
-      width: AppController.screenWidth > 600 && modeLists.length == 1 ? 600 : null,
-      child: Expanded(
-        child: RefreshIndicator(
-          onRefresh: _fetchModes,
-          child: Container(
-            decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
-            child: ReorderableListSimple(
-              physics: BouncingScrollPhysics(),
-              childrenAlreadyHaveListener: true,
-              allowReordering: isEditing,
-              children: [
-                _SelectCurrentList,
-                ..._ListItems(lists),
-                _AddMoreModes,
-              ],
-              onReorder: (int start, int current) {
-                if (isShowingMultipleLists) return;
-                var list = firstList;
-                var mode = list.modes[start];
-                list.modes.remove(mode);
-                list.modes.insert(current, mode);
-                list.modes.asMap().forEach((index, other) => other.position = index + 1);
-                Client.updateMode(mode);
-              }
-            ),
-          )
-        ),
-      ),
+  bool get showOneColumn => modeLists.length <= 1 || AppController.screenWidth < 300 * modeLists.length;
+
+  static BehaviorSubject<Map<String, dynamic>> filterController = BehaviorSubject<Map<String, dynamic>>();
+
+  Widget _ModeList(lists, {filterBar}) {
+    return ModeListWidget(
+      modeLists: lists,
+      filterBar: filterBar,
+      isEditing: isEditing,
+      onRemove: _removeMode,
+      isSelecting: isSelecting,
+      onRefresh: _forceFetchModes,
+      selectedModeIds: selectedModeIds,
+      setCurrentLists: _setCurrentLists,
+      showTitles: isShowingMultipleLists,
+      filterStream: filterController.stream,
+      toggleSelectedMode: _toggleSelectedMode,
+      preventReordering: isShowingMultipleLists,
+      canChangeCurrentList: canChangeCurrentList,
     );
   }
 
-  List<Widget> _EditGroupButton() {
-    if (hideNavigation) return [];
-    var propCount = Group.currentQuickGroup.props.length;
-
-    return <Widget>[
-      GestureDetector(
-        onTap: () {
-          showDialog(context: context,
-            builder: (context) => Dialog(
-              child: _editGroupsWidget(),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(50),
-              ),
-              elevation: 0,
-              backgroundColor: Colors.transparent,
-            )
-          ).then((_) { setState(() {}); });
-        },
-        child: Container(
-          padding: EdgeInsets.all(15),
-          child: Icon(
-              propCount <= 0 ? Icons.warning : {
-                1: Icons.filter_1,
-                2: Icons.filter_2,
-                3: Icons.filter_3,
-                4: Icons.filter_4,
-                5: Icons.filter_5,
-                6: Icons.filter_6,
-                7: Icons.filter_7,
-                8: Icons.filter_8,
-              }[propCount] ?? Icons.filter_9_plus,
-              size: 24,
-          ),
-        ),
-      )
-    ]; 
+  void _toggleSelectedMode(mode) {
+    setState(() {
+      if (selectedModeIds.contains(mode.id))
+        selectedModes.removeWhere((item) => item.id == mode.id);
+      else selectedModes.add(mode);
+    });
   }
 
-  bool addingMore = false;
-
-  Widget get _AddMoreModes {
-    if (firstList?.creationType != 'user') return Container();
-    if (addingMore) return Container(
-      child: SpinKitCircle(color: Colors.blue),
-      margin: EdgeInsets.all(10),
-    );
-    return Center(
-      child: GestureDetector(
-        onTap: () {
-          Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true, 'selectAction': "Add to \"${firstList.name}\""}).then((selectedModes) {
-            if (selectedModes != null) {
-              setState(() => addingMore = true);
-              List<Mode> modes = selectedModes;
-              Client.updateList(firstList.id, {'append': modes.map((mode) => mode.id).toList()}).then((response) {
-                if (response['success'])
-                  setState(() {
-                    addingMore = false;
-                    modeLists[0] = response['modeList'];
-                  });
-              });
-            }
-            //   Navigator.pushNamed(context, '/shows/new', arguments: {'modes': modes});
-          });
-        },
-        child: Container(
-          margin: EdgeInsets.only(top: 10, bottom: 15),
-          child: Text("+ Add more modes"),
-        )
-      )
-    );
+  Widget _FilterBar() {
+    return ModesFilterBar(filterController: filterController);
   }
 
-  Widget get _SelectCurrentList {
-    if (!canChangeCurrentList) return Container();
-    if (allLists == null && !isFetchingAllLists) _fetchAllLists();
 
-    return Stack(
-      alignment: Alignment.bottomCenter,
-      children: [
-        isFetchingAllLists ?
-          Container(
-            height: 40,
-            margin: EdgeInsets.only(bottom: 5),
-            child: SpinKitCircle(size: 25, color: Colors.white)
-          ) : Container(
-            margin: EdgeInsets.all(5),
-            child: Container(height: 35,
-              child: DropdownButton(
-                isExpanded: true,
-                value: modeLists.firstWhere((list) => list.id != null)?.id,
-                items: allLists.map((ModeList list) {
-                  return DropdownMenuItem<String>(
-                    value: list.id,
-                    child: Container(
-                      margin: EdgeInsets.only(bottom: 5),
-                      child: Wrap(
-                        clipBehavior: Clip.antiAlias,
-                        children: [
-                          Container(
-                            margin: EdgeInsets.only(right: 10, top: 3),
-                            child: Text(list.name),
-                          ),
-                          ...list.modes.sublist(0, min(list.modes.length, 9)).map((mode) {
-                            return Container(
-                              margin: EdgeInsets.only(right: 4, bottom: 3),
-                              child: ModeImage(mode: mode, size: 12)
-                            );
-                          }).toList(),
-                        ]
-                      )
-                    )
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  modeLists = [allLists.firstWhere((list) => list.id == value)];
-                  _prependSelectedModes();
-                  setState(() {});
-                },
-              )
-            )
-          ),
-        Container(
-          height: 15,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF2f2f2f),
-                  Colors.black,
-                ],
-            )
-          )
-        )
-      ]
-    );
-  }
 
-  List<Widget> _ListItems(List<ModeList> lists) {
-    return lists.map((list) {
-      var items = list.modes.map(_ModeItem).toList();
-      if (isShowingMultipleLists)
-        items.insert(0, _ListTitle(list));
-      return items;
-    }).expand((i) => i).toList();
-  }
 
   Widget get _FloatingActionButton {
     if (isSelecting)
@@ -730,272 +478,6 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _ListTitle(list) {
-    return Container(
-      color: Theme.of(context).canvasColor,
-      padding: EdgeInsets.all(8.0),
-      child: Text(
-        list.name,
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-
-
-  Widget _ModeItem(mode) {
-    // print("SElected ${selectedModeIds} contaiins ${mode.id}");
-    var index = selectedModeIds.indexOf(mode.id) + 1;
-    var isSelected = index > 0;
-    return Card(
-      key: Key(mode.id.toString()),
-      elevation: 8.0,
-      margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-      child: Column(
-        children: [
-          Container(
-            child: ListTile(
-              onTap: () {
-                if (isSelecting)
-                  setState(() {
-                    if (selectedModeIds.contains(mode.id))
-                      selectedModes.removeWhere((item) => item.id == mode.id);
-                    else selectedModes.add(mode);
-                  });
-                else {
-                  if (isAdjustingInlineParam) return;
-                  Group.setCurrentProps(mode);
-                  setState(() {});
-                }
-              },
-              contentPadding: EdgeInsets.symmetric(horizontal: 20.0, vertical: 5.0),
-              leading: isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!isSelecting ? null : Container(
-                width: 22,
-                padding: EdgeInsets.symmetric(vertical: 5),
-                decoration: BoxDecoration(
-                  color: isSelected ? Color(0xFF4f8adb) : null,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
-                ),
-                child: Text(
-                  isSelected ? index.toString() : "",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                  )
-                ),
-              )),
-              trailing: _TrailingIcon(mode),
-              title: Column(
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        margin: EdgeInsets.only(right: 15),
-                        child: ModeImage(
-                          mode: mode,
-                          size: 30.0,
-                        )
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          if (isExpanded(mode))
-                            expandedModeIds.remove(mode.id);
-                          else expandedModeIds.add(mode.id);
-                          setState(() {});
-                        },
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                // This was not enough.. why is it still overflowng names?
-                                Container(child: Text(mode.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                )),
-                                Container(
-                                  child: isSelecting ? null :
-                                    isExpanded(mode) ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                                )
-                              ]
-                            ),
-                            Container(
-                              child: !Prop.connectedModeIds.contains(mode.id) ? null : Text(
-                                "${Prop.connectedModeIds.where((id) => mode.id == id).length} props activated",
-                                style: TextStyle(
-                                    fontSize: 14,
-                                    color: AppController.purple,
-                                )
-                              ),
-                            ),
-                          ]
-                        )
-                      )
-                    ]
-                  ),
-                ]
-              )
-            ),
-          ),
-          Container( child:
-            !isExpanded(mode) || isSelecting ? null : Stack(
-              children: [
-                Positioned.fill(
-                  child: ColorFiltered(
-                    colorFilter: ColorFilter.matrix(
-                      ColorFilterGenerator.brightnessAdjustMatrix(
-                        initialValue: 0.5,
-                        value: 0.56,
-                      )
-                    ),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        image: DecorationImage(
-                          image: AssetImage("assets/images/dark-texture.jpg"),
-                          fit: BoxFit.fill,
-                        ),
-                      )
-                    )
-                  ),
-                ),
-                //TODO: turn the following container into a:
-                //   HorizontalLineShadow(spreadRadius: 2.0, blurRadius: 2.0),
-                Container(
-                  decoration: BoxDecoration(
-                    boxShadow: [
-                      BoxShadow(
-                        color: Color(0xAA000000),
-                        spreadRadius: 2.0,
-                        blurRadius: 2.0,
-                      ),
-                    ]
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                    )
-                  )
-                ),
-                Container(
-                  child: Container(
-                    margin: EdgeInsets.only(top: 12, bottom: 14, right: 26, left: 10),
-                    child: _ModeTileParams(mode),
-                  ),
-                  // decoration: BoxDecoration(
-                  //   boxShadow: [
-                  //     const BoxShadow(
-                  //       color: Color(0xAA000000),
-                  //     ),
-                  //     const BoxShadow(
-                  //       color: Color(0xFF888888),
-                  //       offset: Offset(0.0, 2),
-                  //       spreadRadius: -2.0,
-                  //       blurRadius: 8.0,
-                  //     ),
-                  //   ],
-                  // ),
-                ),
-              ]
-            )
-          ),
-          Container(
-            height: 15,
-            decoration: BoxDecoration(
-              boxShadow: [
-                BoxShadow(
-                  color: Color(0xAA000000),
-                  spreadRadius: 2.0,
-                  blurRadius: 2.0,
-                ),
-              ]
-            ),
-            child: ModeRow(
-              mode: mode,
-              showImages: true,
-              fit: BoxFit.fill,
-            ),
-          ),
-        ]
-      ),
-    );
-  }
-
-  Timer _adjustingInlineParamTimer;
-  Widget _ModeTileParams(mode) {
-    return InlineModeParams(
-      onTouchDown: () {
-        _adjustingInlineParamTimer?.cancel();
-        isAdjustingInlineParam = true;
-      },
-      onTouchUp: () {
-        _adjustingInlineParamTimer = Timer(Duration(seconds: 1), () => isAdjustingInlineParam = false);
-        Prop.propsByModeId[mode.id].forEach((prop) => prop.currentMode = mode );
-        setState(() {});
-      },
-      mode: mode,
-    );
-  }
-
-  Widget _TrailingIcon(mode) {
-    if (isEditing)
-      return GestureDetector(
-        onTap: () {
-					AppController.openDialog("Are you sure?", "This will remove \"${mode.name}\" from this list along with any customizations made to it.",
-            buttonText: 'Cancel',
-						buttons: [{
-							'text': 'Delete',
-              'color': Colors.red,
-							'onPressed': () {
-                _removeMode(mode);
-							},
-						}]
-					);
-        },
-        child: Icon(Icons.delete_forever, color: AppController.red),
-      );
-    else if (isSelecting)
-      return null;
-    else return GestureDetector(
-      onTap: () {
-        var replacement = mode.dup();
-        Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
-          'mode': replacement,
-        }).then((saved) {
-          if (saved == true)
-            setState(() {
-              mode.updateFromCopy(replacement).then((_) {
-                _fetchModes();
-              });
-            });
-        });
-      },
-      child: Column(
-        children: [
-          // Icon(Icons.edit),
-          Text("EDIT", style: TextStyle(fontSize: 13)),
-        ]
-      )
-    );
-  }
-
-  Widget _editGroupsWidget() {
-    return Container(
-      width: 300,
-      height: 500,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: EditGroups(),
-    );
-  }
-
   Future<void> _duplicateSelected() {
     Client.updateList(firstList.id, {'append': selectedModeIds}).then((response) {
       var list = firstList;
@@ -1031,4 +513,6 @@ class _ModesPageState extends State<ModesPage> with TickerProviderStateMixin {
   bool get isShowingMultipleLists => modeLists.length > 1;
 
 }
+
+
 

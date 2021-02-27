@@ -139,7 +139,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
               child: Group.currentQuickGroup.propIds.contains(prop.id) ?
                      Icon(Icons.check) : Container(),
             ),
-            Text("Unnamed Prop"),
+            Text("Prop #"),
           ]
         )
       );

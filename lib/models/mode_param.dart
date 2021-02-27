@@ -14,6 +14,7 @@ class ModeParam {
   String paramName;
   int parentIndex;
   int childIndex;
+  bool bypass;
   num value;
   Mode mode;
 
@@ -26,10 +27,12 @@ class ModeParam {
     this.childIndex,
     this.childType,
     this.paramName,
+    bypass,
     animationSpeed,
     this.value,
     this.mode,
   }) {
+    this.bypass = bypass ?? false;
     _animationSpeed = animationSpeed;
     if (isAnimating) animationStartedAt ??= DateTime.now();
   }

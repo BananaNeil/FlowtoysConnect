@@ -1,5 +1,6 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:app/components/back_button.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
@@ -30,8 +31,14 @@ class _LoginPageState extends State<LoginPage> {
   final email = TextEditingController();
   final password = TextEditingController();
 
+  Map arguments;
+  bool _showCloseButton;
+
   @override
   Widget build(BuildContext context) {
+    arguments ??= (ModalRoute.of(context).settings.arguments as Map); 
+    if (arguments != null) _showCloseButton ??= arguments['showCloseButton'];
+
     print("BUILD LOGIN");
     return GestureDetector(
       onTap: () {
@@ -40,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
           currentFocus.unfocus();
       },
       child: Scaffold(
-        floatingActionButton: _SkipButton(),
+        floatingActionButton: _showCloseButton == true ? null : _SkipButton(),
         floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
         body: Center(
           child: SingleChildScrollView(
@@ -62,12 +69,29 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  _CloseButton() {
+    return CircleBackButton(
+    );
+    // return GestureDetector(
+    //   onTap: () {
+    //     AppController.pop(null);
+    //   },
+    //   child: Container(
+    //     margin: EdgeInsets.all(10),
+    //     child: Text('SKIP'),
+    //   )
+    // ); 
+  }
+
   _SkipButton() {
     return GestureDetector(
       onTap: () {
         AppController.closeUntilPath('/modes');
       },
-      child: Text('SKIP')
+      child: Container(
+        margin: EdgeInsets.all(10),
+        child: Text('SKIP'),
+      )
     ); 
   }
 
@@ -191,6 +215,10 @@ class _LoginPageState extends State<LoginPage> {
               ]
             ),
           ),
+          Container(
+            margin: EdgeInsets.only(top: 30.0),
+            child: _showCloseButton == true ? _CloseButton() : null,
+          )
         ],
       ),
     );

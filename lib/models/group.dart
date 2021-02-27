@@ -3,6 +3,10 @@ import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
 import 'dart:async';
 
+
+import 'package:app/native_storage.dart'
+  if (dart.library.html) 'package:app/web_storage.dart';
+
 class Group {
   static List<Group> _quickGroups;
 
@@ -45,7 +49,12 @@ class Group {
     return _currentMode;
   }
 
+  void set internalMode(mode) {
+    _currentMode = mode;
+    props.forEach((prop) => prop.internalMode = mode);
+  }
   void set currentMode(mode) {
+    if (props.length == 0) return;
     _currentMode = mode;
     animationUpdater?.cancel();
     if (mode.isMultivalue)
@@ -57,12 +66,14 @@ class Group {
       animationUpdater = Timer.periodic(Duration(milliseconds: 100), (_) {
         this.currentMode = _currentMode;
       });
-    Bridge.setGroup(
-      groupId: 0,
-      page: currentMode.page,
-      number: currentMode.number,
-      params: props.first.currentModeParamValues, 
-    );
+    currentGroups.forEach((group) {
+      Bridge.setGroup(
+        groupId: group.id,
+        page: currentMode.page,
+        number: currentMode.number,
+        params: props.first.currentModeParamValues, 
+      );
+    });
   }
 
   static List<Prop> get connectedProps {
@@ -96,28 +107,53 @@ class Group {
 
   static List<Group> get connectedGroups => possibleGroups;
 
+  static Group findOrCreateById(String groupId) {
+    return possibleGroups.firstWhere((group) => group.id == groupId, orElse: () {
+      var prop = Prop(id: "${groupId}-${1}", groupId: groupId);
+      Group newGroup = Group(
+        name: "Group [${groupId}]",
+        id: groupId,
+        props: [
+          prop,
+        ],
+      );
+
+
+      possibleGroups.add(newGroup);
+      if (savedGroupIds.contains(groupId)) {
+        currentQuickGroup.props.add(prop); 
+      } else {
+        unseenGroups.add(newGroup);
+      }
+      return newGroup;
+    });
+  }
+
+  static List<String> savedGroupIds = [];
+  static List<Group> unseenGroups = [];
+
   static List<Group> _possibleGroups;
   static List<Group> get possibleGroups {
     return _possibleGroups ??= [
-      Group(
-          id: "1",
-          name: "Neil's Clubs",
-          props: List.generate(3, (index) => Prop(id: index.toString(), index: index, groupIndex: 0)),
-      ),
+      // Group(
+      //     id: "1",
+      //     name: "Neil's Clubs",
+      //     props: List.generate(3, (index) => Prop(id: index.toString(), groupId: '1', index: index, groupIndex: 0)),
+      // ),
       // Group(
       //     id: "2",
       //     name: "Ben's Clubs",
-      //     props: List.generate(2, (index) => Prop(id: (200 + index).toString(), index: index, groupIndex: 1)),
+      //     props: List.generate(2, (index) => Prop(id: (200 + index).toString(), groupId: '2', index: index, groupIndex: 1)),
       // ),
       // Group(
       //     id: "3",
       //     name: "Seans's Props",
-      //     props: List.generate(8, (index) => Prop(id: (300 + index).toString(), index: index, groupIndex: 2)),
+      //     props: List.generate(8, (index) => Prop(id: (300 + index).toString(), groupId: '3', index: index, groupIndex: 2)),
       // ),
       // Group(
       //     id: "4",
       //     name: "G's Props",
-      //     props: List.generate(4, (index) => Prop(id: (400 + index).toString(), index: index, groupIndex: 3)),
+      //     props: List.generate(4, (index) => Prop(id: (400 + index).toString(), groupId: '4', index: index, groupIndex: 3)),
       // ),
     ];
   }

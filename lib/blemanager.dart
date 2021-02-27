@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
@@ -7,6 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_blue/flutter_blue.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'dart:convert';
+
+import 'package:app/models/bridge.dart';
+import 'package:app/app_controller.dart';
+import 'package:app/models/sync_packet.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,7 +27,8 @@ class BLEManager {
   bool isReadyToSend = false;
   bool isSending = false;
 
-  StreamController<void> changeStream;
+  StreamController<void> get changeStream => Bridge.changeStream;
+  Stream get stateStream => Bridge.stateStream;
 
   BridgeMode bridgeMode;
   String networkName = "";
@@ -38,16 +44,15 @@ class BLEManager {
   BluetoothCharacteristic rxChar;
 
   BLEManager() {
-    changeStream = StreamController<void>.broadcast();
     bridgeMode = BridgeMode.Both;
     initBLE();
   }
 
 
   void initBLE() async {
-    print("CHECK IF AVAILABLE?"); 
+    print("CHECK IF Flutter Blue AVAILABLE?"); 
     FlutterBlue.instance.isAvailable.then((value) {
-      print("IS AVAILABLE? ${value}"); 
+      print("IS Flutter Blue AVAILABLE? ${value}"); 
       if (!value) {
         print("Bluetooth device not available on this device");
         return;
@@ -69,7 +74,7 @@ class BLEManager {
     else sendString("S");
   }
 
-  void sendPattern({int group, int page, int mode, int actives, List<double> paramValues}) {
+  void sendPattern({String group, int page, int mode, int actives, List<double> paramValues}) {
     List<Object> args = new List<Object>();
     args.add(group);
     args.add(0);//groupIsPublic = false, force private group
@@ -90,10 +95,10 @@ class BLEManager {
     changeStream.add(null);
 
     await flutterBlue.connectedDevices.then((devices) {
-      print("DEVICES: ${devices.map((d) => d.name).join(", ")}");
-      for (BluetoothDevice d in devices) {
-        if (d.name.contains("FlowConnect")) {
-          bridge = d;
+      for (BluetoothDevice device in devices) {
+        if (device.name.contains("FlowConnect")) {
+          Bridge.name = device.name;
+          bridge = device;
           break;
         }
       }
@@ -105,7 +110,7 @@ class BLEManager {
       print("Already connected but not assigned (${txChar != null})");
       isConnected = false;
       isReadyToSend = txChar != null;
-       // connectToBridge();
+       connectToBridge();
       return;
     }
 
@@ -119,7 +124,9 @@ class BLEManager {
     // print("CHECK IF ON");
     flutterBlue.isOn.then((isOn) {
       if (!isOn) {
+        // THIS IS A GREAT PLACE TO TELL THE USER TO TURN ON THEIR BLUETOOTH 
         print("Bluetooth is not activated.");
+        periodicallyAttemptReconnect();
         return;
       }
       print("Scanning devices...");
@@ -136,13 +143,14 @@ class BLEManager {
           .startScan(timeout: Duration(seconds: 5))
           .whenComplete(connectToBridge);
 
-      subscription?.cancel();
-      subscription = flutterBlue.scanResults.listen((scanResult) {
+      scanSubscription?.cancel();
+      scanSubscription = flutterBlue.scanResults.listen((scanResult) {
         // do something with scan result
 
         for (var result in scanResult) {
-          //print('${result.device.name} found! rssi: ${result.rssi}');
+          print('${result.device.name} found!');
           if (result.device.name.contains("FlowConnect")) {
+            Bridge.name = result.device.name;
             bridge = result.device;
             flutterBlue.stopScan();
             return;
@@ -152,8 +160,27 @@ class BLEManager {
     });
   }
 
-      StreamSubscription<List<ScanResult>> subscription;
-  var stateSubscription;
+  int _secondsUntilReconnect = 2;
+  int get secondsUntilReconnect => min(_secondsUntilReconnect += 1, 12);
+
+  void resetReconnectionTimeOut() {
+    _secondsUntilReconnect = 2;
+  }
+
+  Timer reconnectTimer;
+  void periodicallyAttemptReconnect() {
+    print("PERIODICALLY CHECKING CALLED NOW.........");
+    reconnectTimer?.cancel();
+    if (!isConnected)
+      reconnectTimer = Timer(Duration(seconds: secondsUntilReconnect), () {
+        reconnectToBridge();
+        periodicallyAttemptReconnect();
+        print("Wated ${secondsUntilReconnect} seconds, now reconnecting");
+      });
+  }
+
+  StreamSubscription<List<ScanResult>> scanSubscription;
+  StreamSubscription stateSubscription;
   void connectToBridge() async {
 
     if (bridge == null) {
@@ -162,6 +189,7 @@ class BLEManager {
       isConnected = false;
       isConnecting = false;
       changeStream.add(null);
+      periodicallyAttemptReconnect();
       return;
     }
 
@@ -171,20 +199,26 @@ class BLEManager {
 
     stateSubscription?.cancel();
     stateSubscription = bridge.state.listen((state) {
-      // This is getting called a ton of times
-      // 
       
+      // Okay.... this is getting called when the bridge crashes. Then seconds later, we are trying to read from rx.
+      // We need to set isConnected (done, I think), and let rx reading be conditional on that.
+
+      print("Bridge connection state change: ${state}");
       bool newConnected = state == BluetoothDeviceState.connected;
       isConnected = newConnected;
       if(isConnected) isConnecting = false;
       changeStream.add(null);
 
-      if(isConnected || newConnected)
-      {
+      if(state != BluetoothDeviceState.connected)
+        periodicallyAttemptReconnect();
+      else Bridge.name = bridge.name;
+
+      if (isConnected || newConnected) {
         print((isConnected ? "Connected to " : "Disconnected from ") + bridge.name+".");
       }
 
       if (isConnected) {
+        resetReconnectionTimeOut();
         getRXTXCharacteristics();
       }
     });
@@ -201,6 +235,21 @@ class BLEManager {
     }
   }
 
+  void _receiveMessage(_data) {
+    List<int> data = List<int>.from(_data);
+    if (data.length > 0) {
+      String commandType = String.fromCharCode(data.removeLast());
+      print("RECEIVED FROM RX BLE (command type: ${commandType}): ${data}"); 
+      if (commandType == 'p') {
+        SyncPacket.fromBle(data);
+        // AppController.rebuild();
+      } else if (commandType == 'w')
+        AppController.oscManager.setIPAddress(String.fromCharCodes(data));
+    }
+  }
+
+  BluetoothCharacteristic rx;
+  StreamSubscription rxSubscription;
   void getRXTXCharacteristics() async {
     print("Discover services");
     List<BluetoothService> services = await bridge.discoverServices();
@@ -211,6 +260,17 @@ class BLEManager {
         for (BluetoothCharacteristic characteristic in service.characteristics) {
           print("Characteristic : "+characteristic.uuid.toString());
 
+          if (characteristic.uuid.toString() == rxUUID) {
+            rxSubscription?.cancel()?.then((_) { print("RX subscription cleaned!");});
+            rx = characteristic;
+            print("Reseting RX subscription:"); 
+            rxSubscription = characteristic.value.listen(_receiveMessage);
+            Timer(Duration(seconds: 2), () async {
+              print("READ FROM RX IF : ${rx}");
+              await rx?.setNotifyValue(true); 
+              await rx?.read(); 
+            });
+          }
           if (characteristic.uuid.toString() == txUUID) {
             txChar = characteristic;
             
@@ -224,12 +284,6 @@ class BLEManager {
               isReadyToSend = true;
               networkName = bridge.name.substring(12);
 
-              print("TRY TO LISTTEN TO TX!!!");
-              // await characteristic.setNotifyValue(true);
-              print("LISTTENING TO TX!!!");
-              characteristic.value.listen((value) {
-                print("RECEIVED FROM TX BLE: ${value}"); 
-              });
               
               changeStream.add(null);
             }
@@ -247,17 +301,19 @@ class BLEManager {
     changeStream.add(null);
   }
 
+  void reconnectToBridge() async {
+    print("Reconnecting to bridge (brige is null? ${bridge == null }, isConnected: ${isConnected})");
+    if (bridge == null)
+      await scanAndConnect();
+    else if (!isConnected)
+      await connectToBridge();
+  }
+
   void sendString(String message) async {
 
     print("Sending : " + message);
-   
-    if (bridge == null)
-      return scanAndConnect();
-    else if (!isConnected) {
-      print("Bridge is disconnected, reconnecting (brige is null? ${bridge == null })");
-      await connectToBridge();
-      return;
-    }
+
+    await reconnectToBridge();
 
     if (txChar == null || !isReadyToSend) {
       print("Bridge is broken (tx characteristic not found), not sending (isReady: ${isReadyToSend})");
@@ -328,7 +384,7 @@ class _BLEConnectIconState extends State<BLEConnectIcon> {
 
   @override
   void dispose() {
-    subscription.cancel();
+    subscription?.cancel()?.then((_) { print("Scan subscription cleaned!");});
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/back_button.dart';
+import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
@@ -27,9 +28,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
   String _errorMessage = '';
   bool _submitting = false;
 
+  final firstName = TextEditingController();
+  final lastName = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
-  final confirmPassword = TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -73,9 +75,14 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   void _loadNextPage() {
     Client.authenticate(email.text, password.text).then((response) {
-      if (response['success'])
+      if (response['success']) {
+        Authentication.updateAccount(data: {
+            'email': email.text,
+            'last_name': lastName.text,
+            'first_name': firstName.text,
+          }, submit: false);
         AppController.closeUntilPath('/modes');
-      else
+      } else
         setState(() { _errorMessage = response['message']; });
     });
   }
@@ -87,11 +94,17 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
         _errorMessage = "";
         _submitting = true;
       });
-      Client.createAccount(email.text, password.text).then((response) {
+      Client.createAccount(
+        firstName: firstName.text,
+        lastName: lastName.text,
+        password: password.text,
+        email: email.text,
+      ).then((response) {
         _submitting = false;
-        if (response['success'])
+        if (response['success']) {
+          Authentication.getAccount();
           _loadNextPage();
-        else
+        } else
           setState(() { _errorMessage = response['message']; });
       });
     }
@@ -99,9 +112,10 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
 
   @override
   void dispose() {
-    confirmPassword.dispose();
     password.dispose();
     email.dispose();
+    firstName.dispose();
+
     super.dispose();
   }
 
@@ -124,9 +138,51 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               style: TextStyle(color: AppController.red),
               textAlign: TextAlign.center,
             ),
+            // Container(
+            //     width: double.infinity,
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                      margin: EdgeInsets.only(right: 10),
+                    child: TextFormField(
+                      controller: firstName,
+                      keyboardType: TextInputType.name,
+                      autofillHints: [AutofillHints.givenName],
+                      decoration: InputDecoration(
+                        labelText: 'First Name',
+                      ),
+                      validator: (value) {
+                        if (value.isEmpty) return 'Please enter some text';
+                      },
+                      onFieldSubmitted: (value) {
+                        _submitForm();
+                      },
+                    )
+                  )
+                ),
+                Expanded(
+                  child: TextFormField(
+                    controller: lastName,
+                    keyboardType: TextInputType.name,
+                    autofillHints: [AutofillHints.familyName],
+                    decoration: InputDecoration(
+                      labelText: 'Last Name',
+                    ),
+                    validator: (value) {
+                      if (value.isEmpty) return 'Please enter some text';
+                    },
+                    onFieldSubmitted: (value) {
+                      _submitForm();
+                    },
+                  ),
+                )
+              ]
+            ),
             TextFormField(
               controller: email,
-              autofillHints: [AutofillHints.username],
+              keyboardType: TextInputType.emailAddress,
+              autofillHints: [AutofillHints.email],
               decoration: InputDecoration(
                 labelText: 'Email'
               ),
@@ -148,27 +204,25 @@ class _CreateAccountPageState extends State<CreateAccountPage> {
               ),
               validator: (value) {
                 if (value.isEmpty) return 'Please enter some text';
-                else if (confirmPassword.text != value)
-                  return 'Passwords do not match.';
               },
               onFieldSubmitted: (value) {
                 _submitForm();
               },
             ),
-            TextFormField(
-              obscureText: true,
-              autofillHints: [AutofillHints.password],
-              controller: confirmPassword,
-              decoration: InputDecoration(
-                labelText: 'Re-type Password'
-              ),
-              validator: (value) {
-                if (value.isEmpty) return 'Please enter some text';
-              },
-              onFieldSubmitted: (value) {
-                _submitForm();
-              },
-            ),
+            // TextFormField(
+            //   obscureText: true,
+            //   autofillHints: [AutofillHints.password],
+            //   controller: confirmPassword,
+            //   decoration: InputDecoration(
+            //     labelText: 'Re-type Password'
+            //   ),
+            //   validator: (value) {
+            //     if (value.isEmpty) return 'Please enter some text';
+            //   },
+            //   onFieldSubmitted: (value) {
+            //     _submitForm();
+            //   },
+            // ),
           ],
         ),
       ),

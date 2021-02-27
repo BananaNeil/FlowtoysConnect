@@ -63,7 +63,7 @@ class _PropsPageState extends State<PropsPage> {
   Widget get _WifiDetails {
     // if (!Bridge.isWifi) return Container();
     // wifiConnectionStream ??= Connectivity().onConnectivityChanged.listen(updateWifiConnection);
-    if (AppController.wifiIsConnected)
+    if (Bridge.oscManager.wifiIsConnected)
       return Container(
         width: 300,
         height: 200,
@@ -78,7 +78,7 @@ class _PropsPageState extends State<PropsPage> {
               ),
               width: double.infinity,
               child: Text(
-                AppController.currentWifiNetworkName ?? "Current Connection: Unknown Network",
+                Bridge.oscManager.currentWifiNetworkName ?? "Current Connection: Unknown Network",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 30,
@@ -93,7 +93,7 @@ class _PropsPageState extends State<PropsPage> {
                   hintText: 'enter password here',
                 ),
                 onChanged: (text) {
-                  AppController.currentWifiPassword = text;
+                  Bridge.oscManager.mostRecentWifiPassword = text;
                 }
               )
             ),
@@ -104,7 +104,7 @@ class _PropsPageState extends State<PropsPage> {
   }
 
   Future updateWifiConnection(connectionResult) {
-    return AppController.updateWifiConnection(connectionResult).then((_) => setState(() {}));
+    return Bridge.oscManager.updateWifiConnection(connectionResult).then((_) => setState(() {}));
   }
 
   Widget get _CommunicationTypeButtons {
@@ -115,7 +115,7 @@ class _PropsPageState extends State<PropsPage> {
           setState(() {
             Bridge.currentChannel = ['bluetooth', 'wifi'][index];
             if (Bridge.isWifi)
-             AppController.checkWifiConnection().then((_) {
+             Bridge.oscManager.checkWifiConnection().then((_) {
                 return AppController.openDialog("Your Bridge wants to join your WiFi network:",
                   "Bluetooth is cool, but WiFi is better. For a more stable and consistent connection to your props, please enter your wifi network's password.",
                   reverseButtons: true,
@@ -126,7 +126,7 @@ class _PropsPageState extends State<PropsPage> {
                       'text': "Connect",
                       'color': Colors.blue,
                       'onPressed': () {
-                        Bridge.connectToCurrentWifiNetwork();
+                        Bridge.connectToMostRecentWifiNetwork();
                       }
                     }
                   ]

@@ -6,6 +6,7 @@ import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:app/models/account.dart';
 import 'package:http/http.dart' as http;
+import 'package:app/models/bridge.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/show.dart';
 import 'package:app/models/song.dart';
@@ -29,11 +30,13 @@ class Client {
     );
   }
 
-  static Future<Map<dynamic, dynamic>> createAccount(email, password) async {
+  static Future<Map<dynamic, dynamic>> createAccount({firstName, lastName, email, password}) async {
     return makeRequest('post',
       path: '/auth',
       body: {
         'email': email.trim().toLowerCase(),
+        'first_name': firstName.trim(),
+        'last_name': lastName.trim(),
         'password': password,
       },
     );
@@ -303,6 +306,16 @@ class Client {
     return response;
   }
 
+  static Future<Map<dynamic, dynamic>> updateBridge() async {
+    var response = await makeRequest('post',
+      path: "/bridges",
+      body: {
+        'bridge': Bridge.toMap(),
+      },
+    );
+
+    return response;
+  }
 
   static Future<Map<dynamic, dynamic>> updateMode(mode) async {
     var response = await makeRequest('put',
@@ -354,6 +367,9 @@ class Client {
     return response;
   }
 
+  static setUserAttributes() {
+  }
+
   static String get protocol => AppController.config['protocol'];
   static String get domain => AppController.config['domain'];
   static String get host => "${protocol}://${domain}";
@@ -400,7 +416,7 @@ class Client {
       var responseHeaders = response.headers;
       var code = response.statusCode;
 
-      print("\n<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======\n");
+      // print("\n<<<<<<<<<<\nURL: $host$path\nCODE: $code\nHEADERS: ${response.headers}\nRESPONSE BODY: ${jsonEncode(responseBody ?? {})}\n=======\n");
 
       var errors = responseBody['errors'] ?? {};
       var message;

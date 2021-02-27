@@ -69,8 +69,8 @@ class _ListsPageState extends State<ListsPage> {
   @override
   Widget build(BuildContext context) {
     singlePageMode = AppController.screenWidth > 600;
-              print("SSS ${selectedList?.id}");
 
+    print("BUILD LISTS ROUTE ${selectedList} ${selectedList?.id}");
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -97,7 +97,7 @@ class _ListsPageState extends State<ListsPage> {
               ),
               Container(
                 child: singlePageMode ? Expanded(
-                  child: ModesPage(id: selectedList?.id, hideNavigation: true, canShowDefaultLists: false),
+                  child: Modes(id: selectedList?.id, hideNavigation: true, canShowDefaultLists: false),
                 ) : null
               ),
             ],
@@ -122,7 +122,9 @@ class _ListsPageState extends State<ListsPage> {
                 GestureDetector(
                   child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
                   onTap: () {
-                    Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true});
+                    Navigator.pushNamed(context, '/modes', arguments: {
+                      'isSelecting': true
+                    });
                   }
                 ),
               ]
@@ -137,7 +139,7 @@ class _ListsPageState extends State<ListsPage> {
           onTap: () {
             if (singlePageMode) {
               setState(() {
-                selectedList = (selectedList == list) ? [] : list;
+                selectedList = (selectedList == list) ? null : list;
               });
               return; 
             }
@@ -176,7 +178,10 @@ class _ListsPageState extends State<ListsPage> {
         child: GestureDetector(
           child: Text("CREATE NEW LIST", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
           onTap: () {
-            Navigator.pushNamed(context, '/modes', arguments: {'isSelecting': true});
+            Navigator.pushNamed(context, '/modes', arguments: {
+              'canChangeCurrentList': true,
+              'isSelecting': true,
+            });
           }
         )
       ),

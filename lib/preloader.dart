@@ -5,6 +5,7 @@ import 'package:app/models/mode_list.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/group.dart';
 import 'package:app/client.dart';
 import 'package:darq/darq.dart';
 import 'dart:isolate';
@@ -74,6 +75,18 @@ class Preloader {
      });
   }
 
+  static Future<List<String>> saveGroupId(id) {
+    Group.savedGroupIds.add(id);
+    Storage.write('savedGroupIds', jsonEncode(Group.savedGroupIds));
+  }
+
+  static Future<List<String>> recallSavedGroupIds() {
+    return Storage.read('savedGroupIds').then((listJson) {
+      if (listJson == null) return [];
+      Group.savedGroupIds = json.decode(listJson);
+    });
+  }
+
   static bool downloadStarted = false;
   static List<ModeList> modeLists = [];
   static List<BaseMode> baseModes = [];
@@ -112,7 +125,7 @@ class Preloader {
     return getCachedLists().then((cachedLists) {
       // Put the newest ones first, incase of multiple devices
       cachedLists = List.from(lists ?? [])..addAll(cachedLists);
-      cachedLists = cachedLists.distinct((list) => list.id).toList();
+      cachedLists = cachedLists.where((list) => list?.id != null).distinct((list) => list.id).toList();
       modeLists = cachedLists;
       return Storage.write('modeLists', ModeList.toJson(cachedLists));
     });

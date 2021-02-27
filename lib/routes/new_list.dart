@@ -1,5 +1,6 @@
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/models/mode_list.dart';
+import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
@@ -52,17 +53,29 @@ class _NewListPageState extends State<NewListPage> {
   bool _saved = false;
   Future<void> _createNewList() {
     if (newListName.length == 0) return null;
-    return Client.createNewList(newListName, selectedModes).then((response) {
-      var list = response['modeList'];
-      if (!response['success'])
-        setState(() => errorMessage = response['message'] );
-      else {
-        _saved = true;
-        Navigator.pushReplacementNamed(context, "/lists/${list.id}", arguments: {
-          'modeList': list,
-        });
-      }
-    });
+    if (Authentication.isAuthenticated)
+      return Client.createNewList(newListName, selectedModes).then((response) {
+        var list = response['modeList'];
+        if (!response['success'])
+          setState(() => errorMessage = response['message'] );
+        else {
+          _saved = true;
+          Navigator.pushReplacementNamed(context, "/lists/${list.id}", arguments: {
+            'modeList': list,
+          });
+        }
+      });
+    else AppController.openDialog(
+        "You must be signed in to do that!", "In order create a new list, you must be signed in to a flowtoys account.",
+        buttonText: 'cancel',
+        buttons: [{
+          'text': 'Sign in',
+          'color': Colors.blue,
+          'onPressed': () {
+            Authentication.logout();
+          }
+        }],
+      );
   }
 
   Future<void> _updateList(list) {

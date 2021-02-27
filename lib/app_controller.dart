@@ -1,7 +1,5 @@
 import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
 import 'package:bugsnag_crashlytics/bugsnag_crashlytics.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:network_info_plus/network_info_plus.dart';
 import 'package:package_info/package_info.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:app/models/base_mode.dart';
@@ -41,50 +39,6 @@ class AppController extends StatefulWidget {
   static void initConnectionManagers() {
     print(bleManager);
     print(oscManager);
-  }
-
-  static bool wifiIsConnected;
-  static DateTime wifiLastCheckedAt;
-  static Connectivity _connectivity;
-
-  static String currentWifiNetworkName;
-  static String currentWifiPassword;
-  static String currentWifiSSID;
-
-  static bool get wifiRecentlyChecked => wifiLastCheckedAt != null && DateTime.now().difference(wifiLastCheckedAt) < Duration(seconds: 1);
-  static Future checkWifiConnection() async {
-    wifiLastCheckedAt ??= DateTime.fromMillisecondsSinceEpoch(0);
-    _connectivity ??= Connectivity();
-
-
-    // .............................
-    //
-    // I fear that we need this for ios devices.... but it's throwing an error
-    // (on macos... maybe we should try limiting it to ios and running again)
-    //
-    // var status = await NetworkInfo().getLocationServiceAuthorization();
-    // if (status == LocationAuthorizationStatus.notDetermined) {
-    //   status = await NetworkInfo().requestLocationServiceAuthorization();
-    // }
-
-    return _connectivity.checkConnectivity().then(updateWifiConnection);
-  }
-
-  static Future updateWifiConnection(connectionResult) async {
-    // print("UPDATEwIFIcONNECTION ${connectionResult}");
-    wifiLastCheckedAt = DateTime.now();
-    wifiIsConnected = connectionResult == ConnectivityResult.wifi;
-    if (wifiIsConnected) {
-      print("Connected to wifi.......");
-      try {
-        currentWifiNetworkName = await NetworkInfo().getWifiName();
-        print("Connected to wifi  NAME: ${currentWifiNetworkName}.......");
-        currentWifiSSID = await NetworkInfo().getWifiBSSID();
-        print("Connected to wifi  NAME: ${currentWifiSSID}.......");
-      } on PlatformException catch (e) {
-          print(e.toString());
-      }
-    }
   }
 
   static Future<void> setEnv(String env) async {
@@ -165,6 +119,10 @@ class AppController extends StatefulWidget {
     return randomColor;
   }
 
+  static bool get isSmallScreen {
+    return screenWidth < 380; 
+  }
+
   static double get screenWidth {
     return MediaQuery.of(getCurrentContext()).size.width;
   }
@@ -209,6 +167,10 @@ class AppController extends StatefulWidget {
 
   static BuildContext getCurrentContext() {
     return globalKey.currentState.overlay.context;
+  }
+
+  static void rebuild() {
+    of(getCurrentContext()).rebuild();
   }
 
   static double scale(num value, {num maxValue, num minValue}) {
@@ -262,6 +224,11 @@ class AppController extends StatefulWidget {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
+          contentPadding: EdgeInsets.only(top: 15),
+
+          insetPadding: EdgeInsets.all(25),
+
+
         actionsPadding: EdgeInsets.all(5),
         content: ListTile(
           title: Text(title,

@@ -11,6 +11,10 @@ import 'package:flutter/rendering.dart';
 import 'package:validators/validators.dart';
 import 'package:multicast_dns/multicast_dns.dart';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:network_info_plus/network_info_plus.dart';
+import 'package:app/models/bridge.dart';
+
 class OSCManager {
   InternetAddress remoteHost;
   int remotePort = 9000;
@@ -23,14 +27,122 @@ class OSCManager {
 
   StreamController<int> zeroconfStream ;
 
+  StreamController<void> get changeStream => Bridge.changeStream;
+  Stream get stateStream => Bridge.stateStream;
+
   OSCManager() {
     RawDatagramSocket.bind(InternetAddress.anyIPv4, 0).then((_socket) {
-      loadPreferences();
+      // loadPreferences();
       socket = _socket;
     });
 
     autoDetectedBridge = "";
+    initWifi();
   }
+
+  Timer periodicTimer;
+  void initWifi() {
+    periodicTimer?.cancel();
+    periodicTimer = Timer(Duration(seconds: 5), initWifi);
+    checkWifiConnection().then((_) {
+      print("Connection checked: ${wifiIsConnected}");
+      if (wifiIsConnected)
+        discoverServices();
+        // scanForBridges().then((bridges) {
+        //   print("Scanned for bridges: ${bridges.length}");
+        //   if (bridges.length == 0)
+        //     waitingForCredentials = true;
+        //   // else if (bridges.length == 1)
+        // });
+    });
+  }
+
+  Future<List<String>> scanForBridges() {
+    return Future.value([]);
+
+    // Client.makeRequest('get',
+    //     uri: ''
+    // )
+  }
+
+  bool waitingForCredentials = false;
+
+  bool wifiIsConnected;
+  DateTime wifiLastCheckedAt;
+  Connectivity _connectivity;
+
+  Set<Map<String, String>> wifiNetworks = Set();
+  String currentWifiNetworkName;
+  String mostRecentWifiPassword;
+  String currentWifiSSID;
+
+  bool get connectedToBridgeWifi {
+    RegExp regex = RegExp(r'FlowConnect');
+    return regex.hasMatch(currentWifiNetworkName);
+  }
+
+  String get mostRecentWifiNetworkName => mostRecentWifiNetwork['name'];
+  String get mostRecentWifiSSID => mostRecentWifiNetwork['ssid'];
+
+  Map<String, String> get mostRecentWifiNetwork {
+    if (connectedToBridgeWifi && wifiNetworks.length > 1) {
+      return wifiNetworks.firstWhere((network) {
+        return !RegExp(r'FlowConnect').hasMatch(network['name']);
+      }, orElse: () => {}); 
+
+    }
+  }
+
+  bool get wifiRecentlyChecked => wifiLastCheckedAt != null && DateTime.now().difference(wifiLastCheckedAt) < Duration(seconds: 1);
+  Future checkWifiConnection() async {
+    wifiLastCheckedAt ??= DateTime.fromMillisecondsSinceEpoch(0);
+    _connectivity ??= Connectivity();
+
+
+    // .............................
+    //
+    // I fear that we need this for ios devices.... but it's throwing an error
+    // (on macos... maybe we should try limiting it to ios and running again)
+    //
+    // var status = await NetworkInfo().getLocationServiceAuthorization();
+    // if (status == LocationAuthorizationStatus.notDetermined) {
+    //   status = await NetworkInfo().requestLocationServiceAuthorization();
+    // }
+
+    return _connectivity.checkConnectivity().then(updateWifiConnection);
+  }
+
+  Future updateWifiConnection(connectionResult) async {
+    wifiLastCheckedAt = DateTime.now();
+    wifiIsConnected = connectionResult == ConnectivityResult.wifi;
+    if (wifiIsConnected) {
+      try {
+        currentWifiNetworkName = await NetworkInfo().getWifiName();
+        currentWifiSSID = await NetworkInfo().getWifiBSSID();
+        wifiNetworks.add({
+          'ssid': currentWifiSSID,
+          'name': currentWifiNetworkName,
+        });
+      } on PlatformException catch (e) {
+          print(e.toString());
+      }
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   void setSyncing(bool val) {
     if (val) sendSync(0);
@@ -45,45 +157,46 @@ class OSCManager {
 
     final MDnsClient client = MDnsClient();
 
-    print("Starting discovery, looking for " + name + " ...");
+    print("OSC: Starting discovery, looking for " + name + " ...");
     // Start the client with default options.
     await client.start();
-    print("Discovery started");
+    print("OSC: Discovery started");
 
     zeroconfStream.add(0);
 
     bool found = false;
+    Stream<PtrResourceRecord> pointers = client.lookup<PtrResourceRecord>(ResourceRecordQuery.serverPointer(name),
+      timeout: const Duration(minutes: 1)
+    );
 
     // Get the PTR recod for the service.
-    await for (PtrResourceRecord ptr in client.lookup<PtrResourceRecord>(
-        ResourceRecordQuery.serverPointer(name),
-        timeout: const Duration(minutes: 1))) {
-      // Use the domainName from the PTR record to get the SRV record,
-      // which will have the port and local hostname.
-      // Note that duplicate messages may come through, especially if any
-      // other mDNS queries are running elsewhere on the machine.
+    await for (PtrResourceRecord ptr in pointers) {
+        // Use the domainName from the PTR record to get the SRV record,
+        // which will have the port and local hostname.
+        // Note that duplicate messages may come through, especially if any
+        // other mDNS queries are running elsewhere on the machine.
 
-      await for (SrvResourceRecord srv in client.lookup<SrvResourceRecord>(
-          ResourceRecordQuery.service(ptr.domainName))) {
-        // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
-        final String bundleId =
-            ptr.domainName; //.substring(0, ptr.domainName.indexOf('@'));
-
-        print('OSC instance found at ' + srv.toString());
-        if(srv.name.contains("flowtoysconnect"))
-        {
-          await for (IPAddressResourceRecord ipr
-            in client.lookup<IPAddressResourceRecord>(
-                ResourceRecordQuery.addressIPv4(srv.target))) {
+        await for (SrvResourceRecord srv in client.lookup<SrvResourceRecord>(
+            ResourceRecordQuery.service(ptr.domainName))) {
           // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
+          final String bundleId =
+              ptr.domainName; //.substring(0, ptr.domainName.indexOf('@'));
 
-          print("IPV4 Found : " + ipr.address.address);
-          autoDetectedBridge = ipr.address.address;
-          print("Bridge detected on " + autoDetectedBridge);
-          found = true;
-          if(!zeroconfStream.isClosed) zeroconfStream.add(1);
-          client.stop();
-        }
+          print('OSC instance found at ' + srv.toString());
+          if(srv.name.contains("flowtoysconnect")) {
+            await for (IPAddressResourceRecord ipr
+              in client.lookup<IPAddressResourceRecord>(
+                  ResourceRecordQuery.addressIPv4(srv.target))) {
+            // Domain name will be something like "io.flutter.example@some-iphone.local._dartobservatory._tcp.local"
+
+            print("IPV4 Found : " + ipr.address.address);
+            autoDetectedBridge = ipr.address.address;
+            print("Bridge detected on " + autoDetectedBridge);
+            setIPAddress(ipr.address.address);
+            found = true;
+            if(!zeroconfStream.isClosed) zeroconfStream.add(1);
+            client.stop();
+          }
         }
        
       }
@@ -97,19 +210,21 @@ class OSCManager {
     client.stop();
     zeroconfStream.close();
 
-    print('Discovery Done.');
+    isConnected = found;
+    changeStream.add(null);
+    print('Discovery Done. Connected? ${isConnected}');
   }
 
-  void loadPreferences() async {
-    if (prefs == null) prefs = await SharedPreferences.getInstance();
-    try {
-      remoteHost = InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
-    } on ArgumentError catch (error) {
-      print("Error getting IP from preferences : " + error.message);
-    }
-
-    print("Now sending OSC to " + remoteHost?.address + ":" + remotePort.toString());
-  }
+  // void loadPreferences() async {
+  //   if (prefs == null) prefs = await SharedPreferences.getInstance();
+  //   try {
+  //     remoteHost = InternetAddress(prefs.getString("oscRemoteHost") ?? "192.168.4.1");
+  //   } on ArgumentError catch (error) {
+  //     print("Error getting IP from preferences : " + error.message);
+  //   }
+  //
+  //   print("Now sending OSC to " + remoteHost?.address + ":" + remotePort.toString());
+  // }
 
   void setRemoteHost(String value) {
     prefs.setString("oscRemoteHost", value);
@@ -122,12 +237,16 @@ class OSCManager {
     print("Now sending OSC to " + remoteHost?.address + ":" + remotePort.toString());
   }
 
+  void setIPAddress(String address) {
+    if (address != null)
+      remoteHost = InternetAddress(address);
+  }
+
 
   //OSC Messages
 
   void sendMessage(OSCMessage m) {
     remotePort = 9000;
-    remoteHost = InternetAddress("192.168.1.43");
     print("Send message : " + m.address + " to ${remoteHost?.address}:${remotePort}");
     socket.send(m.toBytes(), remoteHost, remotePort);
   }

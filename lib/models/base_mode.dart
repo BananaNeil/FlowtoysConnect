@@ -4,6 +4,11 @@ import 'dart:convert';
 
 class BaseMode {
   Map<String, dynamic> images;
+  String description;
+  bool stallReactive;
+  bool bumpReactive;
+  bool spinReactive;
+  bool hueIsAdjust;
   num brightness;
   num saturation;
   num density;
@@ -15,6 +20,11 @@ class BaseMode {
   num hue;
 
   BaseMode({
+    this.stallReactive,
+    this.bumpReactive,
+    this.spinReactive,
+    this.hueIsAdjust,
+    this.description,
     this.saturation,
     this.brightness,
     this.density,
@@ -34,6 +44,8 @@ class BaseMode {
 
   String get trailImage => Client.url((images['trail'] ?? {})['medium']);
 
+  bool get motionReactive => stallReactive || bumpReactive || spinReactive;
+
   num getValue(param) {
     return {
       'brightness': brightness,
@@ -46,6 +58,11 @@ class BaseMode {
 
   Map<String, dynamic> toMap() {
     return {
+      'stall_reactive': stallReactive,
+      'bump_reactive': bumpReactive,
+      'spin_reactive': spinReactive,
+      'hue_is_adjust': hueIsAdjust,
+      'description': description,
       'brightness': brightness,
       'saturation': saturation,
       'images': images,
@@ -70,6 +87,11 @@ class BaseMode {
   factory BaseMode.fromMap(Map<String, dynamic> body) {
     var json = body;
     return BaseMode(
+      stallReactive: json['stall_reactive'] ?? false,
+      spinReactive: json['spin_reactive'] ?? false,
+      bumpReactive: json['bump_reactive'] ?? false,
+      hueIsAdjust: json['hue_is_adjust'] ?? false,
+      description: json['description'] ?? "",
       saturation: json['saturation'],
       brightness: json['brightness'],
       images: json['images'] ?? {},

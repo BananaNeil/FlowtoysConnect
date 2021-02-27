@@ -8,6 +8,7 @@ import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:convert';
 import 'dart:async';
+import 'dart:math';
 
 class Mode {
   bool get isPersisted => id != null;
@@ -118,6 +119,7 @@ class Mode {
     speed = ModeParam.fromModeMap(json, 'speed', this);
     hue = ModeParam.fromModeMap(json, 'hue', this);
     baseModeId = json['base_mode_id'];
+    name = json['name'];
   }
 
   Future<Map<dynamic, dynamic>> updateFromCopy(copy) {
@@ -136,21 +138,25 @@ class Mode {
 
   Future<Map<dynamic, dynamic>> save() {
     saveTimer?.cancel();
+    var completer = Completer<Map<dynamic, dynamic>>();
     saveTimer = Timer(Duration(seconds: 1), () {
       var method = (id == null) ? Client.createMode : Client.updateMode;
-      return method(this).then((response) {
+      method(this).then((response) {
         if (response['success']) {
           this.id = response['mode'].id ?? id;
           // assignAttributesFromCopy(response['mode']); // This isn't really necessary, but seems right for good measure?
           response['id'] = id;
           response['mode'] = this;
+
         } else {
           print("FAIL SAVE MODE: ${response['message']}");
         }
         // else Fail some how?
+        completer.complete(response);
         return response;
       });
     });
+    return completer.future;
   }
 
   Mode dup() {
@@ -162,12 +168,21 @@ class Mode {
     return Mode.fromMap(attributes);
   }
 
-  Map<String, num> getParamValues({groupIndex, propIndex}) {
+  int lfoCount = 1;
+  Map<String, dynamic> getParamValues({groupIndex, propIndex}) {
+    var adjust = getValue(hueIsAdjust ? 'hue' : 'adjust', groupIndex: groupIndex, propIndex: propIndex);
+
+    var totalLFO = (adjust * lfoCount) as double;
+    List<double> adjustValues = List.generate(lfoCount, (i) {
+      // adjust = min(1.0, (adjust * 2.0) as double);
+      return min(max(0, totalLFO - i), 1);
+    });
+
     return {
+      'adjust': adjustValues,
       'saturation': getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
       'brightness': getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
       'density': getValue('density', groupIndex: groupIndex, propIndex: propIndex),
-      'adjust': getValue('adjust', groupIndex: groupIndex, propIndex: propIndex),
       'speed': getValue('speed', groupIndex: groupIndex, propIndex: propIndex),
       'hue': getValue('hue', groupIndex: groupIndex, propIndex: propIndex),
     };
@@ -216,6 +231,25 @@ class Mode {
 
   num initialValue(param) {
     return baseMode.getValue(param);
+  }
+
+  bool get hueIsAdjust => baseMode.hueIsAdjust ?? false;
+  bool get motionReactive => baseMode.motionReactive;
+  bool get stallReactive => baseMode.stallReactive;
+  bool get bumpReactive => baseMode.bumpReactive;
+  bool get spinReactive => baseMode.spinReactive;
+
+  // I don't think you need this null safty::::::
+  String get description => baseMode.description ?? "";
+
+  Map<String, bool> _booleanAttributes;
+  Map<String, bool> get booleanAttributes {
+    return _booleanAttributes ??= {
+      'motionReactive': motionReactive,
+      'stallReactive': stallReactive,
+      'bumpReactive': bumpReactive,
+      'spinReactive': spinReactive,
+    };
   }
 
   Map<String, BaseMode> _baseMode = {};
@@ -272,6 +306,7 @@ class Mode {
         'parent_type',
         'parent_id',
         'position',
+        'name',
         'id',
 
         'saturation',

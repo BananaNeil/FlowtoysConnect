@@ -31,6 +31,11 @@ class AppRouter {
 
   static void setupRouter() {
     router.define(
+      '/login-overlay',
+      handler: newHandler(() => Login()),
+      transitionType: TransitionType.inFromBottom,
+    );
+    router.define(
       '/login',
       handler: newHandler(() => Login()),
       transitionType: TransitionType.fadeIn,
