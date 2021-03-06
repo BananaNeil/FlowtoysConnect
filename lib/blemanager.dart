@@ -21,7 +21,15 @@ class BLEManager {
   FlutterBlue flutterBlue;
   BluetoothDevice bridge;
 
-  bool isConnected = false;
+
+  bool _isConnected = false;
+  bool get isConnected => _isConnected;
+  set isConnected(value) {
+    if (value != _isConnected)
+    _isConnected = value;
+    changeStream.add(null);
+  }
+
   bool isConnecting = false;
   bool isScanning = false;
   bool isReadyToSend = false;
@@ -74,16 +82,35 @@ class BLEManager {
     else sendString("S");
   }
 
-  void sendPattern({String group, int page, int mode, int actives, List<double> paramValues}) {
-    List<Object> args = new List<Object>();
-    args.add(group);
-    args.add(0);//groupIsPublic = false, force private group
-    args.add(page);
-    args.add(mode);
-    args.add(actives);
+  void sendPattern({String groupId, int page, int mode, int actives, List<double> paramValues}) {
+    // List<Object> args = new List<Object>();
+    // args.add(groupId);
+    // args.add(0);//groupIsPublic = false, force private group
+    // args.add(page);
+    // args.add(mode);
+    // args.add(actives);
     var values = paramValues.map((value) => (value*255).round());
-    sendString("p${group},${page - 1},${mode - 1},${actives+1},${values.join(',')}");
+    sendString("p${groupId},${page - 1},${mode - 1},${actives+1},${values.join(',')}");
   }
+
+  String _statusMessage;
+  String get statusMessage {
+    if (_statusMessage != null)
+      return _statusMessage;
+
+    if (isOff)
+      return "Turn on Bluetooth to connect...";
+    else if (isConnected) 
+      return "Communicating with bridge via Bluetooth (${Bridge.name})";
+    else return "Searching via Bluetooth...";
+  }
+
+  set statusMessage(message) {
+    changeStream.add(null);
+    _statusMessage = message;
+  }
+
+  bool isOff = false;
 
   void scanAndConnect() async {
     if (flutterBlue == null)
@@ -92,7 +119,6 @@ class BLEManager {
 
     bridge = null;
     isConnected = false;
-    changeStream.add(null);
 
     await flutterBlue.connectedDevices.then((devices) {
       for (BluetoothDevice device in devices) {
@@ -122,7 +148,8 @@ class BLEManager {
     }
 
     // print("CHECK IF ON");
-    flutterBlue.isOn.then((isOn) {
+    flutterBlue.isOn.then((isOn) async {
+      isOff = !isOn;
       if (!isOn) {
         // THIS IS A GREAT PLACE TO TELL THE USER TO TURN ON THEIR BLUETOOTH 
         print("Bluetooth is not activated.");
@@ -137,7 +164,7 @@ class BLEManager {
       isConnecting = true;
       isReadyToSend = false;
       changeStream.add(null);
-      flutterBlue.stopScan();
+      await flutterBlue.stopScan();
 
       flutterBlue
           .startScan(timeout: Duration(seconds: 5))
@@ -148,7 +175,6 @@ class BLEManager {
         // do something with scan result
 
         for (var result in scanResult) {
-          print('${result.device.name} found!');
           if (result.device.name.contains("FlowConnect")) {
             Bridge.name = result.device.name;
             bridge = result.device;
@@ -169,13 +195,12 @@ class BLEManager {
 
   Timer reconnectTimer;
   void periodicallyAttemptReconnect() {
-    print("PERIODICALLY CHECKING CALLED NOW.........");
     reconnectTimer?.cancel();
     if (!isConnected)
       reconnectTimer = Timer(Duration(seconds: secondsUntilReconnect), () {
         reconnectToBridge();
         periodicallyAttemptReconnect();
-        print("Wated ${secondsUntilReconnect} seconds, now reconnecting");
+        print("BLE Wated ${secondsUntilReconnect} seconds, now reconnecting");
       });
   }
 
@@ -185,7 +210,7 @@ class BLEManager {
 
     if (bridge == null) {
       //print("Bridge not found");
-      print("No FlowConnect bridge found.");
+      print("No FlowConnect bridge found via BLE.");
       isConnected = false;
       isConnecting = false;
       changeStream.add(null);
@@ -193,8 +218,8 @@ class BLEManager {
       return;
     }
 
-    print("Connect to bridge : " + bridge?.name);
-    print(("Connecting to bridge..."));
+    print("BLE: Connect to bridge : " + bridge?.name);
+    print("BLE: Connecting to bridge...");
 
 
     stateSubscription?.cancel();
@@ -241,8 +266,7 @@ class BLEManager {
       String commandType = String.fromCharCode(data.removeLast());
       print("RECEIVED FROM RX BLE (command type: ${commandType}): ${data}"); 
       if (commandType == 'p') {
-        SyncPacket.fromBle(data);
-        // AppController.rebuild();
+        SyncPacket.fromBridge(data);
       } else if (commandType == 'w')
         AppController.oscManager.setIPAddress(String.fromCharCodes(data));
     }
@@ -311,7 +335,7 @@ class BLEManager {
 
   void sendString(String message) async {
 
-    print("Sending : " + message);
+    print("Sending via BLE : " + message);
 
     await reconnectToBridge();
 
@@ -342,26 +366,24 @@ class BLEManager {
   }
 
 
-   void sendConfig({String networkName, String ssid, String password}) async 
-   {
-      sendString("n${ssid ?? networkName},${password}");
-      this.ssid = ssid;
-      pass = password;
-      
-      sleep(Duration(milliseconds: 40)); //safe between 2 calls
-      if(networkName.isEmpty) this.networkName = "*";
+   void sendConfig({String networkName, String ssid, String password}) async {
+    sendString("n${ssid ?? networkName},${password}");
+    this.ssid = ssid;
+    pass = password;
+    
+    // sleep(Duration(milliseconds: 40)); //safe between 2 calls
+    // if(networkName.isEmpty) this.networkName = "*";
 
-      // 0 for WiFi, 1 for BLE, 2 for Both:
-      sendString("g" + networkName + ",0");
-      
-      if(this.networkName != networkName)
-      {
-        this.networkName = networkName;
-        if(bridge != null) bridge.disconnect();
-        print("Start scanning after 6 seconds:");
-        Future.delayed(Duration(seconds:6),scanAndConnect);
-      }
-    }  
+    // 0 for WiFi, 1 for BLE, 2 for Both:
+    // sendString("g" + networkName + ",0");
+    
+    // if(this.networkName != networkName) {
+    //   this.networkName = networkName;
+    //   if(bridge != null) bridge.disconnect();
+    //   print("Start scanning after 6 seconds:");
+    //   Future.delayed(Duration(seconds:6),scanAndConnect);
+    // }
+  }  
 }
 
 class BLEConnectIcon extends StatefulWidget {

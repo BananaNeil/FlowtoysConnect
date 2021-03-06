@@ -12,7 +12,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
-version: 1.0.9+9
+version: 1.0.10+10
 
 environment:
   sdk: ">=2.1.0 <3.0.0"
@@ -21,7 +21,16 @@ dependencies:
   flutter:
     sdk: flutter
   badges: '^1.1.6'
-  open_settings: ^1.0.3
+  open_settings: #^1.0.3
+    # path: /Users/neil/Projects/flowtoys/open_settings
+    # Forked to fix a bug, needed to switch:
+    # UIApplicationOpenSettingsURLString to be UIApplication.openSettingsURLString
+    # 
+    # There is an PR to fix it, but it's been open for almost a year now.
+    # https://github.com/AliHoseinpoor/open_settings/pull/4
+    git:
+      url: git@github.com:BananaNeil/open_settings.git
+      ref: 1e53bc686516b4bb125dc2cd1b28bdf53cbc9c14
   osc:
     git: https://github.com/pq/osc
   rect_getter: ^0.1.0
@@ -40,7 +49,7 @@ dependencies:
   youtube_player_flutter: ^7.0.0+7
 
   flutter_hsvcolor_picker: #^0.0.1
-    path: /Users/neil/Projects/flowtoys/hsvcolor_picker
+    # path: /Users/neil/Projects/flowtoys/hsvcolor_picker
     git: 
       # Patched to allow for setting the color of the circle on SliderPicker
       # and setting the height (and other things that I didn't need to patch,
@@ -50,15 +59,15 @@ dependencies:
       ref: 0e9ceb81d04c987e0b9a7083ba5a6bc7fd128278
   flutter_secure_storage: ^3.3.5
   assets_audio_player: #^2.0.13+1
-    # path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
+    path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
     # Patched to allow seeking to work with milliseconds instead of seconds
-    git:
-      url: https://github.com/BananaNeil/Flutter-AssetsAudioPlayer.git
-      ref: 0981b955e1c3dc9ecf07c4d7d0e53392162c4472
+    # git:
+    #   url: https://github.com/BananaNeil/Flutter-AssetsAudioPlayer.git
+    #   ref: 0981b955e1c3dc9ecf07c4d7d0e53392162c4472
   firebase_messaging: ^7.0.3
   # firebase_analytics: ^5.0.16
   flutter_speed_dial: ^1.2.5
-  flutter_downloader: ^1.5.1
+  flutter_downloader: ^1.5.2
 
 
   percent_indicator: ^2.1.7+2
@@ -77,7 +86,7 @@ dependencies:
     # Patched to get MacOS (and probalby ios) working
     git: 
       url: git@github.com:BananaNeil/flutter_blue.git
-      ref: 6c97b805b8e3b1321ee6aa92379c140c5db01f58
+      ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
   url_launcher: ^5.6.0
   fluttertoast: ^7.1.1
   youtube_api: #^0.8.0
@@ -97,6 +106,8 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^0.1.3
   shared_preferences: ^0.5.10
+  flash_animation: ^0.0.1
+
 
 dev_dependencies:
   flutter_test:

@@ -22,6 +22,18 @@ class Client {
     else return '';
   }
 
+  static Future<Map<dynamic, dynamic>> fetchProps(props) async {
+    Future<Map<dynamic, dynamic>> response = makeRequest('get',
+      path: '/props',
+      body: {
+        'prop_uids': props.map((prop) => prop.uid).toList(),
+      }
+    );
+
+
+    return response;
+  }
+
   static Future<Map<dynamic, dynamic>> getAccount() async {
     return makeRequest('get',
       unauthorized: (() => Authentication.logout()),

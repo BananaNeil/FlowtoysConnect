@@ -1,6 +1,8 @@
+import 'package:app/authentication.dart';
 import 'package:app/models/bridge.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
+import 'package:app/client.dart';
 import 'dart:async';
 
 
@@ -11,18 +13,23 @@ class Group {
   static List<Group> _quickGroups;
 
   List<Prop> props;
-  String name;
+  String _name;
   String id;
 
   Group({
+    name,
     this.id,
-    this.name,
     this.props,
-  });
+  }) {
+    this.name = name;
+  }
 
   static Group _currentQuickGroup;
   static Group get currentQuickGroup => _currentQuickGroup ?? quickGroups.first;
   static void set currentQuickGroup (group) => _currentQuickGroup = group;
+
+  String get name => _name ?? "Unclaimed Group (${props.length})";
+  void set name(name) => _name = name;
 
   static List<Group> get quickGroups {
     if (_quickGroups != null) return _quickGroups;
@@ -44,11 +51,13 @@ class Group {
   Timer animationUpdater;
   Mode _currentMode;
   Mode get currentMode {
+    print("GROUP.currentMode = ");
     if (props.any((prop) => prop.currentModeId != props.first.currentModeId))
       return null;
     return _currentMode;
   }
 
+  Mode get internalMode => currentMode;
   void set internalMode(mode) {
     _currentMode = mode;
     props.forEach((prop) => prop.internalMode = mode);
@@ -74,6 +83,10 @@ class Group {
         params: props.first.currentModeParamValues, 
       );
     });
+  }
+
+  static List<Prop> get possibleProps {
+    return possibleGroups.map((group) => group.props).expand((g) => g).toList();
   }
 
   static List<Prop> get connectedProps {
@@ -105,18 +118,27 @@ class Group {
     return groups;
   }
 
-  static List<Group> get connectedGroups => possibleGroups;
+  static List<Group> get connectedGroups => possibleGroups.where((group) {
+    List<String> userPropIds = Authentication.currentAccount.propIds ?? [];
+    return group.props.any((prop) => userPropIds.contains(prop.id));
+  }).toList();
 
   static Group findOrCreateById(String groupId) {
     return possibleGroups.firstWhere((group) => group.id == groupId, orElse: () {
       var prop = Prop(id: "${groupId}-${1}", groupId: groupId);
+      var props = [prop];
       Group newGroup = Group(
-        name: "Group [${groupId}]",
         id: groupId,
-        props: [
-          prop,
-        ],
+        props: props,
       );
+
+      Client.fetchProps(props).then((response) {
+        if (response['success'])
+          response['body']['props'].forEach((data) {
+            Prop prop = props.firstWhere((prop) => prop.uid == data['uid'], orElse: () {});
+            prop.setAttributes(data);
+          });
+      });
 
 
       possibleGroups.add(newGroup);
@@ -131,6 +153,8 @@ class Group {
 
   static List<String> savedGroupIds = [];
   static List<Group> unseenGroups = [];
+
+  static List<Group> get unclaimedGroups => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
 
   static List<Group> _possibleGroups;
   static List<Group> get possibleGroups {

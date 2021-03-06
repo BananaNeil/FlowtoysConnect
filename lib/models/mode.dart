@@ -367,11 +367,13 @@ class Mode {
     return mode;
   }
 
-  factory Mode.basic() {
+  factory Mode.basic({page, number}) {
     var baseMode;
     if (Preloader.baseModes.isNotEmpty)
       baseMode = Preloader.baseModes.elementAt(0);
     return Mode.fromMap({
+      'page': page,
+      'number': number,
       'hue': { 'value': 0.5 },
       'speed': { 'value': 0.5 },
       'adjust': { 'value': 0.0 },

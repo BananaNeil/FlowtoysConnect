@@ -147,13 +147,13 @@ class _ResearchPageState extends State<ResearchPage> {
           "," +
           values;
     } else {
-      oscManager.sendPattern(
-        paramValues: paramValues,
-        group: selectedGroup,
-        actives: actives,
-        mode: _mode,
-        page: page,
-      );
+      // oscManager.sendPattern(
+      //   paramValues: paramValues,
+      //   group: selectedGroup,
+      //   actives: actives,
+      //   mode: _mode,
+      //   page: page,
+      // );
     }
   }
 
@@ -293,3 +293,131 @@ class CommandButton extends StatelessWidget {
   }
 }
 
+class OSCSettingsDialog extends StatefulWidget {
+  OSCSettingsDialog({Key key, this.manager}) : super(key: key) {}
+
+  final OSCManager manager;
+
+  @override
+  OSCSettingsDialogState createState() => OSCSettingsDialogState(manager);
+}
+
+class OSCSettingsDialogState extends State<OSCSettingsDialog> {
+  OSCSettingsDialogState(OSCManager _manager) : manager = _manager{
+
+    ipController.text = manager.remoteHost?.address;
+
+    manager.discoverServices();
+    subscription = manager.zeroconfStream.stream.listen((data){
+      setState(()
+      {
+        isSearchingZeroconf = data == 0;
+        foundZeroconf = data == 1;
+      });
+    }); 
+  }
+
+  @override
+  void dispose()
+  {
+    subscription.cancel();
+    super.dispose();
+  }
+
+  StreamSubscription<int> subscription;
+  bool isSearchingZeroconf = false;
+  bool foundZeroconf = false;
+
+  OSCManager manager;
+  final TextEditingController ipController = new TextEditingController();
+
+  final formKey = GlobalKey<FormState>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        elevation: 0.0,
+        backgroundColor: Color(0xff333333),
+        child: Padding(
+            padding: EdgeInsets.all(8),
+            child: ListView(
+              shrinkWrap: true,
+              children: <Widget>[
+                Container(
+                    margin: EdgeInsets.only(bottom: 20),
+                    alignment: Alignment.center,
+                    child: Text(
+                      "OSC Settings",
+                      style: TextStyle(color: Color(0xffcccccc)),
+                    )),
+                Form(
+                  key: formKey,
+                  child: Row(
+                    children: <Widget>[
+                      Flexible(
+                        child: TextFormField(
+                          controller: ipController,
+                          style: TextStyle(color: Colors.white),
+                          validator: (value) {
+                            // return isIP(value, "4")
+                            //     ? null
+                            //     : "IP format is invalid (must be x.x.x.x)";
+                          },
+                          decoration: InputDecoration(
+                              labelText: "Remote Host",
+                              labelStyle: TextStyle(color: Colors.white54),
+                              fillColor: Colors.white,
+                              border: new OutlineInputBorder(
+                                  borderRadius: new BorderRadius.circular(2.0),
+                                  borderSide:
+                                      new BorderSide(color: Colors.red))),
+                        ),
+                      ),
+                      Padding(
+                          padding: EdgeInsets.only(left: 15),
+                          child: RaisedButton(
+                              child: Text(isSearchingZeroconf?"Searching...":(foundZeroconf?"Auto-set":"Not found"),
+                                  style: TextStyle(color: Color(0xffcccccc))),
+                              color: Colors.green,
+                              disabledColor: isSearchingZeroconf?Colors.blue:Colors.red,
+                              onPressed: foundZeroconf
+                                  ? () {
+                                      ipController.text = manager.autoDetectedBridge;
+                                    }
+                                  : null)),
+                    ],
+                  ),
+                ),
+                Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: RaisedButton(
+                      child: Text("Save"),
+                      onPressed: () {
+                        if (formKey.currentState.validate()) {
+                          manager.setRemoteHost(ipController.text);
+                          Navigator.of(context).pop();
+                        }
+                      },
+                    ))
+              ],
+            )));
+  }
+}
+
+class OSCSettingsIcon extends StatelessWidget {
+  OSCSettingsIcon({Key key, this.manager}) : super(key: key) {}
+
+  final OSCManager manager;
+
+  Widget build(BuildContext context) {
+    return FloatingActionButton(
+        child: Icon(Icons.settings),
+        onPressed: () => showDialog(
+            context: context,
+            builder: (BuildContext context) =>
+                OSCSettingsDialog(manager: manager)));
+  }
+}

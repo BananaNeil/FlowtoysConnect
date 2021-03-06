@@ -12,11 +12,20 @@ class Prop {
   String id;
   int index;
 
+
+  String setName;
+  String type;
+
+
+  String get uid => id;
+
   String get currentModeId => currentMode?.id;
 
   Group get group => Group.connectedGroups.firstWhere((group) => group.id == groupId);
   static List<String> get connectedModeIds => Group.connectedProps.map((prop) => prop.currentModeId).toList();
   static List<Mode> get connectedModes => (Group.connectedProps.map((prop) => prop.currentMode).toSet()..removeWhere((mode) => mode == null)).toList();
+
+  static List<Prop> get unclaimedProps => Group.possibleProps.where((prop) => !Group.connectedProps.contains(prop)).toList();
 
   static String _quickGroupPropIdsWas;
   static Map<String, List<Prop>> _quickGroupPropsByGroupId;
@@ -50,39 +59,48 @@ class Prop {
     return map;
   }
 
-  Map<String, num> get currentModeParamValues {
+  Map<String, dynamic> get currentModeParamValues {
     return currentMode.getParamValues(
       groupIndex: groupIndex,
       propIndex: index,
     ); 
   }
 
-  static BehaviorSubject<Mode> currentModeController = BehaviorSubject<Mode>();
-  static Stream<Mode> get currentModeStream => currentModeController.stream;
+  static BehaviorSubject<Prop> propUpdateController = BehaviorSubject<Prop>();
+  static Stream<Prop> get propUpdateStream => propUpdateController.stream;
 
   // StreamController<Mode> currentModeController = StreamController<Mode>();
   // Stream<Mode> get currentModeStream => currentModeController.stream;
   //
   Mode get currentMode => _currentMode;
   void set internalMode(mode) {
-    // currentModeController.add(mode);
-    Prop.currentModeController.sink.add(mode);
+    // propUpdateController.add(mode);
     _currentMode = mode;
+    Prop.propUpdateController.sink.add(this);
   }
+  DateTime _currentModeSetAt;
   void set currentMode(mode) {
     internalMode = mode;
     animationUpdater?.cancel();
     if (mode.isAnimating)
-      animationUpdater = Timer(Duration(milliseconds: 100), () {
+      animationUpdater = Timer(Duration(milliseconds: 205), () {
         this.currentMode = _currentMode;
       });
-    Bridge.setProp(
-      propId: id,
-      groupId: groupId,
-      page: currentMode.page,
-      number: currentMode.number,
-      params: currentModeParamValues, 
-    );
+    if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Duration(milliseconds: 200)) {
+      _currentModeSetAt = DateTime.now();
+      Bridge.setProp(
+        propId: id,
+        groupId: groupId,
+        page: currentMode.page,
+        number: currentMode.number,
+        params: currentModeParamValues, 
+      );
+    }
+  }
+
+  void setAttributes(data) {
+    type = data['type'];
+    setName = data['set_name'];
   }
 
   Prop({

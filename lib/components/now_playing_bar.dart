@@ -55,7 +55,7 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
 
   @override
   Widget build(BuildContext context) {
-    currentModeSubscription ??= Prop.currentModeStream.listen((mode) {
+    currentModeSubscription ??= Prop.propUpdateStream.listen((prop) {
       // This is not yet fully working!!!!!!!!!!
       // This is not yet fully working!!!!!!!!!!
       // This is not yet fully working!!!!!!!!!!
@@ -86,6 +86,8 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
                       children: Prop.propsByMode.entries.map<Widget>((entry) {
                         var mode = entry.key;
                         var props = entry.value;
+                        if (mode.page > 3)
+                          return Container();
                         if (AppController.isSmallScreen && Prop.propsByMode.entries.length > 1)
                           return ModeImage(mode: mode, size: 15);
                         else

@@ -8,6 +8,7 @@ import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
+import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:app/preloader.dart';
@@ -67,12 +68,6 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
     filtersSubscription = widget.filterStream.listen((filters) {
       setState(() => activeFilters = filters);
     });
-  }
-
-  @override
-  dispose() {
-    filtersSubscription.cancel();
-    super.dispose(); 
   }
 
   List<ModeList> allLists;

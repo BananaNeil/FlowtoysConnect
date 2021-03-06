@@ -57,9 +57,20 @@ class _ModeListItem extends State<ModeListItem> {
 
   bool get isSmall => widget.containerWidth <= 450;
   bool get isXSmall => widget.containerWidth <= 380;
+  StreamSubscription currentModeSubscription;
+
+  @override
+  dispose() {
+    currentModeSubscription.cancel();
+    super.dispose(); 
+  }
 
   @override
   Widget build(BuildContext context) {
+    currentModeSubscription ??= Prop.propUpdateStream.listen((prop) {
+      if (activePropCountChanged && this.mounted)
+        setState(() {});
+    });
     var isSelected = widget.selectedModeIndex > 0;
     return Card(
       key: Key(mode.id.toString()),
@@ -90,8 +101,8 @@ class _ModeListItem extends State<ModeListItem> {
                   )
                 ),
               )),
-              trailing: _TrailingIcon(mode),
-              title: _ModeItemContent(mode),
+              trailing: _TrailingIcon(),
+              title: _ModeItemContent(),
             ),
           ),
           AnimatedClipRect(
@@ -101,7 +112,7 @@ class _ModeListItem extends State<ModeListItem> {
             alignment: Alignment.topCenter,
             open: widget.isExpanded && !widget.isSelecting,
             duration: Duration(milliseconds: 200),
-            child: _ExpandedModeContent(mode),
+            child: _ExpandedModeContent(),
           ),
           Container(
             height: 15,
@@ -125,7 +136,7 @@ class _ModeListItem extends State<ModeListItem> {
     );
   }
 
-  Widget _ModeItemContent(mode) {
+  Widget _ModeItemContent() {
     return Column(
       children: [
         Row(
@@ -163,7 +174,7 @@ class _ModeListItem extends State<ModeListItem> {
                     ]
                   ),
                 ),
-                _ActiveModesIndicator(mode),
+                _ActiveModesIndicator(),
                 Container(
                     width: widget.containerWidth - (isSmall ? 130 : 200),
                   margin: EdgeInsets.only(top: 2),
@@ -181,15 +192,16 @@ class _ModeListItem extends State<ModeListItem> {
     );
   }
 
-  Widget _ActiveModesIndicator(mode) {
+  
+  Widget _ActiveModesIndicator() {
     // This should show this:
-    var propCount = Prop.connectedModeIds.where((id) => mode.id == id).length;
+    _activePropCount = activePropCount;
     //
     // But until props can be addressed individually, we must show "groups"
     // var groupCount = Group.connectedGroups.where((group) => group.currentMode.id == mode.id).length;
     return Container(
-      child: !Prop.connectedModeIds.contains(mode.id) ? null : Text(
-        "${propCount} ${Intl.plural(propCount, one: 'group', other: 'groups')} activated",
+      child: _activePropCount == 0 ? null : Text(
+        "${_activePropCount} ${Intl.plural(_activePropCount, one: 'group', other: 'groups')} activated",
         style: TextStyle(
             fontSize: 14,
             color: AppController.purple,
@@ -198,7 +210,13 @@ class _ModeListItem extends State<ModeListItem> {
     );
   }
 
-  Widget _ExpandedModeContent(mode) {
+  int _activePropCount;
+  bool get activePropCountChanged => _activePropCount == activePropCount;
+  int get activePropCount {
+    return Prop.connectedModeIds.where((id) => mode.id == id).length;
+  }
+
+  Widget _ExpandedModeContent() {
     return Container(
       child: Stack(
         children: [
@@ -223,7 +241,7 @@ class _ModeListItem extends State<ModeListItem> {
                 left: 10,
                 top: 5,
               ),
-              child: _ModeTileParams(mode),
+              child: _ModeTileParams(),
             ),
             // decoration: BoxDecoration(
             //   boxShadow: [
@@ -245,7 +263,7 @@ class _ModeListItem extends State<ModeListItem> {
   }
 
   Timer _adjustingInlineParamTimer;
-  Widget _ModeTileParams(mode) {
+  Widget _ModeTileParams() {
     return InlineModeParams(
       onTouchDown: () {
         _adjustingInlineParamTimer?.cancel();
@@ -253,14 +271,17 @@ class _ModeListItem extends State<ModeListItem> {
       },
       onTouchUp: () {
         _adjustingInlineParamTimer = Timer(Duration(seconds: 1), () => widget.isAdjustingInlineParam(false));
-        (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
+        // (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
         setState(() {});
+      },
+      updateMode: () {
+        (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
       },
       mode: mode,
     );
   }
 
-  Widget _TrailingIcon(mode) {
+  Widget _TrailingIcon() {
     if (widget.isEditing)
       return GestureDetector(
         onTap: () {

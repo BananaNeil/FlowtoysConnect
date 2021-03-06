@@ -36,6 +36,7 @@ class ColorFilterGenerator {
         value = (((value / initialValue) - 1) * 255).clamp(-255.0, 0);
       else
         value = ((((value - initialValue) / (1 - initialValue))) * 100).clamp(0, 100.0);
+      if (value < 0 && value > -255) value /= 2;
 
       if (value == 0)
         return [

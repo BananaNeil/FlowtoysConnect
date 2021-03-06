@@ -13,12 +13,14 @@ class InlineModeParams extends StatefulWidget {
     Key key,
     this.mode,
     this.onTouchUp,
+    this.updateMode,
     this.onTouchDown,
     // this.onChange,
   }) : super(key: key);
 
   final Mode mode;
   Function onTouchUp = () {};
+  Function updateMode = () {};
   Function onTouchDown = () {};
 
   @override
@@ -285,6 +287,9 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               mode.setAnimationSpeed(paramName, value);
               ensureAnimationControllerFor(paramName);
             }
+            mode.save();
+
+            widget.updateMode();
             setState((){});
           },
           child: sliderType == 'param' && paramName == 'adjust' ? adjustLines : speedLines
@@ -301,6 +306,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         initialValue =  mode.getValue(showSlider);
       },
       onUpdate: (value) {
+        widget.updateMode();
         mode.getParam(showSlider).setValue(value);
         mode.save();
       },

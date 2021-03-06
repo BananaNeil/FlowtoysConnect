@@ -21,14 +21,14 @@ packages:
       path: "/Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer"
       relative: false
     source: path
-    version: "2.0.13+1"
+    version: "2.0.13+8"
   assets_audio_player_web:
     dependency: transitive
     description:
       name: assets_audio_player_web
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.0.13+1"
+    version: "2.0.13+8"
   async:
     dependency: transitive
     description:
@@ -246,6 +246,13 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "0.10.11"
+  flash_animation:
+    dependency: "direct main"
+    description:
+      name: flash_animation
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.0.1"
   fluro:
     dependency: "direct main"
     description:
@@ -261,9 +268,11 @@ packages:
   flutter_blue:
     dependency: "direct main"
     description:
-      path: "/Users/neil/Projects/flowtoys/flutter_blue"
-      relative: false
-    source: path
+      path: "."
+      ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
+      resolved-ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
+      url: "git@github.com:BananaNeil/flutter_blue.git"
+    source: git
     version: "0.7.3"
   flutter_downloader:
     dependency: "direct main"
@@ -275,9 +284,11 @@ packages:
   flutter_hsvcolor_picker:
     dependency: "direct main"
     description:
-      path: "/Users/neil/Projects/flowtoys/hsvcolor_picker"
-      relative: false
-    source: path
+      path: "."
+      ref: "0e9ceb81d04c987e0b9a7083ba5a6bc7fd128278"
+      resolved-ref: "0e9ceb81d04c987e0b9a7083ba5a6bc7fd128278"
+      url: "https://github.com/BananaNeil/flutter_hsvcolor_picker"
+    source: git
     version: "0.1.2"
   flutter_inappwebview:
     dependency: transitive
@@ -289,9 +300,11 @@ packages:
   flutter_reorderable_list:
     dependency: "direct main"
     description:
-      path: "/Users/neil/Projects/flowtoys/flutter_reorderable_list"
-      relative: false
-    source: path
+      path: "."
+      ref: fea0bd74d89d728ad59e864a83e2fdf2c2cad7fa
+      resolved-ref: fea0bd74d89d728ad59e864a83e2fdf2c2cad7fa
+      url: "https://github.com/BananaNeil/flutter_reorderable_list.git"
+    source: git
     version: "0.1.5"
   flutter_secure_storage:
     dependency: "direct main"
@@ -303,9 +316,11 @@ packages:
   flutter_siri_suggestions:
     dependency: "direct main"
     description:
-      path: "/Users/neil/Projects/flowtoys/flutter_siri_suggestions"
-      relative: false
-    source: path
+      path: "."
+      ref: "6b7b654dba695f01cb18c25713e8b077edc8a384"
+      resolved-ref: "6b7b654dba695f01cb18c25713e8b077edc8a384"
+      url: "https://github.com/BananaNeil/flutter_siri_suggestions.git"
+    source: git
     version: "1.0.2+hotfix1"
   flutter_speed_dial:
     dependency: "direct main"
@@ -474,10 +489,12 @@ packages:
   open_settings:
     dependency: "direct main"
     description:
-      name: open_settings
-      url: "https://pub.dartlang.org"
-    source: hosted
-    version: "1.0.3"
+      path: "."
+      ref: "1e53bc686516b4bb125dc2cd1b28bdf53cbc9c14"
+      resolved-ref: "1e53bc686516b4bb125dc2cd1b28bdf53cbc9c14"
+      url: "git@github.com:BananaNeil/open_settings.git"
+    source: git
+    version: "1.0.2"
   osc:
     dependency: "direct main"
     description:
@@ -619,7 +636,7 @@ packages:
       name: rxdart
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "0.24.1"
+    version: "0.25.0"
   shared_preferences:
     dependency: "direct main"
     description:

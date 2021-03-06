@@ -7,7 +7,7 @@ import 'package:app/router.dart';
 
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  // env = 'prod';
+  env = 'prod';
 
   AppController.setEnv(env).then((_) {
     AppController.initSiriSuggestions();
@@ -18,7 +18,7 @@ void main({String env}) async {
     Preloader.initDownloader();
     Authentication.checkForAuth().then((isAuthenticated) {
       AppRouter.setupRouter();
-      runApp(FlowtoysConnect(isAuthenticated));
+      runApp(FlowtoysConnect(false));
     });
   });
 }

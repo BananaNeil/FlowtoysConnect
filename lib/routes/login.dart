@@ -2,6 +2,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/back_button.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/authentication.dart';
 import 'package:flutter/material.dart';
 import 'package:app/client.dart';
 
@@ -103,9 +104,13 @@ class _LoginPageState extends State<LoginPage> {
       });
       Client.authenticate(email.text, password.text).then((response) {
         _submittedAt = null;
-        if (response['success'])
-          AppController.closeUntilPath('/modes');
-        else setState(() {
+        if (response['success']) {
+          Authentication.getAccount().then((_) {
+            if (_showCloseButton == true)
+              Navigator.pop(context, true);
+            else AppController.closeUntilPath('/modes');
+          });
+        } else setState(() {
           _errorMessage = response['message'];
         });
       });

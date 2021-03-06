@@ -73,6 +73,9 @@ class ModeImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (mode == null) return Container(width: 0);
+    if (mode.baseMode == null) return Container(width: 0);
+    if (![1,2,3,13].contains(mode.page)) return Container(width: 0);
     this.size ??= 20;
     return Container(
       // This is a shadow, but it looks pretty bad:
@@ -249,6 +252,7 @@ class _ModeImageFilterState extends State<ModeImageFilterState> {
 
   @override
   build(BuildContext context) {
+    if (mode == null) return Container();
     if (mode.colorIsAnimating)
       refreshTimer ??= Timer.periodic(Duration(milliseconds: 200), (_) => setState(() {}));
     // We used to cache this value.... but we don't want to if it's animating.

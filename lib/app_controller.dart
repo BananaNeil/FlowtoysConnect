@@ -173,6 +173,14 @@ class AppController extends StatefulWidget {
     of(getCurrentContext()).rebuild();
   }
 
+  static double scaleViaWidth(num value, {num maxValue, num minValue}) {
+    var screenData = MediaQuery.of(getCurrentContext());
+    value = value * screenData.size.width/450;
+    value = min(value, maxValue ?? double.maxFinite);
+    value = max(value, minValue ?? 0);
+    return value.toDouble();
+  }
+
   static double scale(num value, {num maxValue, num minValue}) {
     var screenData = MediaQuery.of(getCurrentContext());
     value = value * screenData.size.height/650;
@@ -181,7 +189,21 @@ class AppController extends StatefulWidget {
     return value.toDouble();
   }
 
-  static Future<dynamic> openDialog(title, body, {child, path, buttonText, buttons, reverseButtons}) async {
+  static Future<dynamic> openCustomDialog(dialog) async {
+    if (dialogIsOpen) return Future.value(false);
+    dialogIsOpen = true;
+
+    var context = getCurrentContext();
+    return showDialog(
+      context: context,
+      builder: (context) => dialog,
+    ).then((result) {
+      dialogIsOpen = false;
+      return result;
+    });
+  }
+
+  static Future<dynamic> openDialog(title, body, {child, path, buttonText, buttons, reverseButtons, floatingButton}) async {
     if (dialogIsOpen) return Future.value(false);
     dialogIsOpen = true;
 
@@ -224,24 +246,34 @@ class AppController extends StatefulWidget {
     return showDialog(
       context: context,
       builder: (context) => AlertDialog(
-          contentPadding: EdgeInsets.only(top: 15),
-
-          insetPadding: EdgeInsets.all(25),
-
-
+        contentPadding: EdgeInsets.only(top: 15),
+        insetPadding: EdgeInsets.all(isSmallScreen ? 15 : 25),
         actionsPadding: EdgeInsets.all(5),
-        content: ListTile(
-          title: Text(title,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20)
-          ),
-          subtitle: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              child ?? Container(),
-              Container(width: 500, child: Text(body, textAlign: TextAlign.center, )),
-            ]
-          )
+        content: Stack(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 5 : 10, vertical: 10),
+              title: Text(title,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 20)
+              ),
+              subtitle: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  child ?? Container(),
+                  Container(width: 500, child: Text(body, textAlign: TextAlign.center, )),
+                ]
+              )
+            ),
+              Container(
+                height: 40,
+                margin: EdgeInsets.only(right: 15),
+                child: Align(
+                  alignment: FractionalOffset.topRight,
+                  child: floatingButton,
+                ),
+              )
+          ],
         ),
         actions: buttonWidgets,
       ),
@@ -362,4 +394,18 @@ class PieClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(PieClipper oldClipper) => true;
+}
+
+Future ensureAuthentication(Function callback) {
+  if (Authentication.isAuthenticated) return callback();
+  _openLoginScreen().then((_) {
+    if (Authentication.isAuthenticated)
+      callback();
+  });
+}
+
+Future _openLoginScreen() {
+  return Navigator.pushNamed(AppController.getCurrentContext(), '/login-overlay', arguments: {
+    'showCloseButton': true
+  });
 }

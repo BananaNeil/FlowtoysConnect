@@ -1,5 +1,5 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
-import 'package:app/components/bridge_connection_status.dart';
+import 'package:app/components/bridge_connection_status_icon.dart';
 import 'package:app/helpers/color_filter_generator.dart';
 import 'package:app/components/modes_filter_bar.dart';
 import 'package:app/components/edit_mode_widget.dart';
@@ -88,7 +88,7 @@ class _ModesPageState extends State<ModesPage> {
         actions: [
 
           hideNavigation ? Container() :
-            BridgeConnectionStatus(),
+            BridgeConnectionStatusIcon(),
           // _EditGroupButton(),
           // _EditGroupButton(),
         ],

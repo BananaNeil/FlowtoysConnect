@@ -10,10 +10,10 @@ class Bridge {
   // static String get name => ownerName != null ? "$ownerName's FlowConnect" : 'Bridge';
   static String id;
   static String name;
+  static String newName;
   static String ownerName;
   static String unclaimedId;
 
-  static String currentChannel = 'bluetooth';
   static bool _isSyncing = false;
 
   static StreamController<void> _changeStream;
@@ -35,6 +35,7 @@ class Bridge {
   }
 
   static Future save() {
+    channel.setNetworkName(name);
     Client.updateBridge();
   }
 
@@ -50,7 +51,7 @@ class Bridge {
     channel.sendPattern(
       actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1))),
       paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll(params['adjust']),
-      group: groupId,
+      groupId: groupId,
       mode: number,
       page: page,
     );
@@ -62,7 +63,7 @@ class Bridge {
   }
 
   static void connectToMostRecentWifiNetwork() {
-     bleManager.sendConfig(
+     channel.sendConfig(
        networkName: oscManager.mostRecentWifiNetworkName,
        password: oscManager.mostRecentWifiPassword,
        ssid: oscManager.mostRecentWifiSSID,
@@ -75,6 +76,7 @@ class Bridge {
   static OSCManager _oscManager;
   static OSCManager get oscManager => _oscManager ??= OSCManager();
 
+  static get currentChannel => oscManager.isConnected ? 'wifi' : 'bluetooth'; 
   static get isBle => currentChannel == 'bluetooth'; 
   static get isWifi => currentChannel == 'wifi';
 
@@ -85,7 +87,7 @@ class Bridge {
 
   static bool get isUnclaimed {
     RegExp regex = RegExp(r'^FlowConnect \d+');
-    return regex.hasMatch(name);
+    return regex.hasMatch(name ?? "");
   }
 
 }

@@ -3,7 +3,7 @@ PODS:
     - Flutter
   - assets_audio_player_web (0.0.1):
     - Flutter
-  - Bugsnag (6.2.0)
+  - Bugsnag (6.6.1)
   - bugsnag_crashlytics (0.0.6):
     - Bugsnag
     - Flutter
@@ -94,11 +94,13 @@ PODS:
   - nanopb/encode (1.30906.0)
   - network_info_plus (0.0.1):
     - Flutter
+  - open_settings (1.0.1):
+    - Flutter
   - package_info (0.0.1):
     - Flutter
   - path_provider (0.0.1):
     - Flutter
-  - PromisesObjC (1.2.11)
+  - PromisesObjC (1.2.12)
   - Protobuf (3.11.4)
   - Reachability (3.2)
   - shared_preferences (0.0.1):
@@ -124,6 +126,7 @@ DEPENDENCIES:
   - flutter_siri_suggestions (from `.symlinks/plugins/flutter_siri_suggestions/ios`)
   - fluttertoast (from `.symlinks/plugins/fluttertoast/ios`)
   - network_info_plus (from `.symlinks/plugins/network_info_plus/ios`)
+  - open_settings (from `.symlinks/plugins/open_settings/ios`)
   - package_info (from `.symlinks/plugins/package_info/ios`)
   - path_provider (from `.symlinks/plugins/path_provider/ios`)
   - shared_preferences (from `.symlinks/plugins/shared_preferences/ios`)
@@ -176,6 +179,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/fluttertoast/ios"
   network_info_plus:
     :path: ".symlinks/plugins/network_info_plus/ios"
+  open_settings:
+    :path: ".symlinks/plugins/open_settings/ios"
   package_info:
     :path: ".symlinks/plugins/package_info/ios"
   path_provider:
@@ -190,7 +195,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   assets_audio_player: edee322b9cb625571b830b35872ead1a295fd917
   assets_audio_player_web: 19826380c44375761aa0b9053665c1e3fbc3b86b
-  Bugsnag: 087acb74863fb94b7260275def84a6e02e17f221
+  Bugsnag: 0aaa8c0e3642e76b65a77a42288404c956c5bdc7
   bugsnag_crashlytics: 2bcbf64303264b3a315359a89f81adbaaba049f6
   connectivity_plus: f5e5e0b894ec1187bfab9816d6c2f034da8d46da
   Firebase: 8db6f2d1b2c5e2984efba4949a145875a8f65fe5
@@ -212,9 +217,10 @@ SPEC CHECKSUMS:
   GoogleUtilities: 7f2f5a07f888cdb145101d6042bc4422f57e70b3
   nanopb: 59317e09cf1f1a0af72f12af412d54edf52603fc
   network_info_plus: b78876159360f5580608c2cea620d6ceffabd0ad
+  open_settings: 499e8c0f3e06ddcba273d427a3b2dab068cc43d5
   package_info: 873975fc26034f0b863a300ad47e7f1ac6c7ec62
   path_provider: abfe2b5c733d04e238b0d8691db0cfd63a27a93c
-  PromisesObjC: 8c196f5a328c2cba3e74624585467a557dcb482f
+  PromisesObjC: 3113f7f76903778cf4a0586bd1ab89329a0b7b97
   Protobuf: 176220c526ad8bd09ab1fb40a978eac3fef665f7
   Reachability: 33e18b67625424e47b6cde6d202dce689ad7af96
   shared_preferences: af6bfa751691cdc24be3045c43ec037377ada40d
