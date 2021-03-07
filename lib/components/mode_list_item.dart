@@ -244,20 +244,22 @@ class _ModeListItem extends State<ModeListItem> {
             )
           ),
           Container(
-            child: Container(
-              margin: EdgeInsets.only(
-                right: 10,
-                bottom: 20,
-                left: 10,
-                top: 5,
-              ),
-              child: Column(
-                children: [
-                  _ModeTileParams(),
-                ]
-              )
-            ),
+            child: Column(
+              children: [
+                HorizontalLineShadow(),
+                Container(
+                  margin: EdgeInsets.only(
+                    right: 10,
+                    bottom: 20,
+                    left: 10,
+                    top: 5,
+                  ),
+                  child: _ModeTileParams(),
+                ),
+              ]
+            // )
           ),
+        ),
             // decoration: BoxDecoration(
             //   boxShadow: [
             //     const BoxShadow(
@@ -272,54 +274,6 @@ class _ModeListItem extends State<ModeListItem> {
             //   ],
             // ),
         ]
-      )
-    );
-  }
-
-  Widget _Buttons() {
-    return Container(
-      margin: EdgeInsets.only(top: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _Button(
-            text: 'Reset',
-            color: Color(0xFFAA3333),
-            onTap: () {
-            }
-          ),
-          _Button(
-            text: 'Randomize!',
-            color: Color(0xFF33AA33),
-            onTap: () {
-              mode.modeParams.keys.forEach((key) {
-                if (key != 'brightness')
-                  mode.getParam(key).setValue(Random().nextDouble());
-              });
-              setState(() {});
-            }
-          ),
-          _Button(
-            text: 'Save to list',
-            color: Colors.blue,
-            onTap: () {
-            }
-          ),
-        ]
-      ),
-    );
-  }
-
-  Widget _Button({text, color, onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.only(left: 14, right: 14, bottom: 10, top: 8),
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-          color: color,
-        ),
-        child: Text(text),
       )
     );
   }
@@ -339,8 +293,9 @@ class _ModeListItem extends State<ModeListItem> {
       updateMode: () {
         (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
       },
+      onSaveAs: () {
+      },
       mode: mode,
-      child: _Buttons(),
     );
   }
 

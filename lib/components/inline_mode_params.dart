@@ -14,6 +14,7 @@ class InlineModeParams extends StatefulWidget {
     Key key,
     this.mode,
     this.child,
+    this.onSaveAs,
     this.onTouchUp,
     this.updateMode,
     this.onTouchDown,
@@ -22,6 +23,7 @@ class InlineModeParams extends StatefulWidget {
 
   Widget child;
   final Mode mode;
+  Function onSaveAs = () {};
   Function onTouchUp = () {};
   Function updateMode = () {};
   Function onTouchDown = () {};
@@ -79,7 +81,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               ),
               Dials(),
               AnimationSwitches(),
-              widget.child ?? Container(),
+              _Buttons(),
             ]
           );
         }
@@ -222,7 +224,35 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           }
         ),
         _Slider(paramName: paramName, sliderType: 'speed'),
+        _ParamButtons(paramName),
       ]
+    );
+  }
+
+  Widget _ParamButtons(paramName) {
+    return Container(
+      margin: EdgeInsets.only(top: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _Button(
+            text: 'Reset',
+            color: Color(0xFFAA3333),
+            onTap: () {
+              mode.resetParam(paramName);
+              setState((){});
+            }
+          ),
+          _Button(
+            text: 'Randomize!',
+            color: Color(0xFF33AA33),
+            onTap: () {
+              mode.getParam(paramName).setValue(Random().nextDouble());
+              setState(() {});
+            }
+          )
+        ].where((button) => button != null).toList()
+      ),
     );
   }
 
@@ -303,6 +333,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         onChanged(!value);
       },
       child: Container(
+                padding: EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10.0),
           color: Color(0xFF333333),
@@ -312,7 +343,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             // crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding: EdgeInsets.symmetric(horizontal: 5),
+                padding: EdgeInsets.symmetric(horizontal: 3),
                 child: Opacity(
                   opacity: 0.3,
                   child: HorizontalLineShadow(),
@@ -320,7 +351,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               ),
               Row(children: [
                 Checkbox(value: value, activeColor: Colors.blue, onChanged: onChanged),
-                Container(child: Text(title), padding: EdgeInsets.only(top: 10, bottom: 10, right: 15, left: 0)),
+                Container(child: Text(title), padding: EdgeInsets.only(top: 10, bottom: 10, right: 7, left: 0)),
               ]),
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 5),
@@ -592,6 +623,63 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       child: child,
     );
   }
+
+  Widget _Buttons() {
+    return Container(
+      margin: EdgeInsets.only(top: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _Button(
+            text: 'Reset',
+            color: Color(0xFFAA3333),
+            onTap: () {
+              mode.modeParams.keys.forEach((paramName) {
+                mode.resetParam(paramName);
+              });
+              widget.onTouchUp();
+              setState((){});
+            }
+          ),
+          _Button(
+            text: 'Randomize!',
+            color: Color(0xFF33AA33),
+            onTap: () {
+              mode.modeParams.keys.forEach((key) {
+                if (key != 'brightness')
+                  mode.getParam(key).setValue(Random().nextDouble());
+              });
+              widget.onTouchUp();
+              setState(() {});
+            }
+          ),
+          _Button(
+            text: 'Save to list',
+            color: Colors.blue,
+            onTap: widget.onSaveAs,
+          ),
+        ].where((button) => button != null).toList()
+      ),
+    );
+  }
+
+  Widget _Button({text, color, onTap}) {
+    if (onTap == null)
+      return null;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+          // margin: EdgeInsets.symmetric(horizontal: 10),
+        padding: EdgeInsets.only(left: 14, right: 14, bottom: 10, top: 8),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+          color: color,
+        ),
+        child: Text(text),
+      )
+    );
+  }
+
 
 }
 

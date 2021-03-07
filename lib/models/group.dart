@@ -75,6 +75,7 @@ class Group {
       animationUpdater = Timer.periodic(Duration(milliseconds: 100), (_) {
         this.currentMode = _currentMode;
       });
+    print("AD.USTED params: ${props.first.adjustedModeParamValues}");
     currentGroups.forEach((group) {
       Bridge.setGroup(
         groupId: group.id,

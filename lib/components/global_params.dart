@@ -1,5 +1,6 @@
-import 'package:app/components/inline_mode_params.dart';
 import 'package:app/components/horizontal_line_shadow.dart';
+import 'package:app/components/inline_mode_params.dart';
+import 'package:app/helpers/animated_clip_rect.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/models/bridge.dart';
 import 'package:flutter/material.dart';
@@ -34,47 +35,90 @@ class _GlobalParams extends State<StatefulWidget> {
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/dark-texture.jpg"),
-                  repeat: ImageRepeat.repeat,
-                  fit: BoxFit.none,
-                  scale: 2,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF262626),
+                    Color(0xFF1A1A1A),
+                    Colors.black,
+                  ]
                 ),
-              )
+              ),
+              // decoration: BoxDecoration(
+              //   image: DecorationImage(
+              //     image: AssetImage("assets/images/dark-texture.jpg"),
+              //     repeat: ImageRepeat.repeat,
+              //     fit: BoxFit.none,
+              //     scale: 2,
+              //   ),
+              // )
             )
           ),
-          HorizontalLineShadow(),
           Column(
             children: [
-              Row(
-                children: [
-                  Text("Global Params"),
-                  Checkbox(
-                    value: Mode.globalParamsEnabled,
-                    activeColor: Colors.blue,
-                    onChanged: (value) {
-                      Mode.globalParamsEnabled = value;
-                    }
-                  )
-                ]
-              ),
-              Container(
-                child: Container(
-                  margin: EdgeInsets.only(
-                    right: isSmall ? 10 : 30,
-                    bottom: 14,
-                    left: 10,
-                    top: 5,
-                  ),
-                  child: _InlineParams(),
-                ),
-              ),
+              _Header(),
+              HorizontalLineShadow(),
+              AnimatedClipRect(
+                curve: Curves.easeInOut,
+                verticalAnimation: true,
+                horizontalAnimation: false,
+                alignment: Alignment.topCenter,
+                open: Mode.globalParamsEnabled,
+                duration: Duration(milliseconds: 200),
+                child: _ExpandedContent(),
+              )
             ]
           )
         ]
       )
     );
   }
+
+  Widget _ExpandedContent() {
+    return Container(
+      child: Container(
+        margin: EdgeInsets.only(
+          right: isSmall ? 10 : 30,
+          bottom: 14,
+          left: 10,
+          top: 5,
+        ),
+        child: _InlineParams(),
+      ),
+    );
+  }
+
+  Widget _Header() {
+    return GestureDetector(
+      onTap: () {
+        Mode.globalParamsEnabled = !Mode.globalParamsEnabled;
+        setState(() {});
+      },
+      child: Container(
+        padding: EdgeInsets.all(5),
+        decoration: BoxDecoration(
+            color: Color(0xFF222222),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Checkbox(
+              value: Mode.globalParamsEnabled,
+              activeColor: Colors.blue,
+              onChanged: (value) {
+                Mode.globalParamsEnabled = value;
+                setState(() {});
+              }
+            ),
+            Text("Global Params", style: TextStyle(fontSize: 18)),
+          ]
+        ),
+      ),
+    );
+  }
+
+
   Timer _adjustingInlineParamTimer;
   Widget _InlineParams() {
     return InlineModeParams(

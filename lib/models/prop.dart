@@ -64,7 +64,7 @@ class Prop {
       return currentModeParamValues;
 
     var values = currentModeParamValues;
-    var globalValues = Mode.globalParamValues;
+    var globalValues = Mode.globalParamRatios;
     values.keys.forEach((param) {
       values[param] *= globalValues[param];
     });

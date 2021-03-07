@@ -50,13 +50,13 @@ class Bridge {
 
     var adjust = params['adjust'];
     var totalLFO = (adjust * params['adjustCycles']) as double;
-    List<double> adjustValues = List.generate(params['adjustCycles'], (i) {
+    List<double> adjustValues = List.generate(params['adjustCycles'].toInt(), (i) {
       return min(max(0, totalLFO - i), 1);
     });
 
 
 
-    print("SET GROUP: ${paramNames.map<double>((name) => params[name]).toList()..addAll(params['adjust'])}");
+    print("SET GROUP: ${paramNames.map<double>((name) => params[name]).toList()..addAll(adjustValues)}");
     channel.sendPattern(
       actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1))),
       paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll(adjustValues),

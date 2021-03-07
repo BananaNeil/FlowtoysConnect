@@ -78,6 +78,16 @@ class Mode {
     return global.getParamValues();
   }
 
+  static Map<String, double> get globalParamRatios {
+    var params = globalParamValues;
+    params.keys.forEach((name) {
+      var defaultValue = Mode.global.baseMode.getValue(name);
+      if (defaultValue != null && defaultValue != 0)
+        params[name] /= defaultValue.toDouble();
+    });
+    return params;
+  }
+
   Map<String, ModeParam> get colorModeParams {
     return {
       'saturation': saturation,
@@ -366,8 +376,6 @@ class Mode {
 
   factory Mode.basic({page, number}) {
     var baseMode;
-    if (Preloader.baseModes.isNotEmpty)
-      baseMode = Preloader.baseModes.elementAt(0);
     return Mode.fromMap({
       'page': page,
       'number': number,
@@ -377,8 +385,8 @@ class Mode {
       'density': { 'value': 0.5 },
       'saturation': { 'value': 0.5 },
       'brightness': { 'value': 0.5 },
-      'base_mode_id': baseMode?.id,
       'accessLevel': 'editable',
+      'base_mode_id': 'BASE',
     });
   }
 

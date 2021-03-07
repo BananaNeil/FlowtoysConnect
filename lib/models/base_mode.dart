@@ -54,6 +54,7 @@ class BaseMode {
       'saturation': saturation,
       'density': density,
       'speed': speed,
+      'adjust': 0.0,
       'hue': hue,
     }[param];
   }
@@ -124,7 +125,7 @@ class BaseMode {
 
   factory BaseMode.basic() {
     return BaseMode(
-      name: 'Rainbow',
+      name: 'Mode',
       saturation: 0.5,
       brightness: 0.5,
       density: 0.5,

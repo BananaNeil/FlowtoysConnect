@@ -366,6 +366,7 @@ class OSCManager {
     args.add(mode - 1);
     args.add(actives);
     for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
+    args.add(1);
     print("OSC SENDING PATTERN... ${args}");
     OSCMessage m = new OSCMessage("/pattern", arguments: args);
     sendMessage(m);
