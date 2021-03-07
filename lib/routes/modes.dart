@@ -7,6 +7,7 @@ import 'package:app/components/mode_list_widget.dart';
 import 'package:app/helpers/animated_clip_rect.dart';
 import 'package:app/components/now_playing_bar.dart';
 import 'package:app/components/action_button.dart';
+import 'package:app/components/global_params.dart';
 import 'package:app/components/navigation.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -267,7 +268,10 @@ class _ModesPageState extends State<ModesPage> {
 
   List<Widget> get _ModeLists {
     if (showOneColumn)
-      return [_ModeList(modeLists, filterBar: _FilterBar())];
+      return [_ModeList(modeLists, prependChildren: [
+        _FilterBar(),
+        _GlobalParams(),
+      ])];
     else return modeLists.map<Widget>((list) {
       return _ModeList([list]);
     }).toList();
@@ -277,15 +281,20 @@ class _ModesPageState extends State<ModesPage> {
 
   static BehaviorSubject<Map<String, dynamic>> filterController = BehaviorSubject<Map<String, dynamic>>();
 
-  Widget _ModeList(lists, {filterBar}) {
+
+  Widget _GlobalParams() {
+    return GlobalParams();
+  }
+
+  Widget _ModeList(lists, {prependChildren}) {
     return ModeListWidget(
       modeLists: lists,
-      filterBar: filterBar,
       isEditing: isEditing,
       onRemove: _removeMode,
       isSelecting: isSelecting,
       onRefresh: _forceFetchModes,
       selectedModeIds: selectedModeIds,
+      prependChildren: prependChildren,
       setCurrentLists: _setCurrentLists,
       showTitles: isShowingMultipleLists,
       filterStream: filterController.stream,

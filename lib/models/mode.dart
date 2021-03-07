@@ -24,7 +24,9 @@ class Mode {
   bool get hasTrailImage => trailImage != null;
 
   Map<String, dynamic> get images => baseMode.images;
+  bool adjustRandomized;
   String accessLevel;
+  bool bypassParams; 
   String parentType;
   String baseModeId;
   bool isAdjusting;
@@ -45,6 +47,8 @@ class Mode {
   ModeParam hue;
 
   Mode({
+    this.adjustRandomized,
+    this.bypassParams,
     this.accessLevel,
     this.isAdjusting,
     this.saturation,
@@ -61,7 +65,18 @@ class Mode {
     this.name,
     this.hue,
     this.id,
-  });
+  }) {
+    this.adjustRandomized ??= false;
+    this.bypassParams ??= false;
+    this.isAdjusting ??= false;
+  }
+
+  static bool globalParamsEnabled = false;
+  static Mode _global;
+  static Mode get global => _global ??= Mode.basic();
+  static Map<String, double> get globalParamValues {
+    return global.getParamValues();
+  }
 
   Map<String, ModeParam> get colorModeParams {
     return {
@@ -168,18 +183,11 @@ class Mode {
     return Mode.fromMap(attributes);
   }
 
-  int lfoCount = 1;
-  Map<String, dynamic> getParamValues({groupIndex, propIndex}) {
-    var adjust = getValue(hueIsAdjust ? 'hue' : 'adjust', groupIndex: groupIndex, propIndex: propIndex);
-
-    var totalLFO = (adjust * lfoCount) as double;
-    List<double> adjustValues = List.generate(lfoCount, (i) {
-      // adjust = min(1.0, (adjust * 2.0) as double);
-      return min(max(0, totalLFO - i), 1);
-    });
-
+  int get adjustCycles => baseMode.adjustCycles;
+  Map<String, double> getParamValues({groupIndex, propIndex}) {
     return {
-      'adjust': adjustValues,
+      'adjustCycles': adjustCycles.toDouble(),
+      'adjust': getValue('adjust', groupIndex: groupIndex, propIndex: propIndex),
       'saturation': getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
       'brightness': getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),
       'density': getValue('density', groupIndex: groupIndex, propIndex: propIndex),
@@ -233,7 +241,6 @@ class Mode {
     return baseMode.getValue(param);
   }
 
-  bool get hueIsAdjust => baseMode.hueIsAdjust ?? false;
   bool get motionReactive => baseMode.motionReactive;
   bool get stallReactive => baseMode.stallReactive;
   bool get bumpReactive => baseMode.bumpReactive;
@@ -300,27 +307,17 @@ class Mode {
 
   Map<String, dynamic> toMap() {
     return Map.from(toFullMap())..removeWhere((k, v) {
-      return ![
-        'is_adjusting',
-        'base_mode_id',
-        'parent_type',
-        'parent_id',
-        'position',
-        'name',
-        'id',
-
-        'saturation',
-        'brightness',
-        'density',
-        'adjust',
-        'speed',
-        'hue',
+      return [
+        'access_level',
+        'number',
+        'page',
       ].contains(k);
     });
   }
 
   Map<String, dynamic> toFullMap() {
     return {
+      'adjust_randomized': adjustRandomized,
       'access_level': accessLevel,
       'is_adjusting': isAdjusting,
       'base_mode_id': baseModeId,
@@ -390,6 +387,7 @@ class Mode {
     var mode = Mode(
       baseModeId: json['base_mode_id'],
 
+      adjustRandomized: json['adjust_randomized'],
       accessLevel: json['access_level'],
       isAdjusting: json['is_adjusting'],
       parentType: json['parent_type'],

@@ -1,4 +1,5 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
+import 'package:app/components/horizontal_line_shadow.dart';
 import 'package:app/models/mode_param.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/gestures.dart';
@@ -12,12 +13,14 @@ class InlineModeParams extends StatefulWidget {
   InlineModeParams({
     Key key,
     this.mode,
+    this.child,
     this.onTouchUp,
     this.updateMode,
     this.onTouchDown,
     // this.onChange,
   }) : super(key: key);
 
+  Widget child;
   final Mode mode;
   Function onTouchUp = () {};
   Function updateMode = () {};
@@ -48,6 +51,42 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     super.dispose();
   }
 
+  @override
+  build(BuildContext context) {
+    color = mode.getHSVColor();
+    if (color != colorWas) _bustCache();
+    colorWas = color;
+
+    if (showControlsForParam != null)
+      return _ParamControls(paramName: showControlsForParam);
+
+    if (showSlider != null && sliderVisible)
+      return _Slider(
+        paramName: showSlider,
+        sliderType: sliderType,
+      );
+
+    return Container(
+      margin: EdgeInsets.only(top: 8),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints box) {
+          containerWidth = box.maxWidth;
+          return Column(
+            children: [
+              _Toggles(),
+              Container(
+                height: 15,
+              ),
+              Dials(),
+              AnimationSwitches(),
+              widget.child ?? Container(),
+            ]
+          );
+        }
+      )
+    );
+  }
+
   Map<String, AnimationController> animators = {};
 
   List<String> _params;
@@ -58,7 +97,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     'brightness',
     'density',
     'speed',
-  ].where((name) => name != 'adjust' || !mode.hueIsAdjust).toList();
+  ];
 
   List<Color> _hueColors;
   List<Color> get hueColors {
@@ -150,36 +189,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
   bool sliderVisible = false;
 
-  @override
-  build(BuildContext context) {
-    color = mode.getHSVColor();
-    if (color != colorWas) _bustCache();
-    colorWas = color;
-
-    if (showControlsForParam != null)
-      return _ParamControls(paramName: showControlsForParam);
-
-    if (showSlider != null && sliderVisible)
-      return _Slider(
-        paramName: showSlider,
-        sliderType: sliderType,
-      );
-
-    return Container(
-      margin: EdgeInsets.only(top: 8),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints box) {
-          containerWidth = box.maxWidth;
-          return Column(
-            children: [
-              Dials(),
-              AnimationSwitches(),
-            ]
-          );
-        }
-      )
-    );
-  }
 
   bool get isShowingHueParam =>  showSlider == 'hue' && sliderType == 'param';
 
@@ -202,49 +211,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
                 mode.save();
                 widget.onTouchUp();
               },
-            ),
-          ]
-        ),
-        Row(
-          children: [
-            Container(
-              margin: EdgeInsets.only(right: 30),
-              child: Column(
-                children: [
-                  Container(child: Text("Bypass Sliders"), padding: EdgeInsets.only(top: 5)),
-                  Transform.scale(
-                    scale: 0.9,
-                    child: Switch(
-                      value: mode.getParam(paramName).bypass,
-                      onChanged: (value) {
-                        mode.getParam(paramName).bypass = value;
-                        setState(() {});
-                      },
-                    ),
-                  )
-                ]
-              )
-            ),
-            paramName != 'adjust' ? Container() : Column(
-              children: [
-                Container(child: Text("Use Internal $label Cycle"), padding: EdgeInsets.only(top: 5)),
-                Transform.scale(
-                  scale: 0.9,
-                  child: Switch(
-                    value: true,
-                    onChanged: (bool) {
-                      // mode.setAnimating(paramName, bool);
-                      if (bool)
-                        animators[paramName].forward();
-                      else {
-                        animators[paramName].stop();
-                        widget.onTouchUp();
-                      }
-                      setState((){});
-                    },
-                  ),
-                )
-              ]
             ),
           ]
         ),
@@ -295,6 +261,75 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           child: sliderType == 'param' && paramName == 'adjust' ? adjustLines : speedLines
         )
       ]
+    );
+  }
+
+  Widget _Toggles() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        // _ToggleButton(
+        //   title: "Bypass Sliders",
+        //   value: mode.bypassParams,
+        //   onChanged: (value) {
+        //     mode.bypassParams = value;
+        //     setState(() {});
+        //   },
+        // ),
+        _ToggleButton(
+          title: "Adjust On",
+          value: mode.isAdjusting,
+          onChanged: (value) {
+            print("IS AD: ${mode.isAdjusting}");
+            mode.isAdjusting = value;
+            setState(() {});
+          },
+        ),
+        _ToggleButton(
+          value: mode.adjustRandomized,
+          title: "Scramble Group",
+          onChanged: (value) {
+            mode.adjustRandomized = value;
+            setState(() {});
+          },
+        ),
+      ]
+    );
+  }
+
+  Widget _ToggleButton({onChanged, title, value}) {
+    return GestureDetector(
+      onTap: () {
+        onChanged(!value);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10.0),
+          color: Color(0xFF333333),
+        ),
+        child: IntrinsicWidth(
+          child: Column(
+            // crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 5),
+                child: Opacity(
+                  opacity: 0.3,
+                  child: HorizontalLineShadow(),
+                )
+              ),
+              Row(children: [
+                Checkbox(value: value, activeColor: Colors.blue, onChanged: onChanged),
+                Container(child: Text(title), padding: EdgeInsets.only(top: 10, bottom: 10, right: 15, left: 0)),
+              ]),
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 5),
+                child: HorizontalLineShadow(),
+              )
+            ],
+          )
+        )
+      )
     );
   }
 
@@ -533,7 +568,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       },
       onPointerUp: (PointerEvent details) {
         showSlider = null;
-        if (dx == 0.0 && !sliderVisible) {
+        print("DX: ${dx} ${!sliderVisible}");
+        if (dx.abs() < 0.85 && !sliderVisible) {
           var index = sliderIndexFromPosition(details.localPosition.dx);
           showControlsForParam = params[index];
         } else widget.onTouchUp();
@@ -542,7 +578,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       },
       onPointerMove: (PointerEvent details) {
         dx += details.delta.dx;
-        sliderVisible = true;
+        if (dx.abs() >= 0.85)
+          sliderVisible = true;
 
         // var val = mode.getValue(showSlider);
         var delta;

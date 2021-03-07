@@ -80,7 +80,7 @@ class Group {
         groupId: group.id,
         page: currentMode.page,
         number: currentMode.number,
-        params: props.first.currentModeParamValues, 
+        params: props.first.adjustedModeParamValues, 
       );
     });
   }

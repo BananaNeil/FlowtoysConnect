@@ -59,7 +59,19 @@ class Prop {
     return map;
   }
 
-  Map<String, dynamic> get currentModeParamValues {
+  Map<String, double> get adjustedModeParamValues {
+    if (!Mode.globalParamsEnabled)
+      return currentModeParamValues;
+
+    var values = currentModeParamValues;
+    var globalValues = Mode.globalParamValues;
+    values.keys.forEach((param) {
+      values[param] *= globalValues[param];
+    });
+    return values;
+  }
+
+  Map<String, double> get currentModeParamValues {
     return currentMode.getParamValues(
       groupIndex: groupIndex,
       propIndex: index,
@@ -72,6 +84,10 @@ class Prop {
   // StreamController<Mode> currentModeController = StreamController<Mode>();
   // Stream<Mode> get currentModeStream => currentModeController.stream;
   //
+  void refreshMode() {
+    currentMode = _currentMode;
+  }
+
   Mode get currentMode => _currentMode;
   void set internalMode(mode) {
     // propUpdateController.add(mode);
@@ -93,7 +109,7 @@ class Prop {
         groupId: groupId,
         page: currentMode.page,
         number: currentMode.number,
-        params: currentModeParamValues, 
+        params: adjustedModeParamValues, 
       );
     }
   }

@@ -11,6 +11,8 @@ import 'package:app/models/mode.dart';
 import 'package:app/models/prop.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'dart:math';
+
 
 class ModeListItem extends StatefulWidget {
   ModeListItem({
@@ -223,26 +225,39 @@ class _ModeListItem extends State<ModeListItem> {
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: AssetImage("assets/images/dark-texture.jpg"),
-                  repeat: ImageRepeat.repeat,
-                  fit: BoxFit.none,
-                  scale: 2,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF262626),
+                    Color(0xFF1A1A1A),
+                    Colors.black,
+                  ]
                 ),
+                // image: DecorationImage(
+                //   image: AssetImage("assets/images/dark-texture.jpg"),
+                //   repeat: ImageRepeat.repeat,
+                //   fit: BoxFit.none,
+                //   scale: 2,
+                // ),
               )
             )
           ),
-          HorizontalLineShadow(),
           Container(
             child: Container(
               margin: EdgeInsets.only(
-                right: isSmall ? 10 : 30,
-                bottom: 14,
+                right: 10,
+                bottom: 20,
                 left: 10,
                 top: 5,
               ),
-              child: _ModeTileParams(),
+              child: Column(
+                children: [
+                  _ModeTileParams(),
+                ]
+              )
             ),
+          ),
             // decoration: BoxDecoration(
             //   boxShadow: [
             //     const BoxShadow(
@@ -256,8 +271,55 @@ class _ModeListItem extends State<ModeListItem> {
             //     ),
             //   ],
             // ),
+        ]
+      )
+    );
+  }
+
+  Widget _Buttons() {
+    return Container(
+      margin: EdgeInsets.only(top: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _Button(
+            text: 'Reset',
+            color: Color(0xFFAA3333),
+            onTap: () {
+            }
+          ),
+          _Button(
+            text: 'Randomize!',
+            color: Color(0xFF33AA33),
+            onTap: () {
+              mode.modeParams.keys.forEach((key) {
+                if (key != 'brightness')
+                  mode.getParam(key).setValue(Random().nextDouble());
+              });
+              setState(() {});
+            }
+          ),
+          _Button(
+            text: 'Save to list',
+            color: Colors.blue,
+            onTap: () {
+            }
           ),
         ]
+      ),
+    );
+  }
+
+  Widget _Button({text, color, onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.only(left: 14, right: 14, bottom: 10, top: 8),
+        decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+          color: color,
+        ),
+        child: Text(text),
       )
     );
   }
@@ -278,6 +340,7 @@ class _ModeListItem extends State<ModeListItem> {
         (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
       },
       mode: mode,
+      child: _Buttons(),
     );
   }
 

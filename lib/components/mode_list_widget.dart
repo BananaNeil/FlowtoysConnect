@@ -23,13 +23,13 @@ class ModeListWidget extends StatefulWidget {
     this.onRemove,
     this.isEditing,
     this.modeLists,
-    this.filterBar,
     this.onRefresh,
     this.showTitles,
     this.isSelecting,
     this.filterStream,
-    this.setCurrentLists,
     this.selectedModeIds,
+    this.prependChildren,
+    this.setCurrentLists,
     this.preventReordering,
     this.toggleSelectedMode,
     this.canChangeCurrentList,
@@ -39,7 +39,6 @@ class ModeListWidget extends StatefulWidget {
   bool isEditing;
   bool showTitles;
   bool isSelecting;
-  Widget filterBar;
   Function onRemove;
   Function onRefresh;
   Stream filterStream;
@@ -48,6 +47,7 @@ class ModeListWidget extends StatefulWidget {
   List<ModeList> modeLists;
   bool canChangeCurrentList;
   Function toggleSelectedMode;
+  List<Widget> prependChildren;
   List<String> selectedModeIds;
 
   @override
@@ -101,7 +101,7 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
                 childrenAlreadyHaveListener: true,
                 allowReordering: widget.isEditing,
                 children: [
-                  widget.filterBar ?? Container(),
+                  ...(widget.prependChildren ?? []),
                   _SelectCurrentList,
                   ..._ListItems(modeLists),
                   _AddMoreModes,

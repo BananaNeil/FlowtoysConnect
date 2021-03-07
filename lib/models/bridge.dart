@@ -47,10 +47,19 @@ class Bridge {
 
   static void setGroup({groupId, page, number, params}) {
     var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
+
+    var adjust = params['adjust'];
+    var totalLFO = (adjust * params['adjustCycles']) as double;
+    List<double> adjustValues = List.generate(params['adjustCycles'], (i) {
+      return min(max(0, totalLFO - i), 1);
+    });
+
+
+
     print("SET GROUP: ${paramNames.map<double>((name) => params[name]).toList()..addAll(params['adjust'])}");
     channel.sendPattern(
       actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1))),
-      paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll(params['adjust']),
+      paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll(adjustValues),
       groupId: groupId,
       mode: number,
       page: page,

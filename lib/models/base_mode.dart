@@ -8,7 +8,7 @@ class BaseMode {
   bool stallReactive;
   bool bumpReactive;
   bool spinReactive;
-  bool hueIsAdjust;
+  int adjustCycles;
   num brightness;
   num saturation;
   num density;
@@ -23,7 +23,7 @@ class BaseMode {
     this.stallReactive,
     this.bumpReactive,
     this.spinReactive,
-    this.hueIsAdjust,
+    this.adjustCycles,
     this.description,
     this.saturation,
     this.brightness,
@@ -35,7 +35,9 @@ class BaseMode {
     this.name,
     this.hue,
     this.id,
-  });
+  }) {
+    this.adjustCycles ??= 1;
+  }
 
   String get thumbnail => Client.url((images['club'] ?? {})['thumb'] ?? defaultImage);
   String get image => Client.url((images['club'] ?? {})['medium'] ?? defaultImage);
@@ -61,7 +63,7 @@ class BaseMode {
       'stall_reactive': stallReactive,
       'bump_reactive': bumpReactive,
       'spin_reactive': spinReactive,
-      'hue_is_adjust': hueIsAdjust,
+      'adjust_cycles': adjustCycles,
       'description': description,
       'brightness': brightness,
       'saturation': saturation,
@@ -90,7 +92,7 @@ class BaseMode {
       stallReactive: json['stall_reactive'] ?? false,
       spinReactive: json['spin_reactive'] ?? false,
       bumpReactive: json['bump_reactive'] ?? false,
-      hueIsAdjust: json['hue_is_adjust'] ?? false,
+      adjustCycles: json['adjust_cycles'] ?? 1,
       description: json['description'] ?? "",
       saturation: json['saturation'],
       brightness: json['brightness'],
