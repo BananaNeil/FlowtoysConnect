@@ -19,6 +19,9 @@ import 'package:app/models/bridge.dart';
 import 'package:quiver/iterables.dart' hide max, min;
 import 'package:app/app_controller.dart';
 
+import 'package:app/native_storage.dart'
+  if (dart.library.html) 'package:app/web_storage.dart';
+
 class OSCManager {
   InternetAddress remoteHost;
   int remotePort = 9000;
@@ -29,6 +32,15 @@ class OSCManager {
   bool get isSearchingNetwork {
     if (networkSearchStartedAt == null) return false;
     return DateTime.now().difference(networkSearchStartedAt) < Duration(seconds: 15);
+  }
+
+  bool _isEnabled = false; 
+  bool get isEnabled => _isEnabled;
+  void set isEnabled(value) {
+    _isEnabled = value;
+    isConnected = false;
+    Storage.write('wifiEnabled', value.toString());
+    if (value) initWifi();
   }
 
   bool _isConnected = false;
@@ -76,19 +88,23 @@ class OSCManager {
     });
 
     autoDetectedBridge = "";
-    print("INIT OSCMANAGER()()()()");
-    initWifi();
+    Storage.read('wifiEnabled').then((enabled) {
+      print("Retrieved enabled status: ${enabled}");
+      _isEnabled = enabled == 'true';
+      initWifi();
+    });
   }
 
   Timer periodicTimer;
 
   void initWifi() {
     periodicTimer?.cancel();
+    if (!isEnabled) return;
+
     periodicTimer = Timer(Duration(seconds: 5), initWifi);
-    print("INIT wifi");
+    print("INIT wifi ${isEnabled}");
     checkWifiConnection().then((_) {
-      print("Connection checked: ${wifiIsConnected} ${!isSearchingNetwork}");
-      if (wifiIsConnected && !isSearchingNetwork)
+      if (!isSearchingNetwork)
         discoverServices();
         // scanForBridges().then((bridges) {
         //   print("Scanned for bridges: ${bridges.length}");
@@ -107,7 +123,8 @@ class OSCManager {
     // )
   }
 
-  bool wifiIsConnected = false;
+  // bool wifiIsConnected = false;
+  bool get networkKnown => currentWifiNetworkName != null;
   DateTime wifiLastCheckedAt;
   // Connectivity _connectivity;
 
@@ -117,7 +134,7 @@ class OSCManager {
   String currentWifiSSID;
 
   bool get connectedToBridgeWifi {
-    if (!wifiIsConnected) return false;
+    if (currentWifiNetworkName == null) return false;
     RegExp regex = RegExp(r'FlowConnect');
     return regex.hasMatch(currentWifiNetworkName);
   }
@@ -163,9 +180,9 @@ class OSCManager {
     if (newWifiNetworkName == null || currentWifiNetworkName != newWifiNetworkName)
       isConnected = false;
 
-    wifiIsConnected = newWifiNetworkName != null; 
+    // wifiIsConnected = newWifiNetworkName != null; 
     currentWifiNetworkName = newWifiNetworkName;
-    if (wifiIsConnected)
+    if (currentWifiNetworkName != null)
       wifiNetworks.add({
         'ssid': currentWifiSSID,
         'name': currentWifiNetworkName,
@@ -209,7 +226,9 @@ class OSCManager {
 
 
 
-
+  void factoryReset() {
+    sendSimpleMessage("/factory-reset");
+  }
 
   void setSyncing(bool val) {
     if (val) sendSync(0);
@@ -358,18 +377,25 @@ class OSCManager {
     sendMessage(m);
   }
 
-  void sendPattern({String groupId, int page, int mode, int actives, List<double> paramValues}) {
+  void sendPattern({String groupId, int page, int mode, int actives, List<int> paramValues}) {
     List<Object> args = new List<Object>();
     args.add(groupId);
     args.add(0);//groupIsPublic = false, force private group
     args.add(page - 1);
     args.add(mode - 1);
     args.add(actives);
-    for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
-    args.add(1);
+    args.addAll(paramValues);
+    // for(int i=0;i<paramValues.length;i++) args.add((paramValues[i]*255).round());
+
+
+    // IS ADjUSTING.... this needs to be done for BLE too,
+    // IS ADjUSTING.... this needs to be done for BLE too,
+    // IS ADjUSTING.... this needs to be done for BLE too,
+    // args.add(0); // IS ADjUSTING.... this needs to be done for BLE too,
+
     print("OSC SENDING PATTERN... ${args}");
     OSCMessage m = new OSCMessage("/pattern", arguments: args);
-    sendMessage(m);
+    return sendMessage(m);
   }
 
   void setNetworkName(String name) {

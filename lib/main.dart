@@ -9,16 +9,17 @@ void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
   env = 'prod';
 
-  AppController.setEnv(env).then((_) {
+  AppController.setEnv(env).then((_) async {
+    await Preloader.ready();
     AppController.initSiriSuggestions();
     Preloader.recallSavedGroupIds();
     AppController.initBugsnag();
-    Preloader.ensureSongDir();
+    await Preloader.ensureSongDir();
     Preloader.downloadData();
     Preloader.initDownloader();
     Authentication.checkForAuth().then((isAuthenticated) {
       AppRouter.setupRouter();
-      runApp(FlowtoysConnect(false));
+      runApp(FlowtoysConnect(isAuthenticated));
     });
   });
 }
@@ -30,7 +31,6 @@ class FlowtoysConnect extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    print("HEYYYYY4");
     return AppController(builder: (context) {
       var theme = ThemeData(
         primaryColorDark: Color(0xffCCCCCC),
@@ -46,6 +46,7 @@ class FlowtoysConnect extends StatelessWidget {
 
       AppController.globalKey ??= new GlobalKey<NavigatorState>();
       return MaterialApp(
+        debugShowCheckedModeBanner:false,
         initialRoute: isAuthenticated ? '/modes' : '/login',
         onGenerateRoute: AppRouter.router.generator,
         navigatorKey: AppController.globalKey,

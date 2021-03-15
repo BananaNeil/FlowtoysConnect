@@ -7,6 +7,7 @@ import 'dart:async';
 class Prop {
   Timer animationUpdater;
   Mode _currentMode;
+  String propType;
   String groupId;
   int groupIndex;
   String id;
@@ -20,6 +21,22 @@ class Prop {
   String get uid => id;
 
   String get currentModeId => currentMode?.id;
+
+  bool _isCheckingBattery;
+  bool get isCheckingBattery => _isCheckingBattery;
+  void set isCheckingBattery(value) {
+    print("PROP setting check battery: ${value}");
+    _isCheckingBattery = value;
+    Prop.propUpdateController.sink.add(this);
+  }
+
+
+  bool _isOn;
+  bool get isOn => _isOn;
+  void set isOn(value) {
+    _isOn = value;
+    Prop.propUpdateController.sink.add(this);
+  }
 
   Group get group => Group.connectedGroups.firstWhere((group) => group.id == groupId);
   static List<String> get connectedModeIds => Group.connectedProps.map((prop) => prop.currentModeId).toList();
@@ -59,19 +76,26 @@ class Prop {
     return map;
   }
 
-  Map<String, double> get adjustedModeParamValues {
+  static void refreshByMode(mode) {
+    print("PROP IS PRESENT? ${propsByModeId[mode.id] != null}");
+    (propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
+  }
+
+  Map<String, dynamic> get adjustedModeParamValues {
     if (!Mode.globalParamsEnabled)
       return currentModeParamValues;
 
     var values = currentModeParamValues;
     var globalValues = Mode.globalParamRatios;
     values.keys.forEach((param) {
-      values[param] *= globalValues[param];
+      if (currentMode.booleanParams.keys.contains(param))
+        values[param] = values[param] || globalValues[param];
+      else values[param] *= globalValues[param];
     });
     return values;
   }
 
-  Map<String, double> get currentModeParamValues {
+  Map<String, dynamic> get currentModeParamValues {
     return currentMode.getParamValues(
       groupIndex: groupIndex,
       propIndex: index,
@@ -99,10 +123,10 @@ class Prop {
     internalMode = mode;
     animationUpdater?.cancel();
     if (mode.isAnimating)
-      animationUpdater = Timer(Duration(milliseconds: 205), () {
+      animationUpdater = Timer(Bridge.animationDelay * 1.02, () {
         this.currentMode = _currentMode;
       });
-    if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Duration(milliseconds: 200)) {
+    if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Bridge.animationDelay) {
       _currentModeSetAt = DateTime.now();
       Bridge.setProp(
         propId: id,
@@ -123,6 +147,7 @@ class Prop {
     this.id,
     this.index,
     this.groupId,
+    this.propType,
     this.groupIndex,
   });
 }

@@ -1,21 +1,25 @@
 import 'package:app/components/horizontal_line_shadow.dart';
 import 'package:app/components/inline_mode_params.dart';
+import 'package:app/components/modes_filter_bar.dart';
 import 'package:app/helpers/animated_clip_rect.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/models/bridge.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
+import 'package:rxdart/rxdart.dart';
 import 'dart:async';
 
 class GlobalParams extends StatefulWidget {
-  GlobalParams();
+  GlobalParams({this.filterController});
+
+  BehaviorSubject<Map<String, dynamic>> filterController;
 
   @override
   _GlobalParams createState() => _GlobalParams();
 }
 
-class _GlobalParams extends State<StatefulWidget> {
+class _GlobalParams extends State<GlobalParams> {
   _GlobalParams();
 
   @override
@@ -30,6 +34,15 @@ class _GlobalParams extends State<StatefulWidget> {
   @override
   build(BuildContext context) {
     return Container(
+      decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+                color: Color(0xAA000000),
+                spreadRadius: 4.0,
+                blurRadius: 4.0,
+            )
+          ]
+      ),
       child: Stack(
         children: [
           Positioned.fill(
@@ -45,29 +58,15 @@ class _GlobalParams extends State<StatefulWidget> {
                   ]
                 ),
               ),
-              // decoration: BoxDecoration(
-              //   image: DecorationImage(
-              //     image: AssetImage("assets/images/dark-texture.jpg"),
-              //     repeat: ImageRepeat.repeat,
-              //     fit: BoxFit.none,
-              //     scale: 2,
-              //   ),
-              // )
             )
           ),
           Column(
             children: [
               _Header(),
               HorizontalLineShadow(),
-              AnimatedClipRect(
-                curve: Curves.easeInOut,
-                verticalAnimation: true,
-                horizontalAnimation: false,
-                alignment: Alignment.topCenter,
-                open: Mode.globalParamsEnabled,
-                duration: Duration(milliseconds: 200),
-                child: _ExpandedContent(),
-              )
+              _Filters(),
+              _Params(),
+              _DragHandle(),
             ]
           )
         ]
@@ -75,46 +74,144 @@ class _GlobalParams extends State<StatefulWidget> {
     );
   }
 
+  Widget _Params() {
+    return AnimatedClipRect(
+      open: paramsExpanded,
+      curve: Curves.easeInOut,
+      verticalAnimation: true,
+      horizontalAnimation: false,
+      alignment: Alignment.topCenter,
+      duration: Duration(milliseconds: 200),
+      child: _ExpandedContent(),
+    );
+  }
+
+  Widget _Filters() {
+    return ModesFilterBar(
+      filterController: widget.filterController,
+      expanded: filtersExpanded,
+    );
+  }
+
   Widget _ExpandedContent() {
-    return Container(
-      child: Container(
-        margin: EdgeInsets.only(
-          right: isSmall ? 10 : 30,
-          bottom: 14,
-          left: 10,
-          top: 5,
+    return Column(
+      children: [
+        Container(
+          margin: EdgeInsets.only(
+            right: isSmall ? 10 : 30,
+            bottom: 14,
+            left: 10,
+            top: 5,
+          ),
+          child: _InlineParams(),
         ),
-        child: _InlineParams(),
-      ),
+      ]
+    );
+  }
+
+  bool get isExpanded => paramsExpanded || filtersExpanded;
+  bool filtersExpanded = false;
+  bool paramsExpanded = false;
+  bool _isAnimating = false;
+  bool get isAnimating => _isAnimating;
+  void set isAnimating(value) {
+    _isAnimating = value;
+    if (value)
+      Timer(Duration(milliseconds: 200), () {
+        setState(() =>isAnimating = false);
+      });
+  }
+
+
+  Widget _DragHandle() {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onVerticalDragUpdate: (details) {  
+        if (isAnimating) return;
+        if (details.delta.dy > 8) { // swipe Down
+          if (!paramsExpanded || !filtersExpanded)
+            isAnimating = true;
+          if (!paramsExpanded)
+            paramsExpanded = true;
+          else filtersExpanded = true;
+        } else if(details.delta.dy < -8){ //swipe up
+          if (isExpanded)
+            isAnimating = true;
+
+          if (filtersExpanded)
+            filtersExpanded = false;
+          else paramsExpanded = false;
+        }
+        setState(() { });
+      },
+      child: Container(
+        child: Container(
+          height: 5,
+          width: 80,
+          margin: EdgeInsets.only(bottom:5, top: 5),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(isExpanded ? 0.9 : 0.2),
+            borderRadius: BorderRadius.circular(20),
+          )
+        ),
+      )
     );
   }
 
   Widget _Header() {
-    return GestureDetector(
-      onTap: () {
-        Mode.globalParamsEnabled = !Mode.globalParamsEnabled;
-        setState(() {});
-      },
-      child: Container(
-        padding: EdgeInsets.all(5),
-        decoration: BoxDecoration(
-            color: Color(0xFF222222),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Checkbox(
-              value: Mode.globalParamsEnabled,
-              activeColor: Colors.blue,
-              onChanged: (value) {
-                Mode.globalParamsEnabled = value;
-                setState(() {});
-              }
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        GestureDetector(
+          onTap: () {
+            // Mode.globalParamsEnabled = !Mode.globalParamsEnabled;
+            paramsExpanded = !paramsExpanded;
+            setState(() {});
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+            decoration: BoxDecoration(
+                // color: Color(0xFF222222),
             ),
-            Text("Global Params", style: TextStyle(fontSize: 18)),
-          ]
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Checkbox(
+                  value: Mode.globalParamsEnabled,
+                  activeColor: Colors.blue,
+                  onChanged: (value) {
+                    Mode.globalParamsEnabled = value;
+                    setState(() {});
+                  }
+                ),
+                Text("Global Params", style: TextStyle(fontSize: 18)),
+                Container(
+                  child: paramsExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                )
+              ]
+            ),
+          ),
         ),
-      ),
+        Container(
+          margin: EdgeInsets.only(left: 0),
+          child: GestureDetector(
+            onTap: () {
+              setState(() => filtersExpanded = !filtersExpanded);
+            },
+            child: Row(
+              children: [
+                Text("FILTERS",
+                  textAlign: TextAlign.left,
+                  style: TextStyle(fontSize: 14)
+                ),
+                Container(
+                  child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                )
+              ]
+            )
+          ),
+        ),
+      ]
     );
   }
 

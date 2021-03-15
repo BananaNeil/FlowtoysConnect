@@ -27,6 +27,10 @@ class Preloader {
   static ReceivePort _port = ReceivePort();
 
 
+  static Future<bool> ready() {
+    return Storage.ready();
+  }
+
   static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
     print("DOWN CALLBACK: ${[id, status, progress]} ===> ${status} == ${DownloadTaskStatus.complete} => ${status == DownloadTaskStatus.complete}");
 
@@ -75,9 +79,9 @@ class Preloader {
      });
   }
 
-  static Future<List<String>> saveGroupId(id) {
+  static Future<List<String>> saveGroupId(id) async {
     Group.savedGroupIds.add(id);
-    Storage.write('savedGroupIds', jsonEncode(Group.savedGroupIds));
+    await Storage.write('savedGroupIds', jsonEncode(Group.savedGroupIds));
   }
 
   static Future<List<String>> recallSavedGroupIds() {

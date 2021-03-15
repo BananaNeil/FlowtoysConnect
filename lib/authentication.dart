@@ -20,10 +20,12 @@ class Authentication {
   }
 
   static Future<Account> getAccount() async {
+      print("CA1: ${Authentication.currentAccount}");
     return await Client.getAccount().then((response) {
       if (response['success'])
-        setCurrentAccount(Account.fromMap(response['body']));
-      print("BACK FROM GETTIN GACCOUNT WITH :${response['body']}");
+        setCurrentAccount(Account.fromResourceMap(response['body']));
+      print("${response['success']} BACK FROM GETTIN GACCOUNT WITH :${response['body']}");
+      print("CA: ${Authentication.currentAccount.toMap()}");
 
       return currentAccount;
     });
@@ -33,7 +35,7 @@ class Authentication {
     var accountData = currentAccount.toMap();
     var newAccount = Account.fromMap({
       ...accountData,
-      ...data
+      ...(data ?? {}),
     });
     if (submit ?? true)
       return await Client.updateAccount(newAccount.toMap()).then((response) {
@@ -57,7 +59,7 @@ class Authentication {
 
   static void ensureNotifications() {
     if (isAuthenticated) {
-      Timer(Duration(milliseconds: 1000), () => PushNotificationsManager().init());
+      // Timer(Duration(milliseconds: 1000), () => PushNotificationsManager().init());
     }
   }
 
@@ -77,8 +79,10 @@ class Authentication {
       if (isAuthenticated) {
         getAccount();
         return readFromDisk('currentAccount').then((json) {
+          print("READ account FROM DISK: ${json}");
           if (json != null)
             setCurrentAccount(Account.fromJson(json));
+          // else setCurrentAccount(Account());
 
           return true;
         });
@@ -101,9 +105,9 @@ class Authentication {
     await Storage.write('currentAccount', currentAccount.toJson());
   }
 
-  static void logout() {
-    setToken(null);
-    setCurrentAccount(Account());
+  static void logout() async {
+    await setToken(null);
+    await setCurrentAccount(Account());
     AppController.closeUntilPath('/login');
   }
 }

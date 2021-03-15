@@ -21,6 +21,12 @@ dependencies:
   flutter:
     sdk: flutter
   badges: '^1.1.6'
+
+
+  mic_stream: #^0.4.0
+    path: /Users/neil/Projects/flowtoys/mic_stream
+
+
   open_settings: #^1.0.3
     # path: /Users/neil/Projects/flowtoys/open_settings
     # Forked to fix a bug, needed to switch:
@@ -57,14 +63,32 @@ dependencies:
       # passing in a custom child widget)
       url: https://github.com/BananaNeil/flutter_hsvcolor_picker
       ref: 0e9ceb81d04c987e0b9a7083ba5a6bc7fd128278
-  flutter_secure_storage: ^3.3.5
+
+
+  # Only using for macOS for now, maybe we can remove it for other platforms
+  # (using forked version for compatibility with path_provider 2.0.1),
+  # switch back to master after this PR is merged:
+  # https://github.com/lesnitsky/flutter_localstorage/pull/66
+  localstorage: # ^3.0.6+9
+    git:
+      url: https://github.com/andersonmendess/flutter_localstorage
+
+  flutter_secure_storage: #^3.3.5
+    # this points to https://github.com/firatagdas/flutter_secure_storage/tree/macos_support
+    # cd647e5605b8a2269f3db734a4e9af495ebc4bb3
+    # which has support for MacOS
+    git:
+      url: https://github.com/mogol/flutter_secure_storage
+
+
   assets_audio_player: #^2.0.13+1
     path: /Users/neil/Projects/flowtoys/Flutter-AssetsAudioPlayer
     # Patched to allow seeking to work with milliseconds instead of seconds
     # git:
     #   url: https://github.com/BananaNeil/Flutter-AssetsAudioPlayer.git
     #   ref: 0981b955e1c3dc9ecf07c4d7d0e53392162c4472
-  firebase_messaging: ^7.0.3
+
+  firebase_messaging: ^9.0.0
   # firebase_analytics: ^5.0.16
   flutter_speed_dial: ^1.2.5
   flutter_downloader: ^1.5.2
@@ -72,14 +96,15 @@ dependencies:
 
   percent_indicator: ^2.1.7+2
   bugsnag_crashlytics: ^0.0.7
-  connectivity_plus: ^0.8.0
-  network_info_plus: ^0.1.1
+  # connectivity_plus: ^0.8.0
+  network_info_plus: ^1.0.0
   flutter_spinkit: ^4.1.2
   email_validator: ^1.0.0
-  path_provider: ^1.6.18
   package_info: ^0.4.3+2
+  path_provider: ^2.0.1
   multicast_dns: ^0.2.2
   html_unescape: ^1.0.2
+  intl: ^0.17.0
   flutter_blue: #^0.7.3
     # git: git@github.com:pauldemarco/flutter_blue.git
     # path: /Users/neil/Projects/flowtoys/flutter_blue
@@ -87,7 +112,7 @@ dependencies:
     git: 
       url: git@github.com:BananaNeil/flutter_blue.git
       ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
-  url_launcher: ^5.6.0
+  url_launcher: ^6.0.2
   fluttertoast: ^7.1.1
   youtube_api: #^0.8.0
     git: https://github.com/SahilKr24/youtube_api
@@ -105,8 +130,12 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^0.1.3
-  shared_preferences: ^0.5.10
+  shared_preferences: ^2.0.3
   flash_animation: ^0.0.1
+
+  flutter_share: ^1.0.5
+  qr_flutter: ^3.1.0
+
 
 
 dev_dependencies:

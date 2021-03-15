@@ -25,9 +25,11 @@ class ListsPage extends StatefulWidget {
 
 class _ListsPageState extends State<ListsPage> {
 
+  bool showAllLists = false;
   bool awaitingResponse = false;
   ModeList selectedList = null;
   bool singlePageMode = false;
+  List<ModeList> allLists = [];
   List<ModeList> lists = [];
   bool isTopLevelRoute;
   String errorMessage;
@@ -37,7 +39,7 @@ class _ListsPageState extends State<ListsPage> {
   // }
 
   Future<void> requestFromCache() {
-    return Preloader.getModeLists({'creation_type': 'user'}).then((modeLists) {
+    return Preloader.getModeLists({'creation_type': 'user', 'access_level': 'editable'}).then((modeLists) {
       setState(() => lists = modeLists);
     });
   }
@@ -60,24 +62,39 @@ class _ListsPageState extends State<ListsPage> {
     });
   }
 
+  Future<void> fetchAllLists({initialRequest}) {
+    setState(() {
+      errorMessage = null;
+      awaitingResponse = true;
+    });
+    return Client.getModeLists(creationType: 'user', user: 'all').then((response) {
+      setState(() {
+        awaitingResponse = false;
+        if (response['success'])
+          allLists = response['modeLists'];
+
+      });
+    });
+  }
+
   @override initState() {
     isTopLevelRoute = !Navigator.canPop(context);
     super.initState();
     requestFromCache().then((_) => fetchLists(initialRequest: true));
+    fetchAllLists();
   }
 
   @override
   Widget build(BuildContext context) {
     singlePageMode = AppController.screenWidth > 600;
 
-    print("BUILD LISTS ROUTE ${selectedList} ${selectedList?.id}");
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
         backgroundColor: AppController.darkGrey,
         drawer: isTopLevelRoute ? Navigation() : null,
         appBar: AppBar(
-          title: Text("My Lists"),
+          title: Text("Playlists"),
           backgroundColor: Color(0xff222222),
         ),
         body: Center(
@@ -87,10 +104,13 @@ class _ListsPageState extends State<ListsPage> {
               Container(
                 child: Expanded(
                   child: RefreshIndicator(
-                    onRefresh: fetchLists,
+                    onRefresh: showAllLists ? fetchAllLists : fetchLists,
                     child: ListView(
                       padding: EdgeInsets.only(top: 5),
-                      children: _Lists()
+                      children: [
+                        _ToggleButtons(),
+                        ..._Lists(),
+                      ]
                     ),
                   ),
                 )
@@ -107,10 +127,38 @@ class _ListsPageState extends State<ListsPage> {
     );
   }
 
+  Widget _ToggleButtons() {
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 10),
+      child: Center(
+        child: ToggleButtons(
+          isSelected: [!showAllLists, showAllLists],
+          onPressed: (int index) {
+            setState(() {
+              showAllLists = (index == 1);
+            });
+          },
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Text("My Lists"),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Text("All Lists"),
+            ),
+          ]
+        )
+      )
+    );
+  }
+
+  List<ModeList> get visibleLists => showAllLists ? allLists : lists;
+
   List<Widget> _Lists() {
     if (errorMessage != null)
       return [Text(errorMessage, textAlign: TextAlign.center, style: TextStyle(color: AppController.red))];
-    else if (lists.length == 0)
+    else if (visibleLists.length == 0)
       return [
         Container(
           margin: EdgeInsets.only(top: 20, bottom: 20),
@@ -131,7 +179,7 @@ class _ListsPageState extends State<ListsPage> {
             )
         ),
       ];
-    else return (lists..removeWhere((value) => value == null)).map<Widget>((list) {
+    else return (visibleLists..removeWhere((value) => value == null)).map<Widget>((list) {
       return Card(
         elevation: 8.0,
         child: ListTile(
@@ -149,7 +197,7 @@ class _ListsPageState extends State<ListsPage> {
               'returnList': true,
             }).then((newList) {
               setState(() {
-                lists[lists.indexOf(list)] = newList;
+                visibleLists[visibleLists.indexOf(list)] = newList;
               });
             });
           },

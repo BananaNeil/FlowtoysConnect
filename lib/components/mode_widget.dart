@@ -4,6 +4,7 @@ import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
+import 'package:app/models/prop.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -64,6 +65,41 @@ class BaseModeImage extends StatelessWidget {
   }
 }
 
+class PropImage extends StatelessWidget {
+  PropImage({this.prop, this.size});
+
+  final Prop prop;
+  num size;
+
+  @override
+  Widget build(BuildContext context) {
+    this.size ??= 20;
+    Widget icon;
+    String text;
+    print("RENDER MODE: ${prop.hashCode} ${prop.isOn}");
+    if (prop.isOn == false)
+      text = 'OFF';
+
+    if (prop.isCheckingBattery == true)
+      icon = Icon(Icons.battery_charging_full);
+
+    if (text != null || icon != null)
+      return Container(
+        height: size*2.0,
+        width: size*2.0,
+        child: Center(child: icon ?? Text(text)),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
+        )
+      );
+    else return ModeImage(
+      mode: prop.currentMode,
+      size: size,
+    );
+  }
+}
+
 
 class ModeImage extends StatelessWidget {
   ModeImage({this.mode, this.size});
@@ -75,8 +111,26 @@ class ModeImage extends StatelessWidget {
   Widget build(BuildContext context) {
     if (mode == null) return Container(width: 0);
     if (mode.baseMode == null) return Container(width: 0);
-    if (![1,2,3,13].contains(mode.page)) return Container(width: 0);
+
+
+
     this.size ??= 20;
+    String text;
+    Icon icon;
+
+    if (![1,2,3,13].contains(mode.page))
+      text = "${mode.page}:${mode.number}";
+          
+    if (text != null || icon != null)
+      return Container(
+        height: size*2.0,
+        width: size*2.0,
+        child: Center(child: icon ?? Text(text)),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          shape: BoxShape.circle,
+        )
+      );
     return Container(
       // This is a shadow, but it looks pretty bad:
       //

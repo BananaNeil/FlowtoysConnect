@@ -57,6 +57,7 @@ class Group {
     return _currentMode;
   }
 
+  DateTime _currentModeSetAt;
   Mode get internalMode => currentMode;
   void set internalMode(mode) {
     _currentMode = mode;
@@ -72,22 +73,53 @@ class Group {
       props.forEach((prop) => prop.internalMode = mode);
 
     if (mode.isAnimating)
-      animationUpdater = Timer.periodic(Duration(milliseconds: 100), (_) {
+      animationUpdater = Timer.periodic(Bridge.animationDelay * 1.02, (_) {
         this.currentMode = _currentMode;
       });
     print("AD.USTED params: ${props.first.adjustedModeParamValues}");
-    currentGroups.forEach((group) {
-      Bridge.setGroup(
-        groupId: group.id,
-        page: currentMode.page,
-        number: currentMode.number,
-        params: props.first.adjustedModeParamValues, 
-      );
-    });
+    if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Bridge.animationDelay) {
+      _currentModeSetAt = DateTime.now();
+      currentGroups.forEach((group) {
+        Bridge.setGroup(
+          groupId: group.id,
+          page: currentMode.page,
+          number: currentMode.number,
+          params: props.first.adjustedModeParamValues, 
+        );
+      });
+    }
   }
+
+  bool _isCheckingBattery;
+  bool get isCheckingBattery => _isCheckingBattery;
+  void set isCheckingBattery(value) {
+    props.forEach((prop) => prop.isCheckingBattery = value);
+    _isCheckingBattery = value;
+    if (value == true)
+      Timer(Duration(seconds: 4), () {
+        isCheckingBattery = false;
+      });
+  }
+
+
+  bool possiblyOn = false;
+  bool _isOn;
+  bool get isOn => _isOn;
+  void set isOn(value) {
+    _isOn = value;
+    if (value == false) possiblyOn = false;
+    props.forEach((prop) => prop.isOn = value);
+  }
+
 
   static List<Prop> get possibleProps {
     return possibleGroups.map((group) => group.props).expand((g) => g).toList();
+  }
+
+  static List<Group> get unclaimedGroups {
+    return connectedGroups.where((group) {
+      return group.props.any((prop) => !Authentication.currentAccount.propIds.contains(prop.id));
+    }).toList();
   }
 
   static List<Prop> get connectedProps {
@@ -120,7 +152,8 @@ class Group {
   }
 
   static List<Group> get connectedGroups => possibleGroups.where((group) {
-    List<String> userPropIds = Authentication.currentAccount.propIds ?? [];
+    Set<String> userPropIds = Authentication.currentAccount?.connectedPropIds ?? Set<String>();
+    // print("THIIS: ${userPropIds}");
     return group.props.any((prop) => userPropIds.contains(prop.id));
   }).toList();
 
@@ -143,10 +176,11 @@ class Group {
 
 
       possibleGroups.add(newGroup);
-      if (savedGroupIds.contains(groupId)) {
+      if (Authentication.currentAccount.propIds.contains(prop.id)) {
         currentQuickGroup.props.add(prop); 
       } else {
         unseenGroups.add(newGroup);
+        Bridge.changeStream.add(null);
       }
       return newGroup;
     });
@@ -155,7 +189,7 @@ class Group {
   static List<String> savedGroupIds = [];
   static List<Group> unseenGroups = [];
 
-  static List<Group> get unclaimedGroups => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
+  static List<Group> get unconnectedGroups => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
 
   static List<Group> _possibleGroups;
   static List<Group> get possibleGroups {

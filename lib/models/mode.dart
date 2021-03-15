@@ -74,18 +74,27 @@ class Mode {
   static bool globalParamsEnabled = false;
   static Mode _global;
   static Mode get global => _global ??= Mode.basic();
-  static Map<String, double> get globalParamValues {
+  static Map<String, dynamic> get globalParamValues {
     return global.getParamValues();
   }
 
-  static Map<String, double> get globalParamRatios {
+  static Map<String, dynamic> get globalParamRatios {
     var params = globalParamValues;
     params.keys.forEach((name) {
-      var defaultValue = Mode.global.baseMode.getValue(name);
-      if (defaultValue != null && defaultValue != 0)
-        params[name] /= defaultValue.toDouble();
+      if (!global.booleanParams.keys.contains(name)) {
+        var defaultValue = Mode.global.baseMode.getValue(name);
+        if (defaultValue != null && defaultValue != 0)
+          params[name] /= defaultValue.toDouble();
+      }
     });
     return params;
+  }
+
+  Map<String, bool> get booleanParams {
+    return {
+      'isAdjusting': isAdjusting,
+      'adjustRandomized': adjustRandomized,
+    };
   }
 
   Map<String, ModeParam> get colorModeParams {
@@ -194,8 +203,10 @@ class Mode {
   }
 
   int get adjustCycles => baseMode.adjustCycles;
-  Map<String, double> getParamValues({groupIndex, propIndex}) {
+  Map<String, dynamic> getParamValues({groupIndex, propIndex}) {
     return {
+      'isAdjusting': isAdjusting,
+      'adjustRandomized': adjustRandomized,
       'adjustCycles': adjustCycles.toDouble(),
       'adjust': getValue('adjust', groupIndex: groupIndex, propIndex: propIndex),
       'saturation': getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
@@ -228,7 +239,7 @@ class Mode {
   }
 
   bool get isAnimating {
-    return modeParams.values.any((param) => param.isAnimating);
+    return modeParams.values.any((param) => param.isAnimating || param.linkAudio);
   }
 
   bool get colorIsAnimating {

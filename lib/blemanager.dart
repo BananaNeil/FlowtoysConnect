@@ -82,15 +82,15 @@ class BLEManager {
     else sendString("S");
   }
 
-  void sendPattern({String groupId, int page, int mode, int actives, List<double> paramValues}) {
+  void sendPattern({String groupId, int page, int mode, int actives, List<int> paramValues}) {
     // List<Object> args = new List<Object>();
     // args.add(groupId);
     // args.add(0);//groupIsPublic = false, force private group
     // args.add(page);
     // args.add(mode);
     // args.add(actives);
-    var values = paramValues.map((value) => (value*255).round());
-    sendString("p${groupId},${page - 1},${mode - 1},${actives+1},${values.join(',')}");
+    // var values = paramValues.map((value) => (value*255).round());
+    sendString("p${groupId},${page - 1},${mode - 1},${actives+1},${paramValues.join(',')}");
   }
 
   String _statusMessage;
@@ -112,6 +112,10 @@ class BLEManager {
 
   bool isOff = false;
 
+  void factoryReset() {
+    sendString('R');
+  }
+
   void scanAndConnect() async {
     if (flutterBlue == null)
       return print("BLE not supported");
@@ -123,6 +127,12 @@ class BLEManager {
     await flutterBlue.connectedDevices.then((devices) {
       for (BluetoothDevice device in devices) {
         if (device.name.contains("FlowConnect")) {
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated????
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
+          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
           Bridge.name = device.name;
           bridge = device;
           break;
@@ -228,7 +238,7 @@ class BLEManager {
       // Okay.... this is getting called when the bridge crashes. Then seconds later, we are trying to read from rx.
       // We need to set isConnected (done, I think), and let rx reading be conditional on that.
 
-      print("Bridge connection state change: ${state}");
+      print("Bridge connection state change: ${state} ...");
       bool newConnected = state == BluetoothDeviceState.connected;
       isConnected = newConnected;
       if(isConnected) isConnecting = false;
@@ -306,7 +316,7 @@ class BLEManager {
 
               print("SETTING IS READY TO TRUE: (MTU: ${mtu})");
               isReadyToSend = true;
-              networkName = bridge.name.substring(12);
+              networkName = bridge.name;
 
               
               changeStream.add(null);
@@ -365,6 +375,13 @@ class BLEManager {
     isSending = false;
   }
 
+  void setNetworkName(String name) {
+    sendString("g" + name + ",0");
+    Bridge.isRestarting = true;
+    isConnected = false;
+    bridge = null;
+  }
+
 
    void sendConfig({String networkName, String ssid, String password}) async {
     sendString("n${ssid ?? networkName},${password}");
@@ -375,7 +392,6 @@ class BLEManager {
     // if(networkName.isEmpty) this.networkName = "*";
 
     // 0 for WiFi, 1 for BLE, 2 for Both:
-    // sendString("g" + networkName + ",0");
     
     // if(this.networkName != networkName) {
     //   this.networkName = networkName;

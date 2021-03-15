@@ -22,6 +22,18 @@ class Client {
     else return '';
   }
 
+  static Future<Map<dynamic, dynamic>> updateProps({propIds, propType, groupName}) async {
+    Future<Map<dynamic, dynamic>> response = makeRequest('get',
+      path: '/props',
+      body: {
+        'ids': propIds,
+        'prop_type': propType,
+        'group_name': groupName,
+      }
+    );
+
+
+
   static Future<Map<dynamic, dynamic>> fetchProps(props) async {
     Future<Map<dynamic, dynamic>> response = makeRequest('get',
       path: '/props',
@@ -57,7 +69,7 @@ class Client {
   static Future<Map<dynamic, dynamic>> updateAccount(data) async {
     return makeRequest('put',
       requireAuth: true,
-      path: '/users',
+      path: "/users/${data['id']}",
       body: data,
     );
   }
@@ -237,9 +249,20 @@ class Client {
     return response;
   }
 
-  static Future<Map<dynamic, dynamic>> getModeLists({creationType}) async {
-    var params = creationType == null ? "" : "?creation_type=${creationType}";
-    var response = await makeRequest('get', path: '/mode_lists${params}');
+  static Future<Map<dynamic, dynamic>> getModeLists({creationType,user}) async {
+    var queryParams = "";
+    var params = [];
+
+    if (creationType != null)
+      params.add("creation_type=${creationType}");
+
+    if (user != null)
+      params.add("user=${user}");
+
+    if (params.length >0)
+      queryParams="?${params.join('&')}";
+
+    var response = await makeRequest('get', path: '/mode_lists${queryParams}');
 
     if (response['success']) {
       response['modeLists'] = ModeList.fromList(response['body']);
@@ -439,7 +462,7 @@ class Client {
         message = responseBody['error_message'] ?? (errors['full_messages'] ?? []).join("\n");
 
       if (responseHeaders['access-token'] != null)
-        Authentication.setToken({
+        await Authentication.setToken({
           'access-token': responseHeaders['access-token'],
           'client': responseHeaders['client'],
           'uid': responseHeaders['uid'],

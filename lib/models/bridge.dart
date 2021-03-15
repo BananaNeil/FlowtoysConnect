@@ -1,4 +1,5 @@
 import 'package:app/app_controller.dart';
+import 'package:app/audio_manager.dart';
 import 'package:app/blemanager.dart';
 import 'package:app/oscmanager.dart';
 import 'package:app/client.dart';
@@ -10,11 +11,19 @@ class Bridge {
   // static String get name => ownerName != null ? "$ownerName's FlowConnect" : 'Bridge';
   static String id;
   static String name;
-  static String newName;
   static String ownerName;
   static String unclaimedId;
 
   static bool _isSyncing = false;
+
+  static bool _isRestarting = false;
+  static bool get isRestarting => _isRestarting;
+  static void set isRestarting(value) {
+    if (value == true)
+      Timer(Duration(seconds: 10), () => _isRestarting = false);
+    _isRestarting = value;
+  }
+
 
   static StreamController<void> _changeStream;
   static StreamController<void> get changeStream {
@@ -23,6 +32,12 @@ class Bridge {
   }
 
   static Stream get stateStream => changeStream.stream;
+
+
+  static AudioManager _audioManager;
+  static AudioManager get audioManager => _audioManager ??= AudioManager();
+  static Stream<double> get audioIntensityStream => audioManager.intensityStream;
+
 
   static void toggleSyncing() {
     isSyncing = !isSyncing;
@@ -35,6 +50,7 @@ class Bridge {
   }
 
   static Future save() {
+    print("SAVING BRIDGE NAME.... ${name}");
     channel.setNetworkName(name);
     Client.updateBridge();
   }
@@ -45,25 +61,54 @@ class Bridge {
     };
   }
 
+  static Duration get animationDelay => isWifi ? Duration(milliseconds: 60) : Duration(milliseconds: 600);
+
   static void setGroup({groupId, page, number, params}) {
     var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
 
     var adjust = params['adjust'];
     var totalLFO = (adjust * params['adjustCycles']) as double;
-    List<double> adjustValues = List.generate(params['adjustCycles'].toInt(), (i) {
+    List<double> adjustValues = List.generate(4, (i) {
       return min(max(0, totalLFO - i), 1);
     });
 
+    List<double> paramRatios = paramNames.map<double>((name) => params[name]).toList();
+    paramRatios.addAll(adjustValues);
+
+    List<int> paramValues = paramRatios.map<int>((value) => (value * 255).ceil()).toList();
+
+    var adjustingValue = params['isAdjusting'] ? 1 : 0;
+    if (params['adjustRandomized']) adjustingValue += 64;
 
 
-    print("SET GROUP: ${paramNames.map<double>((name) => params[name]).toList()..addAll(adjustValues)}");
+
+    // WITH THE OLD FIRMWARE, YOU CAN't jump from one adjusting mode to another adjusting mode.
+    // so we use this hackey work around, where we send two packets.
+    //
+    // The new firmware will fix this, so we shoould detect which firm ware is running
+    // (probalby via absent propID), and fix this for that case.
     channel.sendPattern(
-      actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1))),
-      paramValues: paramNames.map<double>((name) => params[name]).toList()..addAll(adjustValues),
+      actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
+      paramValues: [...paramValues, 0], // 0 => Forcing adjust to be false
       groupId: groupId,
       mode: number,
       page: page,
     );
+
+    Timer(Duration(milliseconds: 100), () {
+      paramValues.add(adjustingValue);
+      channel.sendPattern(
+        actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
+        paramValues: paramValues,
+        groupId: groupId,
+        mode: number,
+        page: page,
+      );
+    });
+  }
+
+  static void factoryReset() {
+    channel.factoryReset();
   }
 
   static void setProp({groupId, propId, page, number, params}) {

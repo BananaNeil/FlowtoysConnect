@@ -291,9 +291,12 @@ class _ModeListItem extends State<ModeListItem> {
         setState(() {});
       },
       updateMode: () {
-        (Prop.propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
+        Prop.refreshByMode(mode);
       },
       onSaveAs: () {
+        Navigator.pushNamed(context, '/lists/new', arguments: {
+          'selectedModes': [mode],
+        });
       },
       mode: mode,
     );

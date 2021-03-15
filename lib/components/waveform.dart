@@ -48,6 +48,8 @@ class WaveformController {
   void analyzeSong() async {
     var song = await loadSong();
     data = song.buffer.asUint8List();
+
+    //checking the audio file for compatibility:
     if (listEquals(data.sublist(0, 4), [82, 73, 70, 70])) {
       var bytesOf32 = song.buffer.asUint32List();
       // print(bytesOf32.length);

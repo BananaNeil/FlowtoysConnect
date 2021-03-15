@@ -14,7 +14,7 @@ class PushNotificationsManager {
   bool _initialized = false;
   PushNotificationsManager._();
   factory PushNotificationsManager() => _instance;
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   static final PushNotificationsManager _instance = PushNotificationsManager._();
 
 
@@ -30,19 +30,15 @@ class PushNotificationsManager {
   void _initializeFireBase() async {
     print("INIT FIREBASE");
     // For iOS request permission first.
-    _firebaseMessaging.requestNotificationPermissions();
-    _firebaseMessaging.configure(
-      // onBackgroundMessage: handlerForWhenAppIsInBackground,
-      // onMessage: handlerForWhenAppIsOpen,
-      onLaunch: (Map<String, dynamic> message) async {
-        var data = message['data'] ?? message;
-        AppController.openPath(data['path']);
-      },
-      onResume: (Map<String, dynamic> message) async {
-        var data = message['data'] ?? message;
-        AppController.openPath(data['path']);
-      },
-    );
+    await _firebaseMessaging.requestPermission();
+    FirebaseMessaging.onBackgroundMessage((RemoteMessage message) async {
+      // var data = message['data'] ?? message;
+      // AppController.openPath(data['path']);
+    });
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // var data = message['data'] ?? message;
+      // AppController.openPath(data['path']);
+    });
 
     String token = await _firebaseMessaging.getToken();
     print("FirebaseMessaging token: $token");

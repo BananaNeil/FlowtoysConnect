@@ -29,6 +29,9 @@
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 
+  <key>NSMicrophoneUsageDescription</key>
+  <string>This app can link parameters with audio intensity streaming from your microphone.</string>
+
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>This app needs the ability to determine the current wifi network</string>
 

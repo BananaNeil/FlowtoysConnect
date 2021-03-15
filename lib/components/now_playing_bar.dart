@@ -4,6 +4,7 @@ import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'dart:async';
 import 'dart:math';
@@ -65,74 +66,77 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
       if (isPlaying) isPlayingAnimation.forward();
       setState(() {});
     });
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Color(0xEa000000),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _NowPlayingProgressBar,
-            Container(
-              margin: EdgeInsets.only(bottom: 10, top: 5),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: Prop.propsByMode.entries.map<Widget>((entry) {
-                        var mode = entry.key;
-                        var props = entry.value;
-                        if (mode.page > 3)
-                          return Container();
-                        if (AppController.isSmallScreen && Prop.propsByMode.entries.length > 1)
-                          return ModeImage(mode: mode, size: 15);
-                        else
-                          return Container(
-                            margin: EdgeInsets.only(left: 10),
-                            child: Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Container(
-                                  margin: EdgeInsets.symmetric(horizontal: 3),
-                                  child: ModeImage(mode: mode, size: 15),
-                                ),
-                                Text("X${props.length}")
-                              ]
-                            )
-                          );
-                      }).toList()
+    return Visibility(
+      visible: Group.connectedProps.length > 0,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color(0xEa000000),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _NowPlayingProgressBar,
+              Container(
+                margin: EdgeInsets.only(bottom: 10, top: 5),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: Prop.propsByMode.entries.map<Widget>((entry) {
+                          var mode = entry.key;
+                          var props = entry.value;
+                          if (mode.page > 3)
+                            return Container();
+                          if (AppController.isSmallScreen && Prop.propsByMode.entries.length > 1)
+                            return ModeImage(mode: mode, size: 15);
+                          else
+                            return Container(
+                              margin: EdgeInsets.only(left: 10),
+                              child: Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Container(
+                                    margin: EdgeInsets.symmetric(horizontal: 3),
+                                    child: ModeImage(mode: mode, size: 15),
+                                  ),
+                                  Text("X${props.length}")
+                                ]
+                              )
+                            );
+                        }).toList()
+                      ),
                     ),
-                  ),
-                  _PlayControlers,
-                  Expanded(
-                    // width: double.infinity,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      // visible: !isShowingMultipleLists,
-                      child: GestureDetector(
-                        onTap: () {
-                          widget.onMenuTap();
-                        },
-                        child: Container(
-                          padding: EdgeInsets.only(right: AppController.isSmallScreen ? 10 : 25, top: 10),
-                          child: Icon(
-                            Icons.more_horiz,
-                            color: Colors.white,
+                    _PlayControlers,
+                    Expanded(
+                      // width: double.infinity,
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        // visible: !isShowingMultipleLists,
+                        child: GestureDetector(
+                          onTap: () {
+                            widget.onMenuTap();
+                          },
+                          child: Container(
+                            padding: EdgeInsets.only(right: AppController.isSmallScreen ? 10 : 25, top: 10),
+                            child: Icon(
+                              Icons.more_horiz,
+                              color: Colors.white,
+                            ),
                           ),
-                        ),
+                        )
                       )
-                    )
-                  ),
-                ]
-              )
-            ),
-          ]
-        )
-      ),
+                    ),
+                  ]
+                )
+              ),
+            ]
+          )
+        ),
+      )
     );
   }
 

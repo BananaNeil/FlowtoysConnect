@@ -34,7 +34,7 @@
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>This app will communicate with LED lights via bluetooth</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>This app needs the ability to determine the current wifi network</string>
+	<string>We only use this permission to determine your Wifi network's name, and to help connect the bridge to the same network</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app needs the ability to connect to BLE</string>
 	<key>NSMicrophoneUsageDescription</key>

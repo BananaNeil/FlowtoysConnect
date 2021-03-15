@@ -1,10 +1,12 @@
 import 'package:flutter_siri_suggestions/flutter_siri_suggestions.dart';
 import 'package:bugsnag_crashlytics/bugsnag_crashlytics.dart';
+import 'package:app/components/bridge_connection_status.dart';
 import 'package:package_info/package_info.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:app/models/base_mode.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
+import 'package:app/models/bridge.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,11 +32,8 @@ class AppController extends StatefulWidget {
   static String buildNumber;
   static String version;
 
-  static OSCManager _oscManager;
-  static OSCManager get oscManager => _oscManager ??= OSCManager();
-
-  static BLEManager _bleManager;
-  static BLEManager get bleManager => _bleManager ??= BLEManager();
+  static OSCManager get oscManager => Bridge.oscManager;
+  static BLEManager get bleManager => Bridge.bleManager;
 
   static void initConnectionManagers() {
     print(bleManager);
@@ -398,7 +397,7 @@ class PieClipper extends CustomClipper<Path> {
 
 Future ensureAuthentication(Function callback) {
   if (Authentication.isAuthenticated) return callback();
-  _openLoginScreen().then((_) {
+  return _openLoginScreen().then((_) {
     if (Authentication.isAuthenticated)
       callback();
   });
@@ -407,5 +406,11 @@ Future ensureAuthentication(Function callback) {
 Future _openLoginScreen() {
   return Navigator.pushNamed(AppController.getCurrentContext(), '/login-overlay', arguments: {
     'showCloseButton': true
+  });
+}
+
+Future openBridgeDetails() {
+  return AppController.openCustomDialog(BridgeConnectionStatus()).then((callback) {
+    if (callback != null && callback is Function) callback();
   });
 }

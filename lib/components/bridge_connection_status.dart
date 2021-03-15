@@ -1,4 +1,5 @@
 import 'package:app/components/connection_icon.dart';
+import 'package:app/components/rename_form.dart';
 import 'package:open_settings/open_settings.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
@@ -27,7 +28,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
   bool get isConnected => bleConnected || oscConnected;
   bool get bleConnected => Bridge.bleManager.isConnected;
   bool get oscConnected => Bridge.oscManager.isConnected;
-  bool get wifiConnected => Bridge.oscManager.wifiIsConnected;
+  bool get wifiNetworkKnown => Bridge.oscManager.networkKnown;
 
   @override
   initState() {
@@ -82,12 +83,12 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
             margin: EdgeInsets.only(right: 15),
             child: Align(
               alignment: FractionalOffset.topRight,
-              child: Authentication.isAuthenticated && isConnected ? GestureDetector(
+              child: GestureDetector(
                 child: Icon(Icons.settings),
                 onTap: () {
-                  Navigator.pop(context, _openNameForm);
+                  Navigator.pop(context, _openBridgeSettings);
                 }
-              ) : null,
+              ),
             ),
           )
       ],
@@ -97,6 +98,8 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
   String get title {
     if (isConnected)
       return "Connected to ${Bridge.name}";
+    else if (Bridge.isRestarting == true)
+      return "Bridge is restarting...";
     else if (Bridge.oscManager.connectedToBridgeWifi)
       return "Bridge not yet responding...";
     else return "Bridge not yet found";
@@ -112,62 +115,13 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
             showBadge: isConnected && Bridge.isUnclaimed,
             titleText: "Is this your bridge?",
             trailingButtonText: _claimNowText,
-            onTapTrailing: () => ensureAuthentication(() => _openNameForm),
+            onTapTrailing: () => ensureAuthentication(() => _openNameForm()),
             leading: ConnectionIcon(
               connectedIcon: Image(image: AssetImage('assets/images/bridge-connected.png')),
               isConnected: true,
             ),
           ),
-          isConnected && Bridge.oscManager.connectedToBridgeWifi ?
-            _BridgeDetailsCard(
-              leading: ConnectionIcon(
-                isConnected: true,
-                connectedIcon: Icon(Icons.wifi_tethering),
-                disconnectedIcon: Icon(Icons.wifi_tethering),
-              ),
-              titleText: "Connected to a FlowConnect network!",
-              // subtitle: Text("Click 'Connect' to help your bridge join the network [${Bridge.oscManager.mostRecentWifiNetworkName}]"),
-              subtitle: Text("Use this connection to link your bridge to the network [ ${Bridge.oscManager.mostRecentWifiNetworkName} ]"),
-              onTapTrailing: _openWifiDetailsForm,
-              trailingButtonText: 'Link Now',
-              trailingVisible: Bridge.oscManager.mostRecentWifiNetworkName != null,
-              subtitleVisible: Bridge.oscManager.mostRecentWifiNetworkName != null,
-            ) : 
-           wifiConnected ? 
-          _BridgeDetailsCard(
-            leading: ConnectionIcon(
-              isConnected: oscConnected,
-              connectedIcon: Icon(Icons.wifi),
-              disconnectedIcon: Icon(Icons.wifi_off),
-            ),
-            titleText: oscConnected ? 
-                "Communicating with bridge via WIFI (${currentWifiNetworkName})" :
-                  "Waiting for Bridge to join WIFI (${currentWifiNetworkName})",
-            showBadge: isConnected && !oscConnected,
-            trailingVisible: isConnected && !oscConnected,
-            subtitleVisible: !isConnected && !oscConnected,
-            onTapTrailing: _openWifiDetailsForm,
-            trailingButtonText: 'Connect',
-          ) : _BridgeDetailsCard(
-            leading: ConnectionIcon(
-              isConnected: oscConnected,
-              connectedIcon: Icon(Icons.wifi),
-              disconnectedIcon: Icon(Icons.wifi_off),
-            ),
-            titleText: "No wifi network found.",
-            trailingVisible: Platform.isIOS || Platform.isAndroid,
-            subtitleVisible: true,
-            subtitle: Text(Platform.isIOS || Platform.isAndroid ?
-                "For a better connection, try launching a hotspot from your device." :
-                "Try connecting to the Bridge's wifi network directly\n( password: findyourflow )"
-            ),
-
-            onTapTrailing: () {
-              OpenSettings.openWIFISetting();
-              return Future.value(null);
-            },
-            trailingButtonText: 'Wifi Settings',
-          ),
+           _WifiDetailsCard(),
           _BridgeDetailsCard(
             leading: ConnectionIcon(isConnected: bleConnected, connectedIcon: Icon(Icons.bluetooth_connected), disconnectedIcon: Icon(Icons.bluetooth_disabled)),
             trailingVisible: Bridge.bleManager.isOff && (Platform.isIOS || Platform.isAndroid),
@@ -226,6 +180,60 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
     ];
   }
 
+  Widget _WifiDetailsCard() {
+    if (!Bridge.oscManager.isEnabled) return null;
+    if (isConnected && Bridge.oscManager.connectedToBridgeWifi)
+      return _BridgeDetailsCard(
+        leading: ConnectionIcon(
+          isConnected: true,
+          connectedIcon: Icon(Icons.wifi_tethering),
+          disconnectedIcon: Icon(Icons.wifi_tethering),
+        ),
+        titleText: "Connected to a FlowConnect network!",
+        // subtitle: Text("Click 'Connect' to help your bridge join the network [${Bridge.oscManager.mostRecentWifiNetworkName}]"),
+        subtitle: Text("Use this connection to link your bridge to the network [ ${Bridge.oscManager.mostRecentWifiNetworkName} ]"),
+        onTapTrailing: _openWifiDetailsForm,
+        trailingButtonText: 'Link Now',
+        trailingVisible: Bridge.oscManager.mostRecentWifiNetworkName != null,
+        subtitleVisible: Bridge.oscManager.mostRecentWifiNetworkName != null,
+      ); 
+    else if (wifiNetworkKnown)
+      return _BridgeDetailsCard(
+        leading: ConnectionIcon(
+          isConnected: oscConnected,
+          connectedIcon: Icon(Icons.wifi),
+          disconnectedIcon: Icon(Icons.wifi_off),
+        ),
+        titleText: oscConnected ? 
+            "Communicating with bridge via WIFI (${currentWifiNetworkName})" :
+              "Waiting for Bridge to join WIFI (${currentWifiNetworkName})",
+        showBadge: isConnected && !oscConnected,
+        trailingVisible: isConnected && !oscConnected,
+        subtitleVisible: !isConnected && !oscConnected,
+        onTapTrailing: _openWifiDetailsForm,
+        trailingButtonText: 'Connect',
+      );
+    else return _BridgeDetailsCard(
+      leading: ConnectionIcon(
+        isConnected: oscConnected,
+        connectedIcon: Icon(Icons.wifi),
+        disconnectedIcon: Icon(Icons.wifi_off),
+      ),
+      titleText: "Wifi network unknown",
+      trailingVisible: Platform.isIOS || Platform.isAndroid,
+      subtitleVisible: true,
+      subtitle: Text(Platform.isIOS || Platform.isAndroid ?
+          "For a better connection, try launching a hotspot from your device." :
+          "Try connecting to the Bridge's wifi network directly\n( password: findyourflow )"
+      ),
+      onTapTrailing: () {
+        OpenSettings.openWIFISetting();
+        return Future.value(null);
+      },
+      trailingButtonText: 'Wifi Settings',
+    ); 
+  }
+
   Widget _BridgeDetailsCard({leading, titleText, subtitle, trailing, subtitleVisible, trailingButtonText, trailingVisible, onTapTrailing, showBadge}) {
     return Badge(
       showBadge: showBadge == true,
@@ -276,20 +284,33 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
     );
   }
 
+  Future _openBridgeSettings() {
+    return AppController.openDialog("Bridge Settings",
+        "",
+      reverseButtons: true,
+      buttonText: 'Back',
+      child: BridgeSettings(),
+    ).then((_) => openBridgeDetails());
+  }
 
   Future _openNameForm() {
-    Bridge.newName = "${Authentication.currentAccount.firstName}'s FlowConnect";
+    RenameController renameController = RenameController();
+    renameController.possessivePrefix = Authentication.currentAccount.firstName;
+    renameController.suffix = "FlowConnect";
     return AppController.openDialog("Give your bridge a name!",
         "Naming your bridge will link it to your flowtoys account, and only allow you to control it when in \"private\" mode",
       reverseButtons: true,
       buttonText: 'Cancel',
-      child: BridgeNameForm(),
+      child: Container(
+        margin: EdgeInsets.only(top: 15),
+        child: RenameForm(controller: renameController),
+      ),
       buttons: [
         {
           'text': "Claim Now!",
           'color': Colors.blue,
           'onPressed': () {
-            Bridge.name = Bridge.newName;
+            Bridge.name = renameController.newName;
             Bridge.save();
           }
         }
@@ -320,7 +341,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
   Widget _WifiDetailsForm() {
     // if (!Bridge.isWifi) return Container();
     // wifiConnectionStream ??= Connectivity().onConnectivityChanged.listen(updateWifiConnection);
-    if (wifiConnected)
+    if (wifiNetworkKnown)
       return Container(
         width: 300,
         height: 200,
@@ -362,16 +383,15 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
 
 }
 
-
-class BridgeNameForm extends StatefulWidget {
-  BridgeNameForm();
+class BridgeSettings extends StatefulWidget {
+  BridgeSettings();
 
   @override
-  _BridgeNameForm createState() => _BridgeNameForm();
+  _BridgeSettings createState() => _BridgeSettings();
 }
 
-class _BridgeNameForm extends State<BridgeNameForm> {
-  _BridgeNameForm();
+class _BridgeSettings extends State<BridgeSettings> {
+  _BridgeSettings();
 
   @override
   initState() {
@@ -383,51 +403,128 @@ class _BridgeNameForm extends State<BridgeNameForm> {
     super.dispose();
   }
 
+  bool showRenameForm = false;
+  bool confirmFactoryReset = false;
+
   @override
   Widget build(BuildContext context) {
+    if (confirmFactoryReset)
+      return _ConfirmFactoryReset();
+
+    if (showRenameForm)
+      return _RenameForm();
+
     return Container(
       width: 300,
       height: 200,
       // margin: EdgeInsets.only(top: 20),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: EdgeInsets.only(top: 20, bottom: 5),
-            padding: EdgeInsets.only(top: 25, bottom: 25),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.35),
-            ),
-            width: double.infinity,
-            child: Text(Bridge.newName,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 30,
-                color: Colors.white,
-              )
-            ),
-          ),
-          Container(
-            child: TextFormField(
-              textAlign: TextAlign.center,
-              // initialValue: ,
-              decoration: InputDecoration(
-                hintText: 'Or enter a custom name here...',
-              ),
-              onChanged: (text) {
-                setState(() {
-                  if (text == '') {
-                    Bridge.newName = "${Authentication.currentAccount.firstName}'";
-                    // If the last letter of the user's name is an 's', only add an aprostrophe
-                    if (!RegExp(r"s\'").hasMatch(Bridge.newName)) Bridge.newName += "s";
-                  } else Bridge.newName = text;
-
-                  Bridge.newName += " FlowConnect";
-                });
-              }
+          GestureDetector(
+            onTap: () => setState(() => Bridge.oscManager.isEnabled = !Bridge.oscManager.isEnabled),
+            child: Container(
+              margin: EdgeInsets.only(top: 15),
+              child: Row(children: [
+                Checkbox(
+                  value: Bridge.oscManager.isEnabled,
+                  activeColor: Colors.blue,
+                  onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
+                ),
+                Container(child: Text("WIFI Enabled"), padding: EdgeInsets.only(top: 10, bottom: 10, right: 7, left: 0)),
+              ])
             )
+          ),
+          _Button(
+            visible: !Bridge.isUnclaimed,
+              onTap: () => setState(() => showRenameForm = true),
+              text: "RENAME",
+          ),
+          _Button(
+            visible: !Bridge.isUnclaimed,
+              onTap: () => setState(() => confirmFactoryReset = true),
+              text: "FACTORY RESET",
+              color: Colors.red,
           ),
         ]
       )
     );
   }
+
+  Widget _Button({onTap, visible, text, color}){
+    return Visibility(
+      visible: visible ?? true,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          margin: EdgeInsets.only(top: 15),
+          padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(4),
+            color: color ?? Color(0xFF333333),
+            boxShadow: [
+              BoxShadow(
+                color: Color(0xAA000000),
+                offset: Offset(2.0, 2),
+                spreadRadius: 1.0,
+                blurRadius: 1.0,
+              )
+            ]
+          ),
+          child: Text(text),
+        ),
+      ),
+    );
+  }
+
+  RenameController renameController;
+  Widget _RenameForm() {
+    if (renameController == null) {
+      renameController = RenameController();
+      renameController.newName = Bridge.name;
+      renameController.suffix = " FlowConnect";
+    }
+
+    return Column(
+      children: [
+        Container(
+          margin: EdgeInsets.only(top: 15),
+          child: RenameForm(controller: renameController),
+        ),
+        GestureDetector(
+          onTap: () {
+            Bridge.name = renameController.newName;
+            Bridge.save();
+            Navigator.pop(context, true);
+          },
+          child: Text("SAVE", style: TextStyle(color: Colors.blue)),
+        ),
+      ]
+    );
+  }
+
+  Widget _ConfirmFactoryReset() {
+    return Column(
+      children: [
+        Container(
+          margin: EdgeInsets.only(top: 15),
+          child: Text("ARE YOU SURE YOU WANT TO RESET THIS BRIDGE?"),
+        ),
+        Container(
+          margin: EdgeInsets.only(top: 15),
+          child: Text("This will remove all customizations and settings"),
+        ),
+        GestureDetector(
+          onTap: () {
+            Bridge.factoryReset();
+            Navigator.pop(context, null);
+          },
+          child: Text("RESET NOW", style: TextStyle(color: Colors.red)),
+        ),
+      ]
+    );
+  }
+
 }
+
+

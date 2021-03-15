@@ -1,6 +1,11 @@
 import 'dart:html' show window;
 
 class Storage {
+
+  static Future<bool> ready() {
+    return Future.value(true);
+  }
+
   static Future<String> read(String key) async {
     return await window.localStorage[key];
   }

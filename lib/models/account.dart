@@ -1,8 +1,10 @@
+import 'package:app/authentication.dart';
 import 'package:json_api/document.dart';
+import 'package:app/client.dart';
 import 'dart:convert';
 
 class Account {
-  List<String> propIds;
+  Set<String> propIds;
   String firstName;
   String lastName;
   String email;
@@ -16,33 +18,50 @@ class Account {
     this.id,
   });
 
+
+  Set<String> _connectedPropIds = Set<String>();
+  Set<String> get connectedPropIds => propIds.union(_connectedPropIds);
+  void addConnectedPropId(id) {
+    _connectedPropIds.add(id);
+  }
+  void set connectedPropIds(value) {
+    _connectedPropIds = value;
+  }
+
+
   String toJson() {
     return jsonEncode(toMap());
   }
 
   Map<dynamic, dynamic> toMap() {
     return {
+      'prop_ids': List<String>.from(propIds ?? []),
       'first_name': firstName,
       'last_name': lastName,
-      'prop_ids': propIds,
       'email': email,
       'id': id,
     } as Map;
   }
 
-  factory Account.fromMap(Map<String, dynamic> body) {
-    var data = Document.fromJson(body, ResourceData.fromJson).data;
-    return Account.fromResource(data.unwrap());
+  Future<Map<dynamic,dynamic>> save() {
+    return Authentication.updateAccount();
   }
 
-  factory Account.fromResource(Resource resource, {included}) {
-    if (resource == null) return null; 
+  factory Account.fromMap(Map<String, dynamic> body) {
     return Account(
-      propIds: resource.attributes['prop_ids'] ?? [],
-      firstName: resource.attributes['first_name'],
-      lastName: resource.attributes['last_name'],
-      id: resource.attributes['id'],
+      propIds: Set<String>.from(body['prop_ids'] ?? []),
+      firstName: body['first_name'],
+      lastName: body['last_name'],
+      id: body['id'],
     );
+  }
+
+  factory Account.fromResourceMap(Map<String, dynamic> body) {
+    var data = Document.fromJson(body, ResourceData.fromJson).data;
+    var resource = data.unwrap();
+
+    if (resource == null) return null; 
+    return Account.fromMap(resource.attributes);
   }
 
   factory Account.fromJson(String body) {

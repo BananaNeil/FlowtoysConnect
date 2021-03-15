@@ -14,6 +14,7 @@ class ModeParam {
   String paramName;
   int parentIndex;
   int childIndex;
+  bool linkAudio;
   num value;
   Mode mode;
 
@@ -25,11 +26,13 @@ class ModeParam {
     this.parentIndex,
     this.childIndex,
     this.childType,
+    this.linkAudio,
     this.paramName,
     animationSpeed,
     this.value,
     this.mode,
   }) {
+    this.linkAudio ??= false;
     _animationSpeed = animationSpeed;
     if (isAnimating) animationStartedAt ??= DateTime.now();
   }
@@ -143,6 +146,7 @@ class ModeParam {
     return ModeParam.fromMap({
         'animationSpeed': animationSpeed,
         'parentIndex': childIndex,
+        'linkAudio': linkAudio,
         'childIndex': index,
         'value': value,
       },
@@ -293,6 +297,7 @@ class ModeParam {
       paramName: paramName,
       childType: childType,
       value: json['value'] ?? 0.0,
+      linkAudio: json['linkAudio'],
       childIndex: json['childIndex'],
       parentIndex: json['parentIndex'],
       animationSpeed: json['animationSpeed'] ?? 0.0,
@@ -306,6 +311,7 @@ class ModeParam {
   Map<String, dynamic> toMap() {
     return {
       'value': value,
+      'linkAudio': linkAudio,
       'childType': childType,
       'childIndex': childIndex,
       'parentIndex': parentIndex,

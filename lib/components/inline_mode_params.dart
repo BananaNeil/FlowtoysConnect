@@ -2,6 +2,7 @@ import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:app/components/horizontal_line_shadow.dart';
 import 'package:app/models/mode_param.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/models/bridge.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/mode.dart';
@@ -50,6 +51,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
   @override dispose() {
     animators.values.forEach((animator) => animator.dispose());
+    intensityStream?.cancel();
     super.dispose();
   }
 
@@ -204,7 +206,14 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             GestureDetector(
-              child: Text("x", style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Container(
+                padding: EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                    // shape: BoxShape.circle,
+                    // color: Colors.black,
+                ),
+                child: Text("close", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
               onTap: () {
                 showControlsForParam = null;
                 // showSlider = null;
@@ -216,7 +225,22 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             ),
           ]
         ),
-
+        _ToggleButton(
+          title: "Link Audio",
+          value: mode.getParam(paramName).linkAudio ?? false,
+          onChanged: (value) {
+            var param = mode.getParam(paramName);
+            param.linkAudio = value;
+              audioLinks ??= {};
+            if (value == true)
+              audioLinks[paramName] = {
+                'type': 'incremental',
+              };
+            else audioLinks.remove(paramName);
+            reloadAudioLinks();
+            setState(() {});
+          },
+        ),
         AnimatedBuilder(
           animation: animators[paramName],
           builder: (ctx, w) {
@@ -227,6 +251,28 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         _ParamButtons(paramName),
       ]
     );
+  }
+
+  Map<String, Map<String, dynamic>> audioLinks = {};
+  StreamSubscription intensityStream;
+  void reloadAudioLinks() {
+    intensityStream?.cancel();
+
+    if (audioLinks.keys.length == 0) {
+      // Bridge.audioManager.stopStream();
+      // BUT ONLY IF THERE ARE NO OTHER LISTENERS ATTACHED
+      return;
+    }
+
+    Bridge.audioManager.startStream();
+    intensityStream = Bridge.audioIntensityStream.listen((intensity) {
+      print("AUDIO INTENSITY: ${intensity}");
+      audioLinks.keys.forEach((paramName) {
+        mode.getParam(paramName).setValue(intensity);
+        // animators[paramName].value = intensity;
+      });
+      setState(() {});
+    });
   }
 
   Widget _ParamButtons(paramName) {
@@ -310,14 +356,13 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           title: "Adjust On",
           value: mode.isAdjusting,
           onChanged: (value) {
-            print("IS AD: ${mode.isAdjusting}");
             mode.isAdjusting = value;
             setState(() {});
           },
         ),
         _ToggleButton(
           value: mode.adjustRandomized,
-          title: "Scramble Group",
+          title: "Randomize Adjust",
           onChanged: (value) {
             mode.adjustRandomized = value;
             setState(() {});
@@ -396,6 +441,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         },
         onUpdate: (value) {
           mode.setAnimationSpeed(showSlider, value);
+          widget.updateMode();
           mode.save();
         },
         child: Row(
@@ -405,6 +451,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             return Container(
               width: 30,
               child: SliderPicker(
+                onChanged: (val) {},
                 value: speed.abs(),
                 thumbColor: speed == 0 ? Color(0xAAAAAAAA) : Colors.green,
                 child: Container(

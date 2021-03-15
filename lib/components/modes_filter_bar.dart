@@ -5,10 +5,12 @@ import 'package:rxdart/rxdart.dart';
 class ModesFilterBar extends StatefulWidget {
   ModesFilterBar({
     Key key,
+    this.expanded,
     this.filterController,
   }) : super(key: key);
 
   BehaviorSubject<Map<String, dynamic>> filterController;
+  bool expanded;
 
   @override
   _ModesFilterBar createState() => _ModesFilterBar();
@@ -20,7 +22,6 @@ class _ModesFilterBar extends State<ModesFilterBar> {
   _ModesFilterBar();
 
   List<String> activeFilters = [];
-  bool filtersExpanded = false;
   List<String> keywordFilter;
 
   List<dynamic> filters = [
@@ -48,33 +49,13 @@ class _ModesFilterBar extends State<ModesFilterBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.only(left: 10, right: 20, top: 8, bottom: 8),
       decoration: BoxDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            margin: EdgeInsets.only(left: 0),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => filtersExpanded = !filtersExpanded);
-              },
-              child: Row(
-                children: [
-                  Text("SHOW FILTERS",
-                    textAlign: TextAlign.left,
-                    style: TextStyle(fontSize: 14)
-                  ),
-                  Container(
-                    child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                  )
-                ]
-              )
-            ),
-          ),
           AnimatedClipRect(
             child: _Filters,
-            open: filtersExpanded,
+            open: widget.expanded,
             curve: Curves.easeInOut,
             verticalAnimation: true,
             horizontalAnimation: false,
@@ -92,31 +73,35 @@ class _ModesFilterBar extends State<ModesFilterBar> {
   }
 
   Widget get _Filters {
-    return Column(
-      children: [
-        Container(
-          margin: EdgeInsets.symmetric(horizontal: 20),
-          child: TextField(
-            onChanged: (keywords) {
-              keywordFilter = parseKeywords(keywords);
-              updateFilterStream();
-            },
-            decoration: InputDecoration(
-              hintText: 'Search modes'
+    return Container(
+      margin: EdgeInsets.only(top: 8, bottom: 12),
+      child: Column(
+        children: [
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 20),
+            child: TextField(
+              onChanged: (keywords) {
+                keywordFilter = parseKeywords(keywords);
+                updateFilterStream();
+              },
+              decoration: InputDecoration(
+                hintText: 'Search modes'
+              ),
             ),
           ),
-        ),
-        Container(
-          width: double.infinity,
-          margin: EdgeInsets.only(left: 15, top: 10),
-          child: Wrap(
-            spacing: 20,
-            children: filters.map((filter) {
-              return _FilterWidget(title: filter['title'], attr: filter['attr']);
-            }).toList(),
+          Container(
+            width: double.infinity,
+            margin: EdgeInsets.only(left: 15, top: 10),
+            child: Wrap(
+              spacing: 20,
+              alignment: WrapAlignment.center,
+              children: filters.map((filter) {
+                return _FilterWidget(title: filter['title'], attr: filter['attr']);
+              }).toList(),
+            )
           )
-        )
-      ]
+        ]
+      )
     );
   }
 

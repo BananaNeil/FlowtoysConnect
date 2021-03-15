@@ -3,6 +3,7 @@
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/mode_list_item.dart';
+import 'package:app/components/global_params.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/app_controller.dart';
@@ -26,10 +27,11 @@ class ModeListWidget extends StatefulWidget {
     this.onRefresh,
     this.showTitles,
     this.isSelecting,
-    this.filterStream,
+    this.hideFilters,
     this.selectedModeIds,
     this.prependChildren,
     this.setCurrentLists,
+    this.filterController,
     this.preventReordering,
     this.toggleSelectedMode,
     this.canChangeCurrentList,
@@ -39,9 +41,9 @@ class ModeListWidget extends StatefulWidget {
   bool isEditing;
   bool showTitles;
   bool isSelecting;
+  bool hideFilters;
   Function onRemove;
   Function onRefresh;
-  Stream filterStream;
   bool preventReordering;
   Function setCurrentLists;
   List<ModeList> modeLists;
@@ -49,6 +51,7 @@ class ModeListWidget extends StatefulWidget {
   Function toggleSelectedMode;
   List<Widget> prependChildren;
   List<String> selectedModeIds;
+  BehaviorSubject<Map<String, dynamic>> filterController;
 
   @override
   _ModeListWidget createState() => _ModeListWidget();
@@ -65,9 +68,16 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
     super.initState();
     activeFilters = {};
     if (widget.canChangeCurrentList) _fetchAllLists();
-    filtersSubscription = widget.filterStream.listen((filters) {
+    filtersSubscription = filterController.stream.listen((filters) {
+      print("StreAM ++");
       setState(() => activeFilters = filters);
     });
+  }
+
+  @override
+  dispose() {
+    filtersSubscription.cancel();
+    super.dispose();
   }
 
   List<ModeList> allLists;
@@ -85,6 +95,10 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
 
   double containerWidth;
 
+
+  BehaviorSubject<Map<String, dynamic>> get filterController => widget.filterController ??= BehaviorSubject<Map<String, dynamic>>();
+  bool get hideFilters => widget.hideFilters ?? false;
+
   @override
   Widget build(BuildContext context) {
     return Expanded(
@@ -93,7 +107,10 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
           containerWidth = box.maxWidth;
           return  RefreshIndicator(
             onRefresh: widget.onRefresh,
-            child: Container(
+            child: Column(
+                children: [
+                  hideFilters ? Container() : GlobalParams(filterController: filterController),
+                  Expanded(child: Container(
                 height: double.infinity,
               decoration: BoxDecoration(color: Color(0xFF2F2F2F)),
               child: ReorderableListSimple(
@@ -109,14 +126,16 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
                 onReorder: (int start, int current) {
                   if (widget.preventReordering) return;
                   var list = firstList;
-                  var mode = list.modes[start];
+                  var mode = list.modes[start-1];
                   list.modes.remove(mode);
                   list.modes.insert(current, mode);
                   list.modes.asMap().forEach((index, other) => other.position = index + 1);
                   Client.updateMode(mode);
                 }
               ),
-            )
+            ))
+                ]
+                )
           );
         }
       )
@@ -216,7 +235,8 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
             if (widget.isSelecting)
               widget.toggleSelectedMode(mode);
             else {
-              if (isAdjustingInlineParam) return;
+              print("IS ADKUSTing? ${isAdjustingInlineParam}");
+              if (isAdjustingInlineParam) return isAdjustingInlineParam = false;
               Group.currentQuickGroup.currentMode = mode;
               setState(() {});
             }

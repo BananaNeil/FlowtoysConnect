@@ -22,20 +22,23 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
   bool get isConnected => bleConnected || oscConnected;
   bool get bleConnected => Bridge.bleManager.isConnected;
   bool get oscConnected => Bridge.oscManager.isConnected;
-  bool get wifiConnected => Bridge.oscManager.wifiIsConnected;
   String get currentWifiNetworkName => Bridge.oscManager.currentWifiNetworkName;
 
+  StreamSubscription propStateSubscription;
   StreamSubscription stateSubscription;
   int unseenItemCount = 0;
 
   @override
   initState() {
     super.initState();
+    propStateSubscription = Prop.propUpdateStream.listen(_updateUnseenItems);
     stateSubscription = Bridge.stateStream.listen(_updateUnseenItems);
   }
 
   void _updateUnseenItems(_) {
-    if (seenState == connectionState) return;
+    print("icon Checking connectionState: ${seenState.toString()} == ${connectionState.toString()} ${seenState.toString() == connectionState.toString()}");
+    if (seenState.toString() == connectionState.toString()) return;
+    if (!isConnected) seenState = connectionState;
 
     unseenItemCount = 0;
     if (!oscConnected && bleConnected)
@@ -52,6 +55,7 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
 
   @override
   dispose() {
+    propStateSubscription?.cancel();
     stateSubscription?.cancel();
     super.dispose();
   }
@@ -61,7 +65,9 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
 
   @override
   Widget build(BuildContext context) {
-    print("================+++++++ ${Bridge.oscManager.hashCode}");
+    print("================+++++++ ${connectionState.toString() == seenState.toString()}");
+    print("================+++++++C ${connectionState}");
+    print("================+++++++S ${seenState}");
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -96,12 +102,6 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
         )
       ]
     );
-  }
-
-  Future openBridgeDetails() {
-    return AppController.openCustomDialog(BridgeConnectionStatus()).then((callback) {
-      if (callback != null && callback is Function) callback();
-    });
   }
 
   Widget _editGroupsWidget() {

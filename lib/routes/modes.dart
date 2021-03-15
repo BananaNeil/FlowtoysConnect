@@ -1,13 +1,13 @@
 import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 import 'package:app/components/bridge_connection_status_icon.dart';
 import 'package:app/helpers/color_filter_generator.dart';
-import 'package:app/components/modes_filter_bar.dart';
 import 'package:app/components/edit_mode_widget.dart';
 import 'package:app/components/mode_list_widget.dart';
 import 'package:app/helpers/animated_clip_rect.dart';
 import 'package:app/components/now_playing_bar.dart';
 import 'package:app/components/action_button.dart';
 import 'package:app/components/global_params.dart';
+import 'package:app/components/share_modal.dart';
 import 'package:app/components/navigation.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
@@ -21,6 +21,7 @@ import 'package:app/preloader.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:badges/badges.dart';
 import 'package:app/client.dart';
+import 'dart:async';
 
 class Modes extends StatelessWidget {
   Modes({this.id, this.hideNavigation, this.canShowDefaultLists});
@@ -32,7 +33,7 @@ class Modes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Bridge.oscManager.discoverServices();
-    print("BUILD MODES: ${Authentication.currentAccount.toMap()}");
+    print(Authentication.currentAccount.toMap());
     return ModesPage(
       canShowDefaultLists: canShowDefaultLists,
       hideNavigation: hideNavigation,
@@ -60,8 +61,17 @@ class _ModesPageState extends State<ModesPage> {
     AppController.initConnectionManagers();
     isTopLevelRoute = !Navigator.canPop(context);
     requestFromCache().then((_) => _fetchModes(initialRequest: true));
+    // listenForAudio();
     super.initState();
   }
+
+  // StreamSubscription<List<int>> audioListener;
+  // listenForAudio() async {
+  //   print("Start listen");
+  //   var stream = await Bridge.getAudioStream();
+  //   print("Start listening!!!!");
+  //   audioListener ??= stream.listen((samples) => print(samples));
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +82,9 @@ class _ModesPageState extends State<ModesPage> {
     selectAction ??= AppController.getParams(context)['selectAction'];
     returnList ??= AppController.getParams(context)['returnList'];
 
+
+    // audioListener ??= Bridge.audioStream.listen((samples) => print(samples));
+
     print("BUILD MODE ROUTEc!!cA;  ${id}");
     return Scaffold(
       floatingActionButton: _FloatingActionButton,
@@ -79,7 +92,12 @@ class _ModesPageState extends State<ModesPage> {
       drawer: !hideNavigation && isTopLevelRoute ? Navigation() : null,
       appBar: AppBar(
         backgroundColor: Color(0xff222222),
-        title: Text(_getTitle()),
+        title: Column(
+            children: [
+              Text(_getTitle()),
+              _ShareButton(),
+            ]
+        ),
         leading: isTopLevelRoute ? null : IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
@@ -94,43 +112,50 @@ class _ModesPageState extends State<ModesPage> {
           // _EditGroupButton(),
         ],
       ),
-      body: Column(
-        children:[
-          showOneColumn ? Container() : _FilterBar(),
-          Container(width: double.infinity,
-            height: errorMessage == null ? 0 : null,
-            padding: errorMessage == null ? null : EdgeInsets.symmetric(vertical: 5),
-            child: Text(errorMessage ?? "",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  color: AppController.red
-              )
-            )
+      body: Stack(
+        children: [
+          Column(
+            children:[
+              Container(width: double.infinity,
+                height: errorMessage == null ? 0 : null,
+                padding: errorMessage == null ? null : EdgeInsets.symmetric(vertical: 5),
+                child: Text(errorMessage ?? "",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: AppController.red
+                  )
+                )
+              ),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: _ModeLists,
+                )
+              ),
+              NowPlayingBar(
+                shuffle: shuffle,
+                toggleShuffle: () {
+                  setState(() => shuffle = !shuffle);
+                },
+                onMenuTap: () {
+                  setState(() { showExpandedActionButtons = true; });
+                },
+                onNext: () {
+                  switchCurrentPropsToComputedMode(modeAfterMode);
+                },
+                onPrevious: () {
+                  switchCurrentPropsToComputedMode(modeBeforeMode);
+                },
+              ),
+            ]
           ),
-          Expanded(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: _ModeLists,
-            )
+          Column(
+            children: showOneColumn ? [] : [
+              GlobalParams(filterController: filterController),
+            ]
           ),
-          NowPlayingBar(
-            shuffle: shuffle,
-            toggleShuffle: () {
-              setState(() => shuffle = !shuffle);
-            },
-            onMenuTap: () {
-              setState(() { showExpandedActionButtons = true; });
-            },
-            onNext: () {
-              switchCurrentPropsToComputedMode(modeAfterMode);
-            },
-            onPrevious: () {
-              switchCurrentPropsToComputedMode( modeBeforeMode);
-            },
-          ),
-
         ]
-      )
+      ),
     );
   }
 
@@ -188,23 +213,24 @@ class _ModesPageState extends State<ModesPage> {
     return Preloader.downloadData().then((_) {
       errorMessage = null;
       return _makeRequest().then((response) {
-        setState(() {
-          if (response['success']) {
-            awaitingResponse = false;
+        if (this.mounted) // I don't know why this is needed, but I was seeing a memory leak here.
+          setState(() {
+            if (response['success']) {
+              awaitingResponse = false;
 
 
-            // There is bug where selected modes get overridden when the fetch finishes...
+              // There is bug where selected modes get overridden when the fetch finishes...
 
 
-            var list = response['modeList'];
-            if (list != null) modeLists = [list];
-            else modeLists = response['modeLists'] ?? [];
+              var list = response['modeList'];
+              if (list != null) modeLists = [list];
+              else modeLists = response['modeLists'] ?? [];
 
 
-            _prependSelectedModes();
-          } else if (initialRequest != true || modeLists.isEmpty)
-            errorMessage = response['message'];
-        });
+              _prependSelectedModes();
+            } else if (initialRequest != true || modeLists.isEmpty)
+              errorMessage = response['message'];
+          });
       });
     });
   }
@@ -268,10 +294,7 @@ class _ModesPageState extends State<ModesPage> {
 
   List<Widget> get _ModeLists {
     if (showOneColumn)
-      return [_ModeList(modeLists, prependChildren: [
-        _FilterBar(),
-        _GlobalParams(),
-      ])];
+      return [_ModeList(modeLists)];
     else return modeLists.map<Widget>((list) {
       return _ModeList([list]);
     }).toList();
@@ -279,25 +302,21 @@ class _ModesPageState extends State<ModesPage> {
 
   bool get showOneColumn => modeLists.length <= 1 || AppController.screenWidth < 300 * modeLists.length;
 
-  static BehaviorSubject<Map<String, dynamic>> filterController = BehaviorSubject<Map<String, dynamic>>();
+  BehaviorSubject<Map<String, dynamic>> filterController = BehaviorSubject<Map<String, dynamic>>();
 
 
-  Widget _GlobalParams() {
-    return GlobalParams();
-  }
-
-  Widget _ModeList(lists, {prependChildren}) {
+  Widget _ModeList(lists) {
     return ModeListWidget(
       modeLists: lists,
       isEditing: isEditing,
       onRemove: _removeMode,
       isSelecting: isSelecting,
+      hideFilters: !showOneColumn,
       onRefresh: _forceFetchModes,
       selectedModeIds: selectedModeIds,
-      prependChildren: prependChildren,
       setCurrentLists: _setCurrentLists,
       showTitles: isShowingMultipleLists,
-      filterStream: filterController.stream,
+      filterController: filterController,
       toggleSelectedMode: _toggleSelectedMode,
       preventReordering: isShowingMultipleLists,
       canChangeCurrentList: canChangeCurrentList,
@@ -310,10 +329,6 @@ class _ModesPageState extends State<ModesPage> {
         selectedModes.removeWhere((item) => item.id == mode.id);
       else selectedModes.add(mode);
     });
-  }
-
-  Widget _FilterBar() {
-    return ModesFilterBar(filterController: filterController);
   }
 
 
@@ -511,15 +526,45 @@ class _ModesPageState extends State<ModesPage> {
     });
   }
 
+  Widget _ShareButton() {
+    return Visibility(
+      visible: isShowingOneList,
+      child: GestureDetector(
+        onTap: () {
+          showModalBottomSheet(
+            context: context,
+            builder: (context) => StatefulBuilder(
+              builder: (BuildContext context, setState) => ShareModal(shareable: modeLists.first),
+            ),
+          );
+        },
+        child: Container(
+          margin: EdgeInsets.only(top:3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                margin: EdgeInsets.only(right: 4),
+                child: Text('SHARE', style:TextStyle(fontSize: 12)),
+              ),
+              Icon(Icons.share, size: 14),
+            ]
+          )
+        )
+      )
+    );
+  }
+
   String _getTitle() {
     if (isSelecting)
       return "${selectedModes.length} item selected";
-    else if (modeLists.length != 0 && !isShowingMultipleLists)
+    else if (isShowingOneList)
       return firstList?.name ?? 'Modes';
     else return "Modes";
   }
 
   bool get isShowingMultipleLists => modeLists.length > 1;
+  bool get isShowingOneList => modeLists.length == 1;
 
 }
 
