@@ -282,7 +282,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _Button(
-            text: 'Reset',
+            text: 'Defaults',
             color: Color(0xFFAA3333),
             onTap: () {
               mode.resetParam(paramName);

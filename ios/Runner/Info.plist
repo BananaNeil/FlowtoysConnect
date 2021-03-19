@@ -41,6 +41,9 @@
 	<string>This app will do voice to text functionality, and will play audio files</string>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>bluetooth-central</string>
+		<string>bluetooth-peripheral</string>
+		<string>external-accessory</string>
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>

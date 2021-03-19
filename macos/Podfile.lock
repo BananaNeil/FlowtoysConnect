@@ -8,7 +8,7 @@ PODS:
   - Firebase/Messaging (7.3.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 7.3.0)
-  - firebase_core (1.0.0):
+  - firebase_core (1.0.1):
     - Firebase/CoreOnly (~> 7.3.0)
     - FlutterMacOS
   - firebase_messaging (9.0.0):
@@ -48,8 +48,6 @@ PODS:
   - flutter_blue/Protos (0.0.1):
     - FlutterMacOS
     - Protobuf (~> 3.11.4)
-  - flutter_secure_storage (3.3.1):
-    - FlutterMacOS
   - FlutterMacOS (1.0.0)
   - GoogleDataTransport (8.3.0):
     - GoogleUtilities/Environment (~> 7.2)
@@ -100,7 +98,6 @@ DEPENDENCIES:
   - firebase_core (from `Flutter/ephemeral/.symlinks/plugins/firebase_core/macos`)
   - firebase_messaging (from `Flutter/ephemeral/.symlinks/plugins/firebase_messaging/macos`)
   - flutter_blue (from `Flutter/ephemeral/.symlinks/plugins/flutter_blue/macos`)
-  - flutter_secure_storage (from `Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage/macos`)
   - FlutterMacOS (from `Flutter/ephemeral`)
   - mic_stream (from `Flutter/ephemeral/.symlinks/plugins/mic_stream/macos`)
   - network_info_plus_macos (from `Flutter/ephemeral/.symlinks/plugins/network_info_plus_macos/macos`)
@@ -135,8 +132,6 @@ EXTERNAL SOURCES:
     :path: Flutter/ephemeral/.symlinks/plugins/firebase_messaging/macos
   flutter_blue:
     :path: Flutter/ephemeral/.symlinks/plugins/flutter_blue/macos
-  flutter_secure_storage:
-    :path: Flutter/ephemeral/.symlinks/plugins/flutter_secure_storage/macos
   FlutterMacOS:
     :path: Flutter/ephemeral
   mic_stream:
@@ -156,7 +151,7 @@ SPEC CHECKSUMS:
   assets_audio_player: be2578e6f11dd4d183412e97143673c3c4cb2e8a
   assets_audio_player_web: 917101123b6db8f73156835c0fa266c11340ff15
   Firebase: 26223c695fe322633274198cb19dca8cb7e54416
-  firebase_core: 8671465e832a0cab53896a6e7bec15c47f8a48e6
+  firebase_core: d73242f3840dbfff957d43f8cf06326a8e90d118
   firebase_messaging: 050190b9ff0bbe96bca15301eae629e0d9543f2e
   FirebaseCore: 4d3c72622ce0e2106aaa07bb4b2935ba2c370972
   FirebaseCoreDiagnostics: 066f996579cf097bdad3d7dc9a918d6b9e129c50
@@ -164,7 +159,6 @@ SPEC CHECKSUMS:
   FirebaseInstanceID: aaecc93b4528bbcafea12c477e26827719ca1183
   FirebaseMessaging: 68d1bcb14880189558a8ae57167abe0b7e417232
   flutter_blue: 2756506bb10a51e075832da287b48bf5377bdc28
-  flutter_secure_storage: 85388d4f9737584008df574fd8ec5e9dce25a355
   FlutterMacOS: 57701585bf7de1b3fc2bb61f6378d73bbdea8424
   GoogleDataTransport: b006084b73915a42c28a3466961a4edda3065da6
   GoogleUtilities: abda45f519bc4073aa1171d2f8742108def46017

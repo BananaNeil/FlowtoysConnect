@@ -90,7 +90,7 @@ class BLEManager {
     // args.add(mode);
     // args.add(actives);
     // var values = paramValues.map((value) => (value*255).round());
-    sendString("p${groupId},${page - 1},${mode - 1},${actives+1},${paramValues.join(',')}");
+    sendString("p${groupId},${page - 1},${mode - 1},${actives},${paramValues.join(',')}");
   }
 
   String _statusMessage;
@@ -127,12 +127,6 @@ class BLEManager {
     await flutterBlue.connectedDevices.then((devices) {
       for (BluetoothDevice device in devices) {
         if (device.name.contains("FlowConnect")) {
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated????
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
-          // IF CONNECTED DEVICE CHANGES NAME.... THis does not get updated?????
           Bridge.name = device.name;
           bridge = device;
           break;
@@ -205,6 +199,7 @@ class BLEManager {
 
   Timer reconnectTimer;
   void periodicallyAttemptReconnect() {
+    print("periodically attempting to reconnect to BLE");
     reconnectTimer?.cancel();
     if (!isConnected)
       reconnectTimer = Timer(Duration(seconds: secondsUntilReconnect), () {
@@ -348,6 +343,7 @@ class BLEManager {
     print("Sending via BLE : " + message);
 
     await reconnectToBridge();
+    print("Connected to bridge: ${isConnected}");
 
     if (txChar == null || !isReadyToSend) {
       print("Bridge is broken (tx characteristic not found), not sending (isReady: ${isReadyToSend})");
@@ -357,6 +353,7 @@ class BLEManager {
    
     //for(int i=0;i<10 && isSending;i++) sleep(Duration(milliseconds: 100));
 
+    print("IS SENDING BLE");
     try {
       isSending = true;
        await txChar.write(
@@ -372,6 +369,7 @@ class BLEManager {
       print("Error sending Bluetooth command :\n${error.toString()}");
     }
 
+        print("DONE SENDING BLE");
     isSending = false;
   }
 

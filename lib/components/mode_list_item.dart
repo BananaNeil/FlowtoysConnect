@@ -83,6 +83,7 @@ class _ModeListItem extends State<ModeListItem> {
           Container(
             child: ListTile(
               onTap: widget.onTap,
+              minLeadingWidth: 0,
               contentPadding: EdgeInsets.symmetric(horizontal: isSmall ? 8.0 : 20.0, vertical: 5.0),
               leading: widget.isEditing ? ReorderableListener(child: Icon(Icons.drag_indicator, color: Color(0xFF888888))) : (!widget.isSelecting ? null : Container(
                 width: 22,
@@ -150,7 +151,7 @@ class _ModeListItem extends State<ModeListItem> {
                 size: isSmall ? 20.0 : 30.0,
               )
             ),
-            Column(
+            Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 GestureDetector(
@@ -187,7 +188,7 @@ class _ModeListItem extends State<ModeListItem> {
                   ),
                 ),
               ]
-            )
+            ))
           ]
         ),
       ]

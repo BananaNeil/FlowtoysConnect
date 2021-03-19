@@ -166,7 +166,10 @@ class _ListsPageState extends State<ListsPage> {
             SpinKitCircle(color: AppController.blue) :
             Column(
               children: [
-                Text("You have not created any lists yet!", textAlign: TextAlign.center),
+                Visibility(
+                  visible: !showAllLists,
+                  child: Text("You have not created any lists yet!", textAlign: TextAlign.center),
+                ),
                 GestureDetector(
                   child: Text("CREATE ONE", textAlign: TextAlign.center, style: TextStyle(color: AppController.blue)),
                   onTap: () {

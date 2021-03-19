@@ -36,6 +36,7 @@ class AppController extends StatefulWidget {
   static BLEManager get bleManager => Bridge.bleManager;
 
   static void initConnectionManagers() {
+    print("INIT CONNECTION MANAGERS");
     print(bleManager);
     print(oscManager);
   }
@@ -124,6 +125,10 @@ class AppController extends StatefulWidget {
 
   static double get screenWidth {
     return MediaQuery.of(getCurrentContext()).size.width;
+  }
+
+  static double get bottomPadding {
+    return MediaQuery.of(getCurrentContext()).padding.bottom;
   }
 
   static double topPadding() {

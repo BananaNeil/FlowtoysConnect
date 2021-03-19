@@ -67,7 +67,8 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
       setState(() {});
     });
     return Visibility(
-      visible: Group.connectedProps.length > 0,
+      // visible: Group.connectedProps.length > 0,
+      visible: true,
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -143,6 +144,7 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
   Widget get _PlayControlers {
     return Container(
       margin: EdgeInsets.all(3),
+      padding: EdgeInsets.only(bottom: AppController.bottomPadding),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,

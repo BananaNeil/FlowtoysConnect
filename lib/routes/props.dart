@@ -234,30 +234,8 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
       renameController.suffix = "Prop";
     else renameController.suffix = "Props";
 
-    AppController.openDialog("Claim this group", "",
-      buttonText: 'Cancel',
-      reverseButtons: true,
-      child: ClaimGroup(group: group, renameController: renameController),
-      buttons: [
-        {
-          'text': "Claim Now!",
-          'color': Colors.blue,
-          'onPressed': () {
-            group.name = renameController.newName;
-            group.props.forEach((prop) {
-              prop.propType = propType;
-              Authentication.currentAccount.propIds.add(prop.id);
-            });
-            Client.updateProps(
-              propIds: group.props.map((prop) => prop.id).toList(),
-              propType: propType,
-              groupName: group.name
-            )
-            Authentication.currentAccount.save();
-            setState(() {});
-          }
-        }
-      ]
+    AppController.openCustomDialog(
+      ClaimGroup(group: group, renameController: renameController)
     );
   }
 
@@ -291,7 +269,13 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             //   child: allPropsSelected ? Icon(Icons.check) : Container(),
             ),
           ),
-          Text(group.name, style: TextStyle(fontSize: AppController.scaleViaWidth(15, maxValue: 19, minValue: 13))),
+          Expanded(
+            child: Text(group.name,
+              style: TextStyle(
+                fontSize: AppController.scaleViaWidth(15, maxValue: 19, minValue: 13)
+              )
+            )
+          ),
           isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right), 
         ]
       ),
@@ -410,6 +394,66 @@ class _ClaimGroup extends State<ClaimGroup> {
 
   @override
   Widget build(BuildContext context) {
+    return AlertDialog(
+      contentPadding: EdgeInsets.only(top: 15),
+      insetPadding: EdgeInsets.all(AppController.isSmallScreen ? 15 : 25),
+      actionsPadding: EdgeInsets.all(5),
+      actions: actions,
+      content: _Content(),
+    );
+  }
+
+  Widget _Content() {
+    return ListTile(
+      contentPadding: EdgeInsets.symmetric(horizontal: AppController.isSmallScreen ? 5 : 10, vertical: 10),
+      title: Text("Claim this group",
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 20)
+      ),
+      subtitle: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _InnerContent(),
+          Container(width: 500),
+        ]
+      )
+    );
+  }
+
+  List<Widget> get actions {
+    return <Widget>[
+      FlatButton(
+        child: Text("Claim Now!",
+          style: TextStyle(
+            color: Colors.blue,
+          ),
+        ),
+        onPressed: () {
+          widget.group.name = widget.renameController.newName;
+          widget.group.props.forEach((prop) {
+            prop.propType = propType;
+            Authentication.currentAccount.propIds.add(prop.id);
+          });
+          Client.updateProps(
+            propIds: widget.group.props.map((prop) => prop.id).toList(),
+            groupName: widget.group.name,
+            propType: propType,
+          );
+          Authentication.currentAccount.save();
+          setState(() {});
+        }
+      ),
+      FlatButton(
+        child: Text('close'),
+        onPressed: () {
+          AppController.dialogIsOpen = false;
+          Navigator.pop(context, null);
+        },
+      ),
+    ];
+  }
+
+  Widget _InnerContent() {
     return Container(
         margin: EdgeInsets.only(top: 10),
       decoration: BoxDecoration(

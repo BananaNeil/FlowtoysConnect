@@ -12,7 +12,7 @@ PODS:
   - Firebase/Messaging (7.3.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 7.3.0)
-  - firebase_core (1.0.0):
+  - firebase_core (1.0.1):
     - Firebase/CoreOnly (= 7.3.0)
     - Flutter
   - firebase_messaging (9.0.0):
@@ -203,7 +203,7 @@ SPEC CHECKSUMS:
   Bugsnag: 4522c61622c0d1a7a53e4a61ecfcb83a2cc6f648
   bugsnag_crashlytics: 2bcbf64303264b3a315359a89f81adbaaba049f6
   Firebase: 26223c695fe322633274198cb19dca8cb7e54416
-  firebase_core: f47224dd6a9b928b4cf0128b0d004ec9e47d4bf2
+  firebase_core: d2e03528e2a600891f6f460b5e92932624480d1d
   firebase_messaging: fc1811236795c2313b8339c35d31295b1cd8486f
   FirebaseCore: 4d3c72622ce0e2106aaa07bb4b2935ba2c370972
   FirebaseCoreDiagnostics: 179bf3831213451c8addd036aca7fcf5492ec154
@@ -234,6 +234,6 @@ SPEC CHECKSUMS:
   url_launcher: 6fef411d543ceb26efce54b05a0a40bfd74cbbef
   youtube_api: 3e3c2faa0cf3f296204bcc93284cdb097f42cdd6
 
-PODFILE CHECKSUM: aafe91acc616949ddb318b77800a7f51bffa2a4c
+PODFILE CHECKSUM: 443482042ece2fdfcd67a41a4e8a80f1cbd9e1f6
 
 COCOAPODS: 1.10.1

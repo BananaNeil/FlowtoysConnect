@@ -65,10 +65,13 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
     return Stack(
       children: [
         ListTile(
-          contentPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 5 : 10, vertical: 10),
-          title: Text(title,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 20)
+          contentPadding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 5 : 10, vertical: 15),
+          title: Container(
+            margin: EdgeInsets.only(right: 20, left: 20, top: 10),
+            child: Text(title,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 20)
+            )
           ),
           subtitle: Column(
             mainAxisSize: MainAxisSize.min,
@@ -78,19 +81,19 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
             ]
           )
         ),
-          Container(
-            height: 40,
-            margin: EdgeInsets.only(right: 15),
-            child: Align(
-              alignment: FractionalOffset.topRight,
-              child: GestureDetector(
-                child: Icon(Icons.settings),
-                onTap: () {
-                  Navigator.pop(context, _openBridgeSettings);
-                }
-              ),
+        Container(
+          height: 40,
+          margin: EdgeInsets.only(right: 15),
+          child: Align(
+            alignment: FractionalOffset.topRight,
+            child: GestureDetector(
+              child: Icon(Icons.settings),
+              onTap: () {
+                Navigator.pop(context, _openBridgeSettings);
+              }
             ),
-          )
+          ),
+        )
       ],
     );
   }
@@ -435,6 +438,22 @@ class _BridgeSettings extends State<BridgeSettings> {
               ])
             )
           ),
+          Visibility(
+            visible: Bridge.isUnclaimed,
+            child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text("Is this your bridge?"),
+                _Button(
+                    margin: EdgeInsets.all(0),
+                  color: Colors.blue,
+                  onTap: () => ensureAuthentication(() => _openNameForm()),
+                  text: Authentication.isAuthenticated ? "Claim Now" : "Sign in to Claim",
+                )
+              ]
+            ),
+          ),
           _Button(
             visible: !Bridge.isUnclaimed,
               onTap: () => setState(() => showRenameForm = true),
@@ -451,13 +470,38 @@ class _BridgeSettings extends State<BridgeSettings> {
     );
   }
 
-  Widget _Button({onTap, visible, text, color}){
+  Future _openNameForm() {
+    RenameController renameController = RenameController();
+    renameController.possessivePrefix = Authentication.currentAccount.firstName;
+    renameController.suffix = "FlowConnect";
+    return AppController.openDialog("Give your bridge a name!",
+        "Naming your bridge will link it to your flowtoys account, and only allow you to control it when in \"private\" mode",
+      reverseButtons: true,
+      buttonText: 'Cancel',
+      child: Container(
+        margin: EdgeInsets.only(top: 15),
+        child: RenameForm(controller: renameController),
+      ),
+      buttons: [
+        {
+          'text': "Claim Now!",
+          'color': Colors.blue,
+          'onPressed': () {
+            Bridge.name = renameController.newName;
+            Bridge.save();
+          }
+        }
+      ]
+    );
+  }
+
+  Widget _Button({onTap, visible, text, color, margin}){
     return Visibility(
       visible: visible ?? true,
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          margin: EdgeInsets.only(top: 15),
+          margin: margin ?? EdgeInsets.only(top: 15),
           padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(4),

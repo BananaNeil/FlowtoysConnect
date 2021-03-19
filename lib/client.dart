@@ -31,6 +31,7 @@ class Client {
         'group_name': groupName,
       }
     );
+  }
 
 
 

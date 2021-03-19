@@ -2,6 +2,8 @@
 //  Generated file. Do not edit.
 //
 
+// clang-format off
+
 import FlutterMacOS
 import Foundation
 
@@ -10,7 +12,6 @@ import assets_audio_player_web
 import firebase_core
 import firebase_messaging
 import flutter_blue
-import flutter_secure_storage
 import mic_stream
 import network_info_plus_macos
 import package_info
@@ -24,7 +25,6 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   FLTFirebaseCorePlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseCorePlugin"))
   FLTFirebaseMessagingPlugin.register(with: registry.registrar(forPlugin: "FLTFirebaseMessagingPlugin"))
   FlutterBluePlugin.register(with: registry.registrar(forPlugin: "FlutterBluePlugin"))
-  FlutterSecureStoragePlugin.register(with: registry.registrar(forPlugin: "FlutterSecureStoragePlugin"))
   MicStreamPlugin.register(with: registry.registrar(forPlugin: "MicStreamPlugin"))
   NetworkInfoPlusPlugin.register(with: registry.registrar(forPlugin: "NetworkInfoPlusPlugin"))
   FLTPackageInfoPlugin.register(with: registry.registrar(forPlugin: "FLTPackageInfoPlugin"))
