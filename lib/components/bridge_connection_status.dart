@@ -125,16 +125,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
             ),
           ),
            _WifiDetailsCard(),
-          _BridgeDetailsCard(
-            leading: ConnectionIcon(isConnected: bleConnected, connectedIcon: Icon(Icons.bluetooth_connected), disconnectedIcon: Icon(Icons.bluetooth_disabled)),
-            trailingVisible: Bridge.bleManager.isOff && (Platform.isIOS || Platform.isAndroid),
-            trailingButtonText: "Settings",
-            onTapTrailing: () {
-              OpenSettings.openBluetoothSetting();
-              return Future.value(null);
-            },
-            titleText: Bridge.bleManager.statusMessage,
-          ),
+           ..._BLEDetailsCards(),
           isConnected && unclaimedPropCount > 0 ? _BridgeDetailsCard(
             leading: ConnectionIcon(isConnected: false, disconnectedIcon: Container(width: 23, child: Image(image: AssetImage('assets/images/cube.png')))),
             onTapTrailing: () => Navigator.pushNamed(context, '/props'),
@@ -180,6 +171,43 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
           Navigator.pop(context, null);
         },
       ),
+    ];
+  }
+
+  List<Widget> _BLEDetailsCards() {
+    print("BRIDGES: ${Bridge.bleManager.bridges.length}");
+    if (!bleConnected && Bridge.bleManager.bridges.length > 0)
+      return Bridge.bleManager.bridges.map<Widget>((bridge) {
+        return _BridgeDetailsCard(
+          leading: ConnectionIcon(
+            isConnected: false,
+            connectedIcon: Icon(Icons.bluetooth_connected),
+            disconnectedIcon: Icon(Icons.bluetooth_disabled),
+          ),
+          trailingVisible: true,
+          trailingButtonText: "Connect Now!",
+          onTapTrailing: () {
+            Bridge.bleManager.connect(bridge);
+            return Future.value(null);
+          },
+          titleText: "BLE found a bridge named ${bridge.name}",
+        );
+      }).toList();
+    else return [
+      _BridgeDetailsCard(
+        leading: ConnectionIcon(
+          isConnected: bleConnected,
+          connectedIcon: Icon(Icons.bluetooth_connected),
+          disconnectedIcon: Icon(Icons.bluetooth_disabled),
+        ),
+        trailingVisible: Bridge.bleManager.isOff && (Platform.isIOS || Platform.isAndroid),
+        trailingButtonText: "Settings",
+        onTapTrailing: () {
+          OpenSettings.openBluetoothSetting();
+          return Future.value(null);
+        },
+        titleText: Bridge.bleManager.statusMessage,
+      )
     ];
   }
 

@@ -4,6 +4,7 @@ import 'package:app/client.dart';
 import 'dart:convert';
 
 class Account {
+  Set<String> bridgeNames;
   Set<String> propIds;
   String firstName;
   String lastName;
@@ -11,6 +12,7 @@ class Account {
   String id;
 
   Account({
+    this.bridgeNames,
     this.firstName,
     this.lastName,
     this.propIds,
@@ -35,6 +37,7 @@ class Account {
 
   Map<dynamic, dynamic> toMap() {
     return {
+      'bridge_names': List<String>.from(bridgeNames ?? []),
       'prop_ids': List<String>.from(propIds ?? []),
       'first_name': firstName,
       'last_name': lastName,
@@ -49,6 +52,7 @@ class Account {
 
   factory Account.fromMap(Map<String, dynamic> body) {
     return Account(
+      bridgeNames: Set<String>.from(body['bridge_names'] ?? []),
       propIds: Set<String>.from(body['prop_ids'] ?? []),
       firstName: body['first_name'],
       lastName: body['last_name'],

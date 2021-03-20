@@ -9,7 +9,6 @@ import 'package:app/routes/edit_show.dart';
 import 'package:app/routes/edit_mode.dart';
 import 'package:app/routes/new_list.dart';
 import 'package:app/routes/new_song.dart';
-import 'package:app/routes/research.dart';
 import 'package:app/routes/new_show.dart';
 import 'package:app/authentication.dart';
 import 'package:app/routes/shows.dart';
@@ -73,11 +72,6 @@ class AppRouter {
     router.define(
       '/neils-research',
       handler: newHandler(() => NeilsResearch()),
-      transitionType: TransitionType.inFromRight,
-    );
-    router.define(
-      '/research',
-      handler: newHandler(() => Research()),
       transitionType: TransitionType.inFromRight,
     );
     router.define(

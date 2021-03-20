@@ -30,6 +30,7 @@ class SyncPacket {
         command = 'stop_adjust';
       else if (data[20] == 8)
         command = 'next_mode';
+      else print("COMMAND UNKNOWN ${data[20]}");
 
 
       syncPacket = SyncPacket(
@@ -80,6 +81,8 @@ class SyncPacket {
         });
       });
     });
+    if (command == 'next_mode')
+      Group.setCurrentProps(group.internalMode);
     group.internalMode ??=  Mode.basic(
       page: page + 1,
       number: modeNumber + 1,

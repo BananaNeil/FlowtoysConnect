@@ -55,7 +55,7 @@ flutter clean; flutter pub get; rm -rf ~/Library/Developer/Xcode/DerivedData/; c
 
 
 # FOR MAC: 
-flutter clean; flutter pub get; rm -rf ~/Library/Developer/Xcode/DerivedData/; cd macos;rm -rf Pods/ Podfile Podfile.lock ; pod install; cd ..; flutter build ios; open ios/Runner.xcworkspace
+flutter clean; flutter pub get; rm -rf ~/Library/Developer/Xcode/DerivedData/; cd macos;rm -rf Pods/ Podfile.lock ; pod install; cd ..; flutter build ios; open ios/Runner.xcworkspace
 
 
 # Building for iOS:

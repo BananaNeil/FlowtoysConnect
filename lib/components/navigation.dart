@@ -73,23 +73,13 @@ class _NavigationState extends State<Navigation> {
               },
             ),
             ListTile(
-              title: Text("Neil's Research",
+              title: Text("BLE Research",
                 style: TextStyle(
                   fontSize: 18,
                 )
               ),
               onTap: () {
                 Navigator.pushNamedAndRemoveUntil(context, '/neils-research', (Route<dynamic> route) => false);
-              },
-            ),
-            ListTile(
-              title: Text("Research",
-                style: TextStyle(
-                  fontSize: 18,
-                )
-              ),
-              onTap: () {
-                Navigator.pushNamedAndRemoveUntil(context, '/research', (Route<dynamic> route) => false);
               },
             ),
             ListTile(

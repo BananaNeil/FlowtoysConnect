@@ -160,7 +160,7 @@ class _GlobalParams extends State<GlobalParams> {
 
   Widget _Header() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         GestureDetector(
           onTap: () {
@@ -184,33 +184,34 @@ class _GlobalParams extends State<GlobalParams> {
                     setState(() {});
                   }
                 ),
-                Text("Global Params", style: TextStyle(fontSize: 18)),
-                Container(
-                  child: paramsExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                )
+                Text("Global Params", style: TextStyle(fontSize: 16)),
+                // Container(
+                //   child: paramsExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                // )
               ]
             ),
           ),
         ),
-        Container(
-          margin: EdgeInsets.only(left: 0),
+        Container(child: Text("|")),
+        Expanded(child: Container(
+          margin: EdgeInsets.only(left: 10),
           child: GestureDetector(
             onTap: () {
               setState(() => filtersExpanded = !filtersExpanded);
             },
             child: Row(
               children: [
-                Text("FILTERS",
+                Text("Filters",
                   textAlign: TextAlign.left,
-                  style: TextStyle(fontSize: 14)
+                  style: TextStyle(fontSize: 16)
                 ),
-                Container(
-                  child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                )
+                // Container(
+                //   child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                // )
               ]
             )
           ),
-        ),
+        )),
       ]
     );
   }

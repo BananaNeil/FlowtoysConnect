@@ -38,17 +38,22 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
   void _updateUnseenItems(_) {
     print("icon Checking connectionState: ${seenState.toString()} == ${connectionState.toString()} ${seenState.toString() == connectionState.toString()}");
     if (seenState.toString() == connectionState.toString()) return;
-    if (!isConnected) seenState = connectionState;
-
     unseenItemCount = 0;
-    if (!oscConnected && bleConnected)
-      unseenItemCount += 1;
+    eachWithIndex(seenState, (index, state) {
+      if (connectionState[index] != seenState)
+        unseenItemCount += 1;
+    });
 
-    if (isConnected && Bridge.isUnclaimed)
-      unseenItemCount += 1;
-
-    if (isConnected && Prop.unclaimedProps.length > 0)
-      unseenItemCount += 1;
+    seenState = connectionState;
+    //
+    // if (!oscConnected && bleConnected)
+    //   unseenItemCount += 1;
+    //
+    // if (isConnected && Bridge.isUnclaimed)
+    //   unseenItemCount += 1;
+    //
+    // if (isConnected && Prop.unclaimedProps.length > 0)
+    //   unseenItemCount += 1;
 
     setState(() {});
   }
@@ -60,7 +65,19 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
     super.dispose();
   }
 
-  List<dynamic> get connectionState => [isConnected, bleConnected, oscConnected, Bridge.isUnclaimed, currentWifiNetworkName, Prop.unclaimedProps.length];
+  List<dynamic> get connectionState => [
+    Bridge.bleManager.bridges.length,
+    isConnected && Bridge.isUnclaimed,
+    isConnected ? Prop.unclaimedProps.length : 0,
+    //
+    // isConnected,
+    // bleConnected,
+    // oscConnected,
+    // Bridge.isUnclaimed,
+    // currentWifiNetworkName,
+    // Prop.unclaimedProps.length
+  ];
+
   List<dynamic> seenState;
 
   @override
