@@ -1,6 +1,6 @@
 import 'package:app/helpers/animated_clip_rect.dart';
+import 'package:app/helpers/filter_controller.dart';
 import 'package:flutter/material.dart';
-import 'package:rxdart/rxdart.dart';
 
 class ModesFilterBar extends StatefulWidget {
   ModesFilterBar({
@@ -9,7 +9,7 @@ class ModesFilterBar extends StatefulWidget {
     this.filterController,
   }) : super(key: key);
 
-  BehaviorSubject<Map<String, dynamic>> filterController;
+  FilterController filterController;
   bool expanded;
 
   @override
@@ -124,7 +124,7 @@ class _ModesFilterBar extends State<ModesFilterBar> {
   }
 
   void updateFilterStream() {
-    widget.filterController.sink.add({
+    widget.filterController.setFilters({
       'activeFilters': activeFilters,
       'keywordFilter': keywordFilter,
     });

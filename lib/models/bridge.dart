@@ -1,3 +1,4 @@
+import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/audio_manager.dart';
 import 'package:app/blemanager.dart';
@@ -11,6 +12,7 @@ class Bridge {
   // static String get name => ownerName != null ? "$ownerName's FlowConnect" : 'Bridge';
   static String id;
   static String name;
+  static String bleId;
   static String ownerName;
   static String unclaimedId;
 
@@ -50,14 +52,25 @@ class Bridge {
   }
 
   static Future save() {
+    if (!Authentication.isAuthenticated)
+      return Future.value(null); 
+
     print("SAVING BRIDGE NAME.... ${name}");
-    channel.setNetworkName(name);
+    if (bleId != null) {
+      Authentication.currentAccount.bridgeBleIds.add(bleId);
+      Authentication.saveAccountToDisk();
+    }
     Client.updateBridge();
+  }
+
+  static void setNetworkName() {
+    channel.setNetworkName(name);
   }
 
   static Map<String, dynamic> toMap() {
     return {
-      name: name,
+      'name': name,
+      'bleId': bleId,
     };
   }
 
@@ -95,16 +108,24 @@ class Bridge {
       page: page,
     );
 
-    Timer(Duration(milliseconds: 100), () {
-      paramValues.add(adjustingValue);
-      channel.sendPattern(
-        actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
-        paramValues: paramValues,
-        groupId: groupId,
-        mode: number,
-        page: page,
-      );
-    });
+    // if (params['adjustRandomized'])
+    // Then start adjust, and randomize, and possibly stop adjust
+    //
+    // OR Choose a random adjust for the first signal, and let it be cool.
+
+
+
+    if (params['isAdjusting'] || params['adjustRandomized'])
+      Timer(Duration(milliseconds: 100), () {
+        paramValues.add(adjustingValue);
+        channel.sendPattern(
+          actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
+          paramValues: paramValues,
+          groupId: groupId,
+          mode: number,
+          page: page,
+        );
+      });
   }
 
   static void factoryReset() {
@@ -129,6 +150,11 @@ class Bridge {
 
   static OSCManager _oscManager;
   static OSCManager get oscManager => _oscManager ??= OSCManager();
+
+  static bool get isConnected => bleConnected || oscConnected;
+  static bool get wifiNetworkKnown => oscManager.networkKnown;
+  static bool get bleConnected => bleManager.isConnected;
+  static bool get oscConnected => oscManager.isConnected;
 
   static get currentChannel => oscManager.isConnected ? 'wifi' : 'bluetooth'; 
   static get isBle => currentChannel == 'bluetooth'; 

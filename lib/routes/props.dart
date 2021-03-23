@@ -63,6 +63,8 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // print("current account prop IDS: ${Authentication.currentAccount.propIds}");
+    // print("current account prop IDS: ${group.props.map((prop) => proph}");
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -171,7 +173,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
   }
 
   Widget _groupWidget(group) {
-    var isExpanded = _expandedGroupIds.contains(group.id);
+    var isExpanded = _expandedGroupIds.contains(group.groupId);
     bool canClaim = Group.unclaimedGroups.contains(group);
     return  Card(
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
@@ -181,38 +183,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
         leading: PropImage(
           prop: group.props.first,
         ),
-        trailing: canClaim ? GestureDetector(
-          onTap: () {
-            if (Authentication.isAuthenticated)
-              _openClaimDialog(group: group);
-            else {
-              var propIds = Authentication.currentAccount.propIds;
-              return Navigator.pushNamed(context, '/login-overlay', arguments: {
-                'showCloseButton': true
-              }).then((_) {
-                if (Authentication.isAuthenticated) {
-                  setState(() {
-                    Authentication.currentAccount.propIds.addAll(group.props.map<String>((prop) => prop.id.toString()).toList());
-                  });
-                  _openClaimDialog(group: group);
-                }
-              });
-            }
-          },
-          child: Container(
-            // margin: EdgeInsets.only(right: showBadge == true ? 27 : 0),
-            padding: EdgeInsets.symmetric(vertical: 7, horizontal: AppController.isSmallScreen ? 8 : 12),
-            decoration: BoxDecoration(
-              color: Colors.blue
-            ),
-            child: Text(Authentication.isAuthenticated ? "Claim Now" : "Sign in to Claim",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppController.isSmallScreen ? 13 : 14
-              )
-            ),
-          )
-        ) : null,
+        trailing: canClaim ? _ClaimNowButton(group) : null,
         title: Container(
           padding: EdgeInsets.symmetric(vertical: 6.0),
           child: Column(
@@ -222,6 +193,41 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             ]
           )
         )
+      )
+    );
+  }
+
+  Widget _ClaimNowButton(group) {
+    return GestureDetector(
+      onTap: () {
+        if (Authentication.isAuthenticated)
+          _openClaimDialog(group: group);
+        else {
+          var propIds = Authentication.currentAccount.propIds;
+          return Navigator.pushNamed(context, '/login-overlay', arguments: {
+            'showCloseButton': true
+          }).then((_) {
+            if (Authentication.isAuthenticated) {
+              setState(() {
+                Authentication.currentAccount.propIds.addAll(group.props.map<String>((prop) => prop.id.toString()).toList());
+              });
+              _openClaimDialog(group: group);
+            }
+          });
+        }
+      },
+      child: Container(
+        // margin: EdgeInsets.only(right: showBadge == true ? 27 : 0),
+        padding: EdgeInsets.symmetric(vertical: 7, horizontal: AppController.isSmallScreen ? 8 : 12),
+        decoration: BoxDecoration(
+          color: Colors.blue
+        ),
+        child: Text(Authentication.isAuthenticated ? "Claim Now" : "Sign in to Claim",
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: AppController.isSmallScreen ? 13 : 14
+          )
+        ),
       )
     );
   }
@@ -242,12 +248,14 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
   Widget _groupTitle(group, {isExpanded}) {
     Set unSelectedPropIds = group.propIds.toSet().difference(Group.currentQuickGroup.propIds.toSet());
     bool allPropsSelected = unSelectedPropIds.length == 0;
+    bool canExpand = group.props.length > 1;
     return GestureDetector(
       onTap: () {
         setState(() {
+          if (!canExpand) return;
           if (isExpanded)
-            _expandedGroupIds.remove(group.id);
-          else _expandedGroupIds.add(group.id);
+            _expandedGroupIds.remove(group.groupId);
+          else _expandedGroupIds.add(group.groupId);
         });
       },
       child: Row(
@@ -276,13 +284,15 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
               )
             )
           ),
-          isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right), 
+          !canExpand ? Container() :
+              (isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right)), 
         ]
       ),
     );
   }
 
   List<Widget> _propsForGroup(group) {
+    var i = 0;
     return group.props.map<Widget>((prop) {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
@@ -305,7 +315,12 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             //   child: Group.currentQuickGroup.propIds.contains(prop.id) ?
             //          Icon(Icons.check) : Container(),
             // ),
-            Text("Prop #"),
+            Text("Prop ${i += 1}",
+
+              style: TextStyle(
+                fontSize: AppController.scaleViaWidth(15, maxValue: 19, minValue: 13)
+              )
+            ),
           ]
         )
       );
@@ -440,6 +455,7 @@ class _ClaimGroup extends State<ClaimGroup> {
             propType: propType,
           );
           Authentication.currentAccount.save();
+          Navigator.pop(context, null);
           setState(() {});
         }
       ),
@@ -467,50 +483,106 @@ class _ClaimGroup extends State<ClaimGroup> {
             key: Key(widget.renameController.newName),
             controller: widget.renameController
           ),
-          // Tooltip(
-          //     child: Text("?"),
-          //     message: "If this number is incorrect, your props may be using an old firmware. Please update your firmware so this app can see each prop individually"
 
         ]
       )
     );
   }
 
+	GlobalKey _toolTipKey = GlobalKey();
   Widget _DetectedProps() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children:[
-        Container(
-          margin: EdgeInsets.only(right:5),
-          child: Text("${propCount} ${pluralizedPropType} detected",
-            style: TextStyle(
-                fontSize: 16,
-                color: Colors.green,
-            )
-          )
-        ),
-        Tooltip(
-          padding: EdgeInsets.all(15),
-          margin: EdgeInsets.symmetric(horizontal: 40),
-          textStyle: TextStyle(fontSize: 15, color: Colors.black),
-          message: "If this number is incorrect, your props may be using an old firmware. Please update your firmware so this app can see each prop individually.",
-          child: Container(
-            child: Text("?"),
-            padding: EdgeInsets.only(top: 5, right: 5, left: 6, bottom: 6),
-            margin: EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6),
-              shape: BoxShape.circle,
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children:[
+            Container(
+              margin: EdgeInsets.only(right:5),
+              child: Text("${propCount} ${pluralizedPropType} ${widget.group.hasVirtualProps ? 'selected' : 'detected'}",
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.green,
+                )
+              )
             ),
-          )
+            GestureDetector(
+              onTap: () {
+                final dynamic _toolTip = _toolTipKey.currentState;
+                _toolTip.ensureTooltipVisible();
+              },
+              child: Tooltip(
+                key: _toolTipKey,
+                padding: EdgeInsets.all(15),
+                margin: EdgeInsets.symmetric(horizontal: 40),
+                textStyle: TextStyle(fontSize: 15, color: Colors.black),
+                message: "If this number is incorrect, your props may be using an old firmware. "+
+                  "Please update your firmware so this app can see each prop individually.",
+                child: Container(
+                  child: Text("?"),
+                  padding: EdgeInsets.only(top: 5, right: 5, left: 6, bottom: 6),
+                  margin: EdgeInsets.only(bottom: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.6),
+                    shape: BoxShape.circle,
+                  ),
+                )
+              ),
+            ),
+          ]
         ),
+        Container(
+          margin: EdgeInsets.only(bottom: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children:[
+              ActionButton(
+                color: widget.group.hasVirtualProps ? Colors.green : Colors.grey,
+                text: "-",
+                onTap: () {
+                  if (widget.group.hasVirtualProps) {
+                    widget.group.removeVirtualProp();
+                    widget.renameController.suffix = pluralizedPropType;
+                    setState(() {});
+                  }
+                }
+              ),
+              Container(width: 10),
+              ActionButton(
+                color: Colors.green,
+                text: "+",
+                onTap: () {
+                  widget.group.addVirtualProp();
+                  widget.renameController.suffix = pluralizedPropType;
+                  setState(() {});
+                }
+              ),
+            ]
+          )
+        )
       ]
     );
   }
 
+	Widget ActionButton({text, color, onTap}) {
+		if (onTap == null)
+			return null;
+
+		return GestureDetector(
+			onTap: onTap,
+			child: Container(
+				padding: EdgeInsets.only(left: 7, right: 7, bottom: 3, top: 1),
+				decoration: BoxDecoration(
+					borderRadius: BorderRadius.circular(4),
+					color: color,
+				),
+				child: Text(text),
+			)
+		);
+	}
+
   Widget _ChoosePropType() {
     return Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Container(
             margin: EdgeInsets.only(right: 20),

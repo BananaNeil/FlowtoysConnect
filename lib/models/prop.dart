@@ -3,6 +3,7 @@ import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:rxdart/rxdart.dart';
 import 'dart:async';
+import 'dart:math';
 
 class Prop {
   Timer animationUpdater;
@@ -10,6 +11,7 @@ class Prop {
   String propType;
   String groupId;
   int groupIndex;
+  bool virtual;
   String id;
   int index;
 
@@ -38,11 +40,12 @@ class Prop {
     Prop.propUpdateController.sink.add(this);
   }
 
-  Group get group => Group.connectedGroups.firstWhere((group) => group.id == groupId);
+  Group get group => Group.connectedGroups.firstWhere((group) => group.groupId == groupId);
   static List<String> get connectedModeIds => Group.connectedProps.map((prop) => prop.currentModeId).toList();
   static List<Mode> get connectedModes => (Group.connectedProps.map((prop) => prop.currentMode).toSet()..removeWhere((mode) => mode == null)).toList();
+  static List<Mode> get currentModes => (Group.currentProps.map((prop) => prop.currentMode).toSet()..removeWhere((mode) => mode == null)).toList();
 
-  static List<Prop> get unclaimedProps => Group.possibleProps.where((prop) => !Group.connectedProps.contains(prop)).toList();
+  static List<Prop> get unconnectedProps => Group.possibleProps.where((prop) => !Group.connectedProps.contains(prop)).toList();
 
   static String _quickGroupPropIdsWas;
   static Map<String, List<Prop>> _quickGroupPropsByGroupId;
@@ -76,8 +79,11 @@ class Prop {
     return map;
   }
 
+  static List<Prop> get current => Group.currentProps;
+  static List<Prop> get possible => Group.possibleProps;
+  static List<Prop> get connected => Group.connectedProps;
+
   static void refreshByMode(mode) {
-    print("PROP IS PRESENT? ${propsByModeId[mode.id] != null}");
     (propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
   }
 
@@ -120,6 +126,9 @@ class Prop {
   }
   DateTime _currentModeSetAt;
   void set currentMode(mode) {
+    if (mode.adjustRandomized)
+      mode.setValue('adjust', Random().nextDouble());
+
     internalMode = mode;
     animationUpdater?.cancel();
     if (mode.isAnimating)
@@ -146,6 +155,7 @@ class Prop {
   Prop({
     this.id,
     this.index,
+    this.virtual,
     this.groupId,
     this.propType,
     this.groupIndex,

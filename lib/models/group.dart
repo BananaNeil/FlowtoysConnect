@@ -14,11 +14,11 @@ class Group {
 
   List<Prop> props;
   String _name;
-  String id;
+  String groupId;
 
   Group({
     name,
-    this.id,
+    this.groupId,
     this.props,
   }) {
     this.name = name;
@@ -28,7 +28,16 @@ class Group {
   static Group get currentQuickGroup => _currentQuickGroup ?? quickGroups.first;
   static void set currentQuickGroup (group) => _currentQuickGroup = group;
 
-  String get name => _name ?? "Unclaimed Group (${props.length})";
+  static String unclaimedName = "Unclaimed Group";
+
+  String get name {
+    if (_name != null) return _name;
+
+    if (props.length > 1)
+      return Group.unclaimedName + " (${props.length})";
+    else return Group.unclaimedName;
+  }
+
   void set name(name) => _name = name;
 
   static List<Group> get quickGroups {
@@ -36,7 +45,7 @@ class Group {
 
     _quickGroups = List.generate(5, (index) {
       return Group(
-        id: "QG-${index}",
+        groupId: "QG-${index}",
         name: "Quick Group ${index}",
         props: index == 0 ? connectedProps : [],
       );
@@ -51,9 +60,8 @@ class Group {
   Timer animationUpdater;
   Mode _currentMode;
   Mode get currentMode {
-    print("GROUP.currentMode = ");
-    if (props.any((prop) => prop.currentModeId != props.first.currentModeId))
-      return null;
+    // if (props.any((prop) => prop.currentModeId != props.first.currentModeId))
+    //   return null;
     return _currentMode;
   }
 
@@ -67,7 +75,13 @@ class Group {
     if (props.length == 0) return;
     _currentMode = mode;
     animationUpdater?.cancel();
-    if (mode.isMultivalue)
+
+    // at the moment, props can only enter adjustRandomized if currently adjusting.
+    //
+    // To simulate the randomize effect on the props we are randomizing
+    // the adjust value in the Prop.currentMode=  method to work
+    // with the new props (via 1 BLE->radio call per prop)
+    if (mode.isMultivalue || (mode.adjustRandomized && !mode.adjusting))
       return props.forEach((prop) => prop.currentMode = mode);
     else
       props.forEach((prop) => prop.internalMode = mode);
@@ -76,12 +90,13 @@ class Group {
       animationUpdater = Timer.periodic(Bridge.animationDelay * 1.02, (_) {
         this.currentMode = _currentMode;
       });
+
     print("AD.USTED params: ${props.first.adjustedModeParamValues}");
     if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Bridge.animationDelay) {
       _currentModeSetAt = DateTime.now();
       currentGroups.forEach((group) {
         Bridge.setGroup(
-          groupId: group.id,
+          groupId: group.groupId,
           page: currentMode.page,
           number: currentMode.number,
           params: props.first.adjustedModeParamValues, 
@@ -140,7 +155,7 @@ class Group {
     var currentPropIds = currentQuickGroup.propIds;
     var groups = connectedGroups.map((group) {
       return Group(
-        id: group.id,
+        groupId: group.groupId,
         name: group.name,
         props: group.props.where((prop) {
           return currentPropIds.contains(prop.id);
@@ -154,30 +169,31 @@ class Group {
   static List<Group> get connectedGroups => possibleGroups.where((group) {
     Set<String> userPropIds = Authentication.currentAccount?.connectedPropIds ?? Set<String>();
     // print("THIIS: ${userPropIds}");
-    return group.props.any((prop) => userPropIds.contains(prop.id));
+    return Bridge.isConnected && group.props.any((prop) => userPropIds.contains(prop.id));
   }).toList();
 
   static Group findOrCreateById(String groupId) {
-    return possibleGroups.firstWhere((group) => group.id == groupId, orElse: () {
-      var prop = Prop(id: "${groupId}-${1}", groupId: groupId);
-      var props = [prop];
+    print("FIND OR CREATE group BY ID");
+    return possibleGroups.firstWhere((group) => group.groupId == groupId, orElse: () {
       Group newGroup = Group(
-        id: groupId,
-        props: props,
+        groupId: groupId,
+        props: [],
       );
+      newGroup.addVirtualProp();
 
-      Client.fetchProps(props).then((response) {
+      Client.fetchProps(newGroup.props).then((response) {
         if (response['success'])
           response['body']['props'].forEach((data) {
-            Prop prop = props.firstWhere((prop) => prop.uid == data['uid'], orElse: () {});
+            Prop prop = newGroup.props.firstWhere((prop) => prop.uid == data['uid'], orElse: () {});
             prop.setAttributes(data);
           });
       });
 
 
       possibleGroups.add(newGroup);
-      if (Authentication.currentAccount.propIds.contains(prop.id)) {
-        currentQuickGroup.props.add(prop); 
+      print("ADDED NEW POSSIBLE GROUP: ${Authentication.currentAccount.propIds} CONTAINS????? ${newGroup.props.first.id}");
+      if (Authentication.currentAccount.propIds.contains(newGroup.props.first.id)) {
+        currentQuickGroup.props.add(newGroup.props.first); 
       } else {
         unseenGroups.add(newGroup);
         Bridge.changeStream.add(null);
@@ -186,10 +202,28 @@ class Group {
     });
   }
 
+  bool get hasVirtualProps => virtualProps.length > 1; 
+  List<Prop> get virtualProps => props.where((prop) => prop.virtual == true).toList();
+
+  void addVirtualProp() {
+    var prop = Prop(id: "${groupId}-${props.length + 1}", groupId: groupId, virtual: true);
+    props.add(prop);
+  }
+
+  void removeVirtualProp() {
+    if (hasVirtualProps)
+      props.remove(virtualProps.first);
+  }
+
   static List<String> savedGroupIds = [];
   static List<Group> unseenGroups = [];
 
-  static List<Group> get unconnectedGroups => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
+  static List<Group> get unconnectedGroups => unconnected;
+
+  static List<Group> get unconnected => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
+  static List<Group> get connected => connectedGroups;
+  static List<Group> get possible => possibleGroups;
+  static List<Group> get current => currentGroups;
 
   static List<Group> _possibleGroups;
   static List<Group> get possibleGroups {

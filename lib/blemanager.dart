@@ -119,6 +119,9 @@ class BLEManager {
   bool isOff = false;
 
   void factoryReset() {
+    bridges.remove(bridge);
+    Authentication.currentAccount.bridgeBleIds.remove(bridge.id.toString());
+    Authentication.saveAccountToDisk();
     sendString('R');
   }
 
@@ -126,13 +129,16 @@ class BLEManager {
     if (flutterBlue == null)
       return initBLE();
 
-    sleep(Duration(milliseconds: 100));
+    // sleep(Duration(milliseconds: 100));
 
     bridges = Set<BluetoothDevice>();
     isConnected = false;
 
     await flutterBlue.connectedDevices.then((devices) {
       for (BluetoothDevice device in devices) {
+        
+        print("BRIDGE ID::::: ${device.id.toString()}");
+
         if (device.name.contains("FlowConnect")) {
           bridges.add(device);
         }
@@ -184,6 +190,7 @@ class BLEManager {
         // do something with scan result
 
         for (var result in scanResult) {
+          print("**BRIDGE ID::::: ${result.device.id.toString()}");
           if (result.device.name.contains("FlowConnect")) {
             bridges.add(result.device);
             return;
@@ -231,10 +238,11 @@ class BLEManager {
 
 
 
-    bridges.forEach((bridge) {
-      if (Authentication?.currentAccount?.bridgeNames?.contains(bridge.name) == true)
-        connect(bridge);
-    });
+    if (Authentication.isAuthenticated && !isConnected)
+      bridges.forEach((bridge) {
+        if (Authentication.currentAccount.bridgeBleIds.contains(bridge.id.toString()))
+          connect(bridge);
+      });
   }
 
   
@@ -242,25 +250,25 @@ class BLEManager {
     if (newBridge == null) return;
 
     stateSubscription?.cancel();
-    stateSubscription = newBridge.state.listen((state) {
+    stateSubscription = newBridge.state.listen((state) async {
       
       // Okay.... this is getting called when the bridge crashes. Then seconds later, we are trying to read from rx.
       // We need to set isConnected (done, I think), and let rx reading be conditional on that.
 
       print("Bridge connection state change: ${state} ...");
       isConnected = state == BluetoothDeviceState.connected;
-      if(isConnected) isConnecting = false;
+      if (isConnected) isConnecting = false;
 
-      if(state != BluetoothDeviceState.connected)
-        periodicallyAttemptReconnect();
-      else {
+      if(state == BluetoothDeviceState.disconnected || state == BluetoothDeviceState.disconnecting) {
+        await scanAndConnect();
+      } else {
+        Bridge.bleId = newBridge.id.toString();
         Bridge.name = newBridge.name;
         bridge = newBridge;
+        Bridge.save();
       }
 
-      if (isConnected) {
-        print((isConnected ? "Connected to " : "Disconnected from ") + bridge.name+".");
-      }
+      print((isConnected ? "Connected to " : "Disconnected from ") + newBridge.name+".");
 
       changeStream.add(null);
 
@@ -271,7 +279,7 @@ class BLEManager {
     });
 
     try {
-      await bridge.connect();
+      await newBridge.connect();
     } on PlatformException catch (error) {
       if (error.message == "Peripheral not found")
         scanAndConnect();
@@ -347,10 +355,10 @@ class BLEManager {
 
   void reconnectToBridge() async {
     print("Reconnecting to bridge (brige is null? ${bridge == null }, isConnected: ${isConnected})");
-    if (bridges.length == 0)
+    if (!isConnected)
       await scanAndConnect();
-    else if (!isConnected)
-      await connectToBridge();
+    // else if ()
+    //   await connectToBridge();
   }
 
   void sendString(String message) async {
@@ -400,191 +408,6 @@ class BLEManager {
     sendString("n${ssid ?? networkName},${password}");
     this.ssid = ssid;
     pass = password;
-    
-    // sleep(Duration(milliseconds: 40)); //safe between 2 calls
-    // if(networkName.isEmpty) this.networkName = "*";
-
-    // 0 for WiFi, 1 for BLE, 2 for Both:
-    
-    // if(this.networkName != networkName) {
-    //   this.networkName = networkName;
-    //   if(bridge != null) bridge.disconnect();
-    //   print("Start scanning after 6 seconds:");
-    //   Future.delayed(Duration(seconds:6),scanAndConnect);
-    // }
   }  
 }
 
-// class BLEConnectIcon extends StatefulWidget {
-//   BLEConnectIcon({Key key, this.manager}) : super(key: key) {}
-//
-//   final BLEManager manager;
-//
-//   @override
-//   _BLEConnectIconState createState() => _BLEConnectIconState(manager);
-// }
-//
-// class _BLEConnectIconState extends State<BLEConnectIcon> {
-//   _BLEConnectIconState(BLEManager _manager) : manager = _manager {
-//     // connect();
-//     subscription = manager.changeStream.stream.listen((data) {
-//       // print("connection changed here, connected ? "+widget.manager.isConnected.toString()+", connecting ? "+widget.manager.isConnecting.toString());
-//       setState(() {});
-//     });
-//   }
-//
-//   @override
-//   void dispose() {
-//     subscription?.cancel()?.then((_) { print("Scan subscription cleaned!");});
-//     super.dispose();
-//   }
-//
-//   StreamSubscription<void> subscription;
-//   BLEManager manager;
-//
-//   void connect() {
-//     print("CONNECT....");
-//     manager.scanAndConnect();
-//     
-//   }
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return GestureDetector(
-//         onLongPress: () => showDialog(
-//             context: context,
-//             builder: (BuildContext context) =>
-//                 BLEWifiSettingsDialog(manager: manager)),
-//         child: FloatingActionButton(
-//           onPressed: connect,
-//           child: Icon(Icons.link),
-//           backgroundColor: widget.manager.isConnected
-//               ? (widget.manager.isReadyToSend ? Colors.green : Colors.orange)
-//               : (widget.manager.isConnecting ? Colors.blue : Colors.red),
-//         ));
-//   }
-// }
-//
-// class BLEWifiSettingsDialog extends StatefulWidget {
-//   BLEWifiSettingsDialog({Key key, this.manager}) : super(key: key) {}
-//
-//   final BLEManager manager;
-//
-//   @override
-//   BLEWifiSettingsDialogState createState() => BLEWifiSettingsDialogState();
-// }
-//
-// class BLEWifiSettingsDialogState extends State<BLEWifiSettingsDialog> {
-//   BLEWifiSettingsDialogState({Key key});
-//
-//   final TextEditingController ssidController = new TextEditingController();
-//   final TextEditingController passController = new TextEditingController();
-//   final TextEditingController nameController = new TextEditingController();
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return Dialog(
-//         shape: RoundedRectangleBorder(
-//           borderRadius: BorderRadius.circular(8),
-//         ),
-//         elevation: 0.0,
-//         backgroundColor: Color(0xff333333),
-//         child: Padding(
-//             padding: EdgeInsets.all(8),
-//             child: ListView(
-//               shrinkWrap: true,
-//               children: <Widget>[
-//                   Container(
-//                       margin: EdgeInsets.only(bottom: 20),
-//                       alignment: Alignment.center,
-//                       child: Text(
-//                         "Setup Device",
-//                         style: TextStyle(color: Color(0xffcccccc)),
-//                       )),
-//                   InputTF(controller: nameController, labelText: "Name",initialValue:widget.manager.networkName),
-//                   Padding(
-//                     padding: EdgeInsets.only(top: 12),
-//                     child: Row(
-//                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-//                        children: <Widget>[
-//                       for (BridgeMode m in BridgeMode.values)
-//                           Row(
-//                           children:<Widget>[
-//                             Radio<BridgeMode>(
-//                           value: m,
-//                           groupValue: widget.manager.bridgeMode,
-//                           activeColor: Colors.white,
-//                           onChanged: (BridgeMode value) {
-//                             setState(() {
-//                               widget.manager.bridgeMode = value;
-//                             });
-//                           },
-//                         ),
-//                         Text(
-//                            m.toString().split(".").last,
-//                               style: TextStyle(
-//                                 color: Colors.white, fontSize: 12
-//                                 )),
-//                           ])
-//                       
-//                     ]),
-//                   ),
-//                  
-//                  if (widget.manager.bridgeMode == BridgeMode.WiFi ||
-//                     widget.manager.bridgeMode == BridgeMode.Both)
-//                     Padding(
-//                       padding: EdgeInsets.only(top: 12),
-//                       child: InputTF(
-//                           controller: ssidController, labelText: "SSID", initialValue: widget.manager.ssid,),
-//                     ),
-//                 if (widget.manager.bridgeMode == BridgeMode.WiFi ||
-//                     widget.manager.bridgeMode == BridgeMode.Both)
-//                     Padding(
-//                       padding: EdgeInsets.only(top: 12),
-//                       child: InputTF(
-//                           controller: passController, labelText: "Password", initialValue: widget.manager.pass),
-//                     ),
-//                     Padding(
-//                         padding: EdgeInsets.only(top: 20),
-//                         child: RaisedButton(
-//                           child: Text("Save"),
-//                           onPressed: () {
-//                             widget.manager.sendConfig(
-//                               networkName: nameController.text,
-//                               password: passController.text,
-//                               ssid: ssidController.text,
-//                             );
-//                             Navigator.of(context).pop();
-//                           },
-//                         ))
-//               ],
-//             ),
-//         )
-//     );
-//   }
-// }
-//
-// class InputTF extends StatelessWidget {
-//   InputTF({this.labelText, this.controller, this.initialValue})
-//   {
-//     controller.text = initialValue;
-//   }
-//
-//   final labelText;
-//   final TextEditingController controller;
-//   final initialValue;
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     return TextFormField(
-//         controller: controller,
-//         style: TextStyle(color: Colors.white),
-//         decoration: InputDecoration(
-//             contentPadding:EdgeInsets.fromLTRB(8, 0, 8, 0),
-//             labelText: labelText,
-//             labelStyle: TextStyle(color: Colors.white54),
-//             enabledBorder: new OutlineInputBorder(
-//                 borderRadius: new BorderRadius.circular(2.0),
-//                 borderSide: new BorderSide(color: Colors.grey))));
-//   }
-// }

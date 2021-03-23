@@ -3,6 +3,7 @@
 import 'package:app/components/reordable_list_simple.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/mode_list_item.dart';
+import 'package:app/helpers/filter_controller.dart';
 import 'package:app/components/global_params.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/models/mode_list.dart';
@@ -11,7 +12,6 @@ import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
-import 'package:rxdart/rxdart.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 // import 'package:app/models/prop.dart';
@@ -51,7 +51,7 @@ class ModeListWidget extends StatefulWidget {
   Function toggleSelectedMode;
   List<Widget> prependChildren;
   List<String> selectedModeIds;
-  BehaviorSubject<Map<String, dynamic>> filterController;
+  FilterController filterController;
 
   @override
   _ModeListWidget createState() => _ModeListWidget();
@@ -69,7 +69,6 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
     activeFilters = {};
     if (widget.canChangeCurrentList) _fetchAllLists();
     filtersSubscription = filterController.stream.listen((filters) {
-      print("StreAM ++");
       setState(() => activeFilters = filters);
     });
   }
@@ -96,7 +95,7 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
   double containerWidth;
 
 
-  BehaviorSubject<Map<String, dynamic>> get filterController => widget.filterController ??= BehaviorSubject<Map<String, dynamic>>();
+  FilterController get filterController => widget.filterController ??= FilterController();
   bool get hideFilters => widget.hideFilters ?? false;
 
   @override

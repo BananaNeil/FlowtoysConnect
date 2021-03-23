@@ -249,12 +249,6 @@ class _ModeListItem extends State<ModeListItem> {
               children: [
                 HorizontalLineShadow(),
                 Container(
-                  margin: EdgeInsets.only(
-                    right: 10,
-                    bottom: 20,
-                    left: 10,
-                    top: 5,
-                  ),
                   child: _ModeTileParams(),
                 ),
               ]
@@ -293,11 +287,6 @@ class _ModeListItem extends State<ModeListItem> {
       },
       updateMode: () {
         Prop.refreshByMode(mode);
-      },
-      onSaveAs: () {
-        Navigator.pushNamed(context, '/lists/new', arguments: {
-          'selectedModes': [mode],
-        });
       },
       mode: mode,
     );

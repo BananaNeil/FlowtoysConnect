@@ -22,9 +22,9 @@ class Authentication {
   static Future<Account> getAccount() async {
       print("CA1: ${Authentication.currentAccount}");
     return await Client.getAccount().then((response) {
+      print("${response['success']} BACK FROM GETTIN GACCOUNT WITH :${response['body']}");
       if (response['success'])
         setCurrentAccount(Account.fromResourceMap(response['body']));
-      print("${response['success']} BACK FROM GETTIN GACCOUNT WITH :${response['body']}");
       print("CA: ${Authentication.currentAccount.toMap()}");
 
       return currentAccount;
@@ -39,6 +39,7 @@ class Authentication {
     });
     if (submit ?? true)
       return await Client.updateAccount(newAccount.toMap()).then((response) {
+        print("BACK FORM UPDATE WITH RESPONSE: ${response['success']}");
         if (response['success'])
           setCurrentAccount(newAccount);
         return response;
@@ -102,6 +103,7 @@ class Authentication {
   }
 
   static void saveAccountToDisk() async {
+    print("SAVE ACCOUNT TO DISK: ${currentAccount.toJson()}");
     await Storage.write('currentAccount', currentAccount.toJson());
   }
 

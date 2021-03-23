@@ -63,7 +63,7 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
       // This is not yet fully working!!!!!!!!!!
       // This is not yet fully working!!!!!!!!!!
       isPlayingAnimation.value = 0.0;
-      if (isPlaying) isPlayingAnimation.forward();
+      startAnimationTimer();
       setState(() {});
     });
     return Visibility(
@@ -79,37 +79,29 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
             mainAxisSize: MainAxisSize.min,
             children: [
               _NowPlayingProgressBar,
+              _ModeTitleAndList(),
               Container(
-                margin: EdgeInsets.only(bottom: 10, top: 5),
+                margin: EdgeInsets.only(bottom: 10),
+                padding: EdgeInsets.only(bottom: AppController.bottomPadding * 0.75),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Expanded(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: Prop.propsByMode.entries.map<Widget>((entry) {
-                          var mode = entry.key;
-                          var props = entry.value;
-                          if (mode.page > 3)
-                            return Container();
-                          if (AppController.isSmallScreen && Prop.propsByMode.entries.length > 1)
-                            return ModeImage(mode: mode, size: 15);
-                          else
-                            return Container(
-                              margin: EdgeInsets.only(left: 10),
-                              child: Wrap(
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  Container(
-                                    margin: EdgeInsets.symmetric(horizontal: 3),
-                                    child: ModeImage(mode: mode, size: 15),
-                                  ),
-                                  Text("X${props.length}")
-                                ]
-                              )
-                            );
-                        }).toList()
-                      ),
+                      child: Prop.current.length == 0 ?  Container() :
+                        Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x66FFFFFF),
+                                  offset: Offset(0, 0),
+                                  spreadRadius: 1.0,
+                                  blurRadius: 1.0,
+                                )
+                              ]
+                            ),
+                            child: PropImage(prop: Prop.current.first, size: 25)
+                        ),
                     ),
                     _PlayControlers,
                     Expanded(
@@ -141,10 +133,10 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
     );
   }
 
+  Timer animationTimer;
   Widget get _PlayControlers {
     return Container(
       margin: EdgeInsets.all(3),
-      padding: EdgeInsets.only(bottom: AppController.bottomPadding),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
@@ -167,17 +159,19 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
             )
           ),
           GestureDetector(
-            onTap: () => widget.onPrevious(),
+            onTap: () => onPrevious(),
             child: Icon(Icons.skip_previous, size: 38),
           ),
           GestureDetector(
             onTap: () {
               setState(() {
                 isPlaying = !isPlaying;
-                if (isPlaying)
-                  isPlayingAnimation.forward();
-                else
+                if (isPlaying) {
+                  startAnimationTimer();
+                } else {
+                  animationTimer?.cancel();
                   isPlayingAnimation.stop();
+                }
               });
             },
             child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 38),
@@ -262,10 +256,6 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
               cycleDurationChangeTimer = Timer(Duration(milliseconds: 200), () {
                 print("SET THE ISPLAYING ANIMATION!");
                 isPlayingAnimation.duration = cycleDuration;
-                if (isPlaying) {
-                  isPlayingAnimation.stop();
-                  isPlayingAnimation.forward();
-                }
               });
               setState((){});
             },
@@ -282,14 +272,48 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
     );
   }
 
+  void startAnimationTimer() {
+    animationTimer?.cancel();
+    if (isPlaying) {
+      animationTimer = Timer(cycleDuration - (cycleDuration * isPlayingAnimation.value), onNext);
+      isPlayingAnimation.stop();
+      isPlayingAnimation.forward();
+    }
+  }
+
+  void onPrevious() {
+    isPlayingAnimation.value = 0.0;
+    startAnimationTimer();
+    widget.onPrevious();
+  }
+
   void onNext() {
     print("ON NEXT: ${isPlaying}");
     widget.onNext();
     if (isPlaying) {
       Timer(Duration(milliseconds: 20), () => setState((){})); 
       isPlayingAnimation.value = 0.0;
-      isPlayingAnimation.forward();
+      startAnimationTimer();
     }
+  }
+
+  Widget _ModeTitleAndList() {
+    if (Prop.currentModes.length == 0)
+      return Container();
+
+    var mode = Prop.currentModes.first;
+    return Container(
+      margin: EdgeInsets.only(top: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          mode.name == null ? Text(mode.name ?? "") : null,
+          Text("Page: ${mode.page} Mode:${mode.number}",
+            style: TextStyle(fontWeight: FontWeight.bold),
+          )
+        ].where((widget) => widget != null).toList()
+      )
+    );
   }
 
 
@@ -301,10 +325,6 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
         lowerBound: 0,
         vsync: this,
       );
-      isPlayingAnimation.addStatusListener((status) {
-        if(status == AnimationStatus.completed)
-          onNext();
-      }); 
     }
     return AnimatedBuilder(
       animation: isPlayingAnimation,

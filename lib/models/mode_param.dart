@@ -182,6 +182,8 @@ class ModeParam {
   }
 
   num get mostCommonChildValue {
+    if (childParams.length == 0)
+      return value;
     var counted = childParams.fold({}, (counts, param) {
       counts[param.getValue()] = (counts[param.getValue()] ?? 0) + param.childCount;
       return counts;
@@ -260,7 +262,7 @@ class ModeParam {
   void setValue(newValue) {
     newValue = num.parse(newValue.toStringAsFixed(3));
     newValue = newValue.clamp(0.0, numberOfCycles.toDouble());
-    if (multiValueEnabled) {
+    if (multiValueEnabled && presentChildParams.length > 0) {
       childParams = presentChildParams;
       var delta = newValue - getValue();
       childParams.forEach((param) {

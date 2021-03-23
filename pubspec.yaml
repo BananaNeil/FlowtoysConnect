@@ -104,11 +104,11 @@ dependencies:
   intl: ^0.17.0
   flutter_blue: #^0.7.3
     # git: git@github.com:pauldemarco/flutter_blue.git
-    path: /Users/neil/Projects/flowtoys/flutter_blue
+    # path: /Users/neil/Projects/flowtoys/flutter_blue
     # Patched to get MacOS (and probalby ios) working
-    # git: 
-    #   url: git@github.com:BananaNeil/flutter_blue.git
-    #   ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
+    git: 
+      url: git@github.com:BananaNeil/flutter_blue.git
+      ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
   url_launcher: ^6.0.2
   fluttertoast: ^7.1.1
   youtube_api: #^0.8.0

@@ -37,23 +37,33 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
 
   void _updateUnseenItems(_) {
     print("icon Checking connectionState: ${seenState.toString()} == ${connectionState.toString()} ${seenState.toString() == connectionState.toString()}");
+    if (seenState == null) seenState = connectionState;
+    setState(() {});
     if (seenState.toString() == connectionState.toString()) return;
+
     unseenItemCount = 0;
-    eachWithIndex(seenState, (index, state) {
-      if (connectionState[index] != seenState)
-        unseenItemCount += 1;
-    });
+
+    // This doesn't work because it's weird when it says "1",
+    // but there are two red dots:
+    //
+    // eachWithIndex(seenState, (index, state) {
+    //   if (connectionState[index] != seenState[index])
+    //     unseenItemCount += 1;
+    // });
 
     seenState = connectionState;
-    //
-    // if (!oscConnected && bleConnected)
-    //   unseenItemCount += 1;
-    //
-    // if (isConnected && Bridge.isUnclaimed)
-    //   unseenItemCount += 1;
-    //
-    // if (isConnected && Prop.unclaimedProps.length > 0)
-    //   unseenItemCount += 1;
+
+    if (Bridge.oscManager.isEnabled && !oscConnected && bleConnected)
+      unseenItemCount += 1;
+
+    if (!isConnected && Bridge.bleManager.bridges.length > 0)
+      unseenItemCount += 1;
+
+    if (isConnected && Bridge.isUnclaimed)
+      unseenItemCount += 1;
+
+    if (isConnected && Group.unclaimedGroups.length > 0)
+      unseenItemCount += 1;
 
     setState(() {});
   }
@@ -68,7 +78,7 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
   List<dynamic> get connectionState => [
     Bridge.bleManager.bridges.length,
     isConnected && Bridge.isUnclaimed,
-    isConnected ? Prop.unclaimedProps.length : 0,
+    isConnected ? Group.unclaimedGroups.length : 0,
     //
     // isConnected,
     // bleConnected,
@@ -82,10 +92,6 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
 
   @override
   Widget build(BuildContext context) {
-    print("================+++++++ ${connectionState.toString() == seenState.toString()}");
-    print("================+++++++C ${connectionState}");
-    print("================+++++++S ${seenState}");
-
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -149,7 +155,7 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
           )
         ).then((_) { setState(() {}); });
       },
-      child: Group.connectedGroups.length == 0 ? Container() : Badge(
+      child: !isConnected || Group.connectedGroups.length == 0 ? Container() : Badge(
         badgeContent: Text(Group.connectedGroups.length.toString(), style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.black,

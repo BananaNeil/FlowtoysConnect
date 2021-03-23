@@ -9,11 +9,8 @@ void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
   env = 'prod';
 
-  print("SET ENV!!!!!1");
   AppController.setEnv(env).then((_) async {
-    print("WAIT FOR PRELOADER");
     await Preloader.ready();
-    print("INIT suggestions");
     AppController.initSiriSuggestions();
     Preloader.recallSavedGroupIds();
     AppController.initBugsnag();
@@ -43,6 +40,14 @@ class FlowtoysConnect extends StatelessWidget {
         
         brightness: Brightness.dark,
         fontFamily: 'Ubuntu',
+
+        // This should make swipe back transitions work... but it's not?
+        // pageTransitionsTheme: PageTransitionsTheme(
+        //   builders: {
+        //     TargetPlatform.android: CupertinoPageTransitionsBuilder(),
+        //     TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        //   }
+        // ),
       );
 
       SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle.light);

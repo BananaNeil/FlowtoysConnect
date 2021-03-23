@@ -26,9 +26,11 @@ class SyncPacket {
         command = 'sleep';
       else if (data[20] & 2 == 2)
         command = 'wakeup';
-      else if (data[20] == 0)
+      else if (data[20] & 1 == 0)
         command = 'stop_adjust';
-      else if (data[20] == 8)
+      else if (data[20] & 1 == 1)
+        command = 'start_adjust';
+      else if (data[20] & 8 == 8)
         command = 'next_mode';
       else print("COMMAND UNKNOWN ${data[20]}");
 
@@ -66,7 +68,7 @@ class SyncPacket {
         group.isOn = true;
       else group.possiblyOn = true;
 
-    print("prop ON: ${group.props.first.isOn} ... isON: ${group.isOn} possiblyON: ${group.possiblyOn}");
+    // print("prop ON: ${group.props.first.isOn} ... isON: ${group.isOn} possiblyON: ${group.possiblyOn}");
 
     // THIS SHOULD BE SYSTEM CREATION TYPE.....
     //   (if we change the home page to show system modes instead of auto created modes)
@@ -81,11 +83,15 @@ class SyncPacket {
         });
       });
     });
-    if (command == 'next_mode')
-      Group.setCurrentProps(group.internalMode);
     group.internalMode ??=  Mode.basic(
       page: page + 1,
       number: modeNumber + 1,
     );
+
+    if (command == 'start_adjust')
+      group.internalMode.isAdjusting = true;
+
+    if (command == 'start_adjust' || command == 'next_mode')
+      Group.setCurrentProps(group.internalMode);
   }
 }

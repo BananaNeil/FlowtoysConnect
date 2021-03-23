@@ -9,6 +9,7 @@ import 'package:app/components/action_button.dart';
 import 'package:app/components/global_params.dart';
 import 'package:app/components/share_modal.dart';
 import 'package:app/components/navigation.dart';
+import 'package:app/helpers/filter_controller.dart';
 import 'package:app/models/mode_list.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
@@ -18,7 +19,7 @@ import 'package:app/models/group.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
-import 'package:rxdart/rxdart.dart';
+// import 'package:rxdart/rxdart.dart';
 import 'package:badges/badges.dart';
 import 'package:app/client.dart';
 import 'dart:async';
@@ -302,7 +303,7 @@ class _ModesPageState extends State<ModesPage> {
 
   bool get showOneColumn => modeLists.length <= 1 || AppController.screenWidth < 300 * modeLists.length;
 
-  BehaviorSubject<Map<String, dynamic>> filterController = BehaviorSubject<Map<String, dynamic>>();
+  FilterController filterController = FilterController();
 
 
   Widget _ModeList(lists) {

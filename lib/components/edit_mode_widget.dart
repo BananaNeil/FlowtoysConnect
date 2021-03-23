@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/components/mode_widget.dart';
+import 'package:app/components/inline_mode_params.dart';
 
 
 
@@ -61,7 +63,11 @@ class _EditModeWidgetState extends State<EditModeWidget> with TickerProviderStat
 
   bool get autoUpdate => widget.autoUpdate ?? true;
 
-  Function get onChange => widget.onChange ?? (mode){};
+  void onChange(mode) {
+    Prop.refreshByMode(mode);
+    if (widget.onChange != null)
+      widget.onChange(mode);
+  }
 
   @override dispose() {
     animators.values.forEach((animator) => animator.dispose());
@@ -103,12 +109,54 @@ class _EditModeWidgetState extends State<EditModeWidget> with TickerProviderStat
               children: [
                 _RenameField(),
                 _ChooseBaseMode(),
+                _Buttons(),
                 ..._Sliders(),
               ],
             ),
           ),
         ]
       )
+    );
+  }
+
+  Widget _Buttons() {
+    return Container(
+      margin: EdgeInsets.only(bottom: 20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          ActionButton(
+            text: 'Defaults',
+            color: Color(0xFFAA3333),
+            onTap: () {
+              mode.modeParams.keys.forEach((paramName) {
+                mode.resetParam(paramName);
+              });
+              setState((){});
+            }
+          ),
+          ActionButton(
+            text: 'Randomize!',
+            color: Color(0xFF33AA33),
+            onTap: () {
+              mode.modeParams.keys.forEach((key) {
+                if (key != 'brightness')
+                  mode.getParam(key).setValue(Random().nextDouble());
+              });
+              setState(() {});
+            }
+          ),
+          ActionButton(
+            text: 'Save As',
+            color: Colors.blue,
+            onTap: () {
+              Navigator.pushNamed(context, '/lists/new', arguments: {
+                'selectedModes': [mode],
+              });
+            }
+          ),
+        ].where((button) => button != null).toList()
+      ),
     );
   }
 
@@ -179,7 +227,7 @@ class _EditModeWidgetState extends State<EditModeWidget> with TickerProviderStat
       child: TextFormField(
         initialValue: mode.name,
         decoration: InputDecoration(
-          labelText: 'Choose custom name',
+          labelText: 'Choose Custom Name',
         ),
         onChanged: (text) {
           setState(() {
@@ -312,16 +360,16 @@ class _EditModeWidgetState extends State<EditModeWidget> with TickerProviderStat
                 gradientStops: gradientStops(param),
                 thumbColor: thumbColorFor(param),
                 onChanged: (value){
-                  onChange(mode);
                   updateModeTimer?.cancel();
                   setState(() => param.setValue(value));
                   updateModeTimer = Timer(Duration(milliseconds: 1000), () => _updateMode());
+                  onChange(mode);
                 },
                 child: param.paramName == 'adjust' ? adjustLines : speedLines
               );
             }
           ),
-          !param.isAnimating ? Container() : Container(
+          !param.multiValueEnabled ? Container() : Container(
             margin: EdgeInsets.only(top: 5, left: 10, right: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

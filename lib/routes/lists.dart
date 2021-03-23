@@ -136,6 +136,7 @@ class _ListsPageState extends State<ListsPage> {
           onPressed: (int index) {
             setState(() {
               showAllLists = (index == 1);
+              if (showAllLists) fetchAllLists();
             });
           },
           children: [

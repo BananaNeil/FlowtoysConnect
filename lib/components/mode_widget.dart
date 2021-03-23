@@ -76,7 +76,6 @@ class PropImage extends StatelessWidget {
     this.size ??= 20;
     Widget icon;
     String text;
-    print("RENDER MODE: ${prop.hashCode} ${prop.isOn}");
     if (prop.isOn == false)
       text = 'OFF';
 
@@ -110,7 +109,7 @@ class ModeImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mode == null) return Container(width: 0);
-    if (mode.baseMode == null) return Container(width: 0);
+    // if (mode.baseMode == null) return Container(width: 0);
 
 
 

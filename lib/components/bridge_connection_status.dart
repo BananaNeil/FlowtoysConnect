@@ -4,7 +4,7 @@ import 'package:open_settings/open_settings.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/models/bridge.dart';
-import 'package:app/models/prop.dart';
+import 'package:app/models/group.dart';
 import 'package:flutter/material.dart';
 // import 'package:app/models/group.dart';
 import 'package:badges/badges.dart';
@@ -113,12 +113,13 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
       margin: EdgeInsets.only(top: 20),
       child: Column(
         children: [
-           !(isConnected && Bridge.isUnclaimed) ? null : _BridgeDetailsCard(
+           !(isConnected && Bridge.isUnclaimed) ? null : BridgeDetailsCard(
+            onTapTrailing: () => ensureAuthentication(() => _openNameForm()),
             trailingVisible: isConnected && Bridge.isUnclaimed,
             showBadge: isConnected && Bridge.isUnclaimed,
             titleText: "Is this your bridge?",
             trailingButtonText: _claimNowText,
-            onTapTrailing: () => ensureAuthentication(() => _openNameForm()),
+            context: context,
             leading: ConnectionIcon(
               connectedIcon: Image(image: AssetImage('assets/images/bridge-connected.png')),
               isConnected: true,
@@ -126,27 +127,68 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
           ),
            _WifiDetailsCard(),
            ..._BLEDetailsCards(),
-          isConnected && unclaimedPropCount > 0 ? _BridgeDetailsCard(
-            leading: ConnectionIcon(isConnected: false, disconnectedIcon: Container(width: 23, child: Image(image: AssetImage('assets/images/cube.png')))),
-            onTapTrailing: () => Navigator.pushNamed(context, '/props'),
-            trailingButtonText: "Claim Now",
-            trailingVisible: true,
-            showBadge: true,
-            // onTapTrailing: () {
-            // //   OpenSettings.openBluetoothSetting();
-            //   return Future.value(null);
-            // },
-            titleText: "${unclaimedPropCount} unclaimed ${Intl.plural(unclaimedPropCount, one: 'prop', other: 'props')} detected!",
-          ) : null,
+          _PropDetailsCard(),
 
         ].where((widget) => widget != null).toList(),
       ),
     );
   }
 
-  int get unclaimedPropCount => Prop.unclaimedProps.length;
+  int get unconnectedGroupCount => Group.unconnected.length;
+  int get connectedGroupCount => Group.connected.length; 
+  int get possibleGroupCount => Group.possible.length;
+  int get currentGroupCount => Group.current.length;
 
   String get _claimNowText => Authentication.isAuthenticated ? "Claim Now" : "Sign in to Claim";
+
+  Widget _PropDetailsCard() {
+    if (!isConnected) return null;
+
+    var connectedGroupText = "Controlling ${currentGroupCount}/${connectedGroupCount} connected ${Intl.plural(currentGroupCount, one: 'group', other: 'groups')}.";
+    var unconnectedGroupText = "${unconnectedGroupCount} unconnected ${Intl.plural(unconnectedGroupCount, one: 'group', other: 'groups')} detected!";
+    var detectGroupText = "If a group is on and near, try pushing it's button to detect it.";
+
+    var title = "";
+    var subtitle = "";
+
+    if (unconnectedGroupCount > 0) {
+      title = unconnectedGroupText;
+      if (connectedGroupCount > 0)
+        subtitle = connectedGroupText;
+    } else {
+      if (connectedGroupCount > 0) {
+        title = connectedGroupText;
+        subtitle = detectGroupText;
+      } else {
+        title = detectGroupText;
+      }
+    }
+
+    return BridgeDetailsCard(
+      leading: ConnectionIcon(
+        isConnected: connectedGroupCount > 0,
+        disconnectedIcon: Container(
+          width: 23,
+          child: Image(image: AssetImage('assets/images/cube.png'))
+        ),
+        connectedIcon: Container(
+          width: 23,
+          child: Image(image: AssetImage('assets/images/cube.png'))
+        )
+      ),
+      onTapTrailing: () => Navigator.pushNamed(context, '/props'),
+      trailingButtonText: "Claim Now",
+      trailingVisible: unconnectedGroupCount > 0,
+      showBadge: unconnectedGroupCount > 0,
+      // onTapTrailing: () {
+      // //   OpenSettings.openBluetoothSetting();
+      //   return Future.value(null);
+      // },
+      titleText: title,
+      subtitle: subtitle,
+      context: context,
+    );
+  }
 
   List<Widget> get actions {
     return <Widget>[
@@ -178,7 +220,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
     print("BRIDGES: ${Bridge.bleManager.bridges.length}");
     if (!bleConnected && Bridge.bleManager.bridges.length > 0)
       return Bridge.bleManager.bridges.map<Widget>((bridge) {
-        return _BridgeDetailsCard(
+        return BridgeDetailsCard(
           leading: ConnectionIcon(
             isConnected: false,
             connectedIcon: Icon(Icons.bluetooth_connected),
@@ -191,10 +233,11 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
             return Future.value(null);
           },
           titleText: "BLE found a bridge named ${bridge.name}",
+          context: context,
         );
       }).toList();
     else return [
-      _BridgeDetailsCard(
+      BridgeDetailsCard(
         leading: ConnectionIcon(
           isConnected: bleConnected,
           connectedIcon: Icon(Icons.bluetooth_connected),
@@ -207,6 +250,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
           return Future.value(null);
         },
         titleText: Bridge.bleManager.statusMessage,
+        context: context,
       )
     ];
   }
@@ -214,12 +258,13 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
   Widget _WifiDetailsCard() {
     if (!Bridge.oscManager.isEnabled) return null;
     if (isConnected && Bridge.oscManager.connectedToBridgeWifi)
-      return _BridgeDetailsCard(
+      return BridgeDetailsCard(
         leading: ConnectionIcon(
           isConnected: true,
           connectedIcon: Icon(Icons.wifi_tethering),
           disconnectedIcon: Icon(Icons.wifi_tethering),
         ),
+        context: context,
         titleText: "Connected to a FlowConnect network!",
         // subtitle: Text("Click 'Connect' to help your bridge join the network [${Bridge.oscManager.mostRecentWifiNetworkName}]"),
         subtitle: Text("Use this connection to link your bridge to the network [ ${Bridge.oscManager.mostRecentWifiNetworkName} ]"),
@@ -229,7 +274,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
         subtitleVisible: Bridge.oscManager.mostRecentWifiNetworkName != null,
       ); 
     else if (wifiNetworkKnown)
-      return _BridgeDetailsCard(
+      return BridgeDetailsCard(
         leading: ConnectionIcon(
           isConnected: oscConnected,
           connectedIcon: Icon(Icons.wifi),
@@ -243,8 +288,9 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
         subtitleVisible: !isConnected && !oscConnected,
         onTapTrailing: _openWifiDetailsForm,
         trailingButtonText: 'Connect',
+        context: context,
       );
-    else return _BridgeDetailsCard(
+    else return BridgeDetailsCard(
       leading: ConnectionIcon(
         isConnected: oscConnected,
         connectedIcon: Icon(Icons.wifi),
@@ -262,58 +308,10 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
         return Future.value(null);
       },
       trailingButtonText: 'Wifi Settings',
+      context: context,
     ); 
   }
 
-  Widget _BridgeDetailsCard({leading, titleText, subtitle, trailing, subtitleVisible, trailingButtonText, trailingVisible, onTapTrailing, showBadge}) {
-    return Badge(
-      showBadge: showBadge == true,
-      badgeColor: Colors.red.withOpacity(1),
-      badgeContent: Container(
-        padding: EdgeInsets.all(0),
-        child: Text(' ',
-          style: TextStyle(
-            fontSize: 12, fontWeight: FontWeight.bold
-          ),
-        ),
-      ),
-      // position: BadgePosition.topStart(),
-      position: BadgePosition(top: 25, end: 15),
-      child: Card(
-        elevation: 10,
-        child: Container(decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)), child: ListTile(
-          minLeadingWidth : 0,
-          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          subtitle: subtitleVisible == true ? subtitle : null,
-          leading: leading,
-          title: Text(titleText, style: TextStyle(
-                  fontSize: AppController.isSmallScreen ? 13 : 16
-          )),
-          trailing: (!(trailingVisible == true) ? null : Container(
-            constraints: BoxConstraints(minWidth: 0, maxWidth: AppController.isSmallScreen ? 120 : 160),
-            child: GestureDetector(
-              onTap: () {
-                Navigator.pop(context, onTapTrailing);
-              },
-              child: trailing ?? Container(
-                margin: EdgeInsets.only(right: showBadge == true ? 27 : 0),
-                padding: EdgeInsets.symmetric(vertical: 7, horizontal: AppController.isSmallScreen ? 8 : 12),
-                decoration: BoxDecoration(
-                  color: Colors.blue
-                ),
-                child: Text(trailingButtonText,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                  fontSize: AppController.isSmallScreen ? 13 : 14
-                  )
-                ),
-              )
-            )
-          )),
-        ))
-      )
-    );
-  }
 
   Future _openBridgeSettings() {
     return AppController.openDialog("Bridge Settings",
@@ -324,12 +322,14 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
     ).then((_) => openBridgeDetails());
   }
 
+  // This method is duplicated!!!!!!!!!! Not good.
+  // Please dry it up.
   Future _openNameForm() {
     RenameController renameController = RenameController();
     renameController.possessivePrefix = Authentication.currentAccount.firstName;
     renameController.suffix = "FlowConnect";
     return AppController.openDialog("Give your bridge a name!",
-        "Naming your bridge will link it to your flowtoys account, and only allow you to control it when in \"private\" mode",
+        "Naming your bridge will link it to your flowtoys account, and auto connect to it when you open the app",
       reverseButtons: true,
       buttonText: 'Cancel',
       child: Container(
@@ -342,6 +342,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
           'color': Colors.blue,
           'onPressed': () {
             Bridge.name = renameController.newName;
+            Bridge.setNetworkName();
             Bridge.save();
           }
         }
@@ -447,25 +448,34 @@ class _BridgeSettings extends State<BridgeSettings> {
 
     return Container(
       width: 300,
-      height: 200,
       // margin: EdgeInsets.only(top: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           GestureDetector(
             onTap: () => setState(() => Bridge.oscManager.isEnabled = !Bridge.oscManager.isEnabled),
-            child: Container(
-              margin: EdgeInsets.only(top: 15),
-              child: Row(children: [
-                Checkbox(
-                  value: Bridge.oscManager.isEnabled,
-                  activeColor: Colors.blue,
-                  onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
-                ),
-                Container(child: Text("WIFI Enabled"), padding: EdgeInsets.only(top: 10, bottom: 10, right: 7, left: 0)),
-              ])
-            )
+            child: BridgeDetailsCard(
+              leading: Checkbox(
+                value: Bridge.oscManager.isEnabled,
+                activeColor: Colors.blue,
+                onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
+              ),
+              titleText: 'WIFI Enabled',
+              context: context,
+            ),
           ),
+          //   child: Container(
+          //     margin: EdgeInsets.only(top: 15),
+          //     child: Row(children: [
+          //       Checkbox(
+          //         value: Bridge.oscManager.isEnabled,
+          //         activeColor: Colors.blue,
+          //         onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
+          //       ),
+          //       Container(child: Text("WIFI Enabled"), padding: EdgeInsets.only(top: 10, bottom: 10, right: 7, left: 0)),
+          //     ])
+          //   )
+          // ),
           Visibility(
             visible: Bridge.isUnclaimed,
             child: Row(
@@ -483,12 +493,12 @@ class _BridgeSettings extends State<BridgeSettings> {
             ),
           ),
           _Button(
-            visible: !Bridge.isUnclaimed,
+            visible: Bridge.isConnected && !Bridge.isUnclaimed,
               onTap: () => setState(() => showRenameForm = true),
               text: "RENAME",
           ),
           _Button(
-            visible: !Bridge.isUnclaimed,
+            visible: Bridge.isConnected && !Bridge.isUnclaimed,
               onTap: () => setState(() => confirmFactoryReset = true),
               text: "FACTORY RESET",
               color: Colors.red,
@@ -498,12 +508,14 @@ class _BridgeSettings extends State<BridgeSettings> {
     );
   }
 
+  // This method is duplicated!!!!!!!!!! Not good.
+  // Please dry it up.
   Future _openNameForm() {
     RenameController renameController = RenameController();
     renameController.possessivePrefix = Authentication.currentAccount.firstName;
     renameController.suffix = "FlowConnect";
     return AppController.openDialog("Give your bridge a name!",
-        "Naming your bridge will link it to your flowtoys account, and only allow you to control it when in \"private\" mode",
+        "Naming your bridge will link it to your flowtoys account, and auto connect to it when you open the app",
       reverseButtons: true,
       buttonText: 'Cancel',
       child: Container(
@@ -516,6 +528,7 @@ class _BridgeSettings extends State<BridgeSettings> {
           'color': Colors.blue,
           'onPressed': () {
             Bridge.name = renameController.newName;
+            Bridge.setNetworkName();
             Bridge.save();
           }
         }
@@ -566,6 +579,7 @@ class _BridgeSettings extends State<BridgeSettings> {
         GestureDetector(
           onTap: () {
             Bridge.name = renameController.newName;
+            Bridge.setNetworkName();
             Bridge.save();
             Navigator.pop(context, true);
           },
@@ -576,27 +590,79 @@ class _BridgeSettings extends State<BridgeSettings> {
   }
 
   Widget _ConfirmFactoryReset() {
-    return Column(
-      children: [
-        Container(
-          margin: EdgeInsets.only(top: 15),
-          child: Text("ARE YOU SURE YOU WANT TO RESET THIS BRIDGE?"),
-        ),
-        Container(
-          margin: EdgeInsets.only(top: 15),
-          child: Text("This will remove all customizations and settings"),
-        ),
-        GestureDetector(
-          onTap: () {
-            Bridge.factoryReset();
-            Navigator.pop(context, null);
-          },
-          child: Text("RESET NOW", style: TextStyle(color: Colors.red)),
-        ),
-      ]
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Container(
+            margin: EdgeInsets.only(top: 15),
+            child: Text("ARE YOU SURE YOU WANT TO RESET THIS BRIDGE?"),
+          ),
+          Container(
+            margin: EdgeInsets.only(top: 15),
+            child: Text("This will remove all customizations and settings"),
+          ),
+          GestureDetector(
+            onTap: () {
+              Bridge.factoryReset();
+              Navigator.pop(context, null);
+            },
+            child: Text("RESET NOW", style: TextStyle(color: Colors.red)),
+          ),
+        ]
+      )
     );
   }
 
 }
 
 
+Widget BridgeDetailsCard({context, leading, titleText, subtitle, trailing, subtitleVisible, trailingButtonText, trailingVisible, onTapTrailing, showBadge}) {
+  return Badge(
+    showBadge: showBadge == true,
+    badgeColor: Colors.red.withOpacity(1),
+    badgeContent: Container(
+      padding: EdgeInsets.all(0),
+      child: Text(' ',
+        style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.bold
+        ),
+      ),
+    ),
+    // position: BadgePosition.topStart(),
+    position: BadgePosition(top: 25, end: 15),
+    child: Card(
+      elevation: 10,
+      child: Container(decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)), child: ListTile(
+        minLeadingWidth : 0,
+        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        subtitle: subtitleVisible == true ? subtitle : null,
+        leading: leading,
+        title: Text(titleText, style: TextStyle(
+                fontSize: AppController.isSmallScreen ? 13 : 16
+        )),
+        trailing: (!(trailingVisible == true) ? null : Container(
+          constraints: BoxConstraints(minWidth: 0, maxWidth: AppController.isSmallScreen ? 120 : 160),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.pop(context, onTapTrailing);
+            },
+            child: trailing ?? Container(
+              margin: EdgeInsets.only(right: showBadge == true ? 27 : 0),
+              padding: EdgeInsets.symmetric(vertical: 7, horizontal: AppController.isSmallScreen ? 8 : 12),
+              decoration: BoxDecoration(
+                color: Colors.blue
+              ),
+              child: Text(trailingButtonText,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                fontSize: AppController.isSmallScreen ? 13 : 14
+                )
+              ),
+            )
+          )
+        )),
+      ))
+    )
+  );
+}

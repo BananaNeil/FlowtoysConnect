@@ -15,7 +15,6 @@ class InlineModeParams extends StatefulWidget {
     Key key,
     this.mode,
     this.child,
-    this.onSaveAs,
     this.onTouchUp,
     this.updateMode,
     this.onTouchDown,
@@ -24,7 +23,6 @@ class InlineModeParams extends StatefulWidget {
 
   Widget child;
   final Mode mode;
-  Function onSaveAs = () {};
   Function onTouchUp = () {};
   Function updateMode = () {};
   Function onTouchDown = () {};
@@ -62,31 +60,72 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     colorWas = color;
 
     if (showControlsForParam != null)
-      return _ParamControls(paramName: showControlsForParam);
-
-    if (showSlider != null && sliderVisible)
-      return _Slider(
-        paramName: showSlider,
-        sliderType: sliderType,
+      return Container(
+        child: _ParamControls(paramName: showControlsForParam),
+        margin: EdgeInsets.only(
+          right: 10,
+          bottom: 20,
+          left: 10,
+          top: 15,
+        ),
       );
 
     return Container(
-      margin: EdgeInsets.only(top: 8),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints box) {
-          containerWidth = box.maxWidth;
-          return Column(
-            children: [
-              _Toggles(),
-              Container(
-                height: 15,
+      child: Stack(
+        children: [
+          Container(
+            margin: EdgeInsets.only(
+              right: 10,
+              bottom: 20,
+              left: 10,
+              top: 15,
+            ),
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints box) {
+                containerWidth = box.maxWidth;
+                return Column(
+                  children: [
+                    _Toggles(),
+                    Container(
+                      height: 15,
+                    ),
+                    Dials(),
+                    AnimationSwitches(),
+                    _Buttons(),
+                  ]
+                );
+              }
+            )
+          ),
+          showSlider != null && sliderVisible ?  Positioned.fill(
+
+            child: Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 20,
               ),
-              Dials(),
-              AnimationSwitches(),
-              _Buttons(),
-            ]
-          );
-        }
+              // constraints: BoxConstraints.expand(),
+              decoration: BoxDecoration(
+                // color: Colors.black.withOpacity(0.5),
+                gradient: LinearGradient(
+                  begin: Alignment(0, -1.0),
+                  end: Alignment(0, 1.0),
+                  stops: [0, 0.1, 0.9, 1],
+                  colors: [
+                    Colors.black.withOpacity(0.5),
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.7),
+                    Colors.black.withOpacity(0.5),
+                  ]
+                )
+              ),
+              child: _Slider(
+                paramName: showSlider,
+                sliderType: sliderType,
+              )
+            )
+          ) : Container(),
+        ]
       )
     );
   }
@@ -202,12 +241,28 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            _ToggleButton(
+              title: "Link Audio",
+              value: mode.getParam(paramName).linkAudio ?? false,
+              onChanged: (value) {
+                var param = mode.getParam(paramName);
+                param.linkAudio = value;
+                  audioLinks ??= {};
+                if (value == true)
+                  audioLinks[paramName] = {
+                    'type': 'incremental',
+                  };
+                else audioLinks.remove(paramName);
+                reloadAudioLinks();
+                setState(() {});
+              },
+            ),
             GestureDetector(
               child: Container(
-                padding: EdgeInsets.all(5),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
                     // shape: BoxShape.circle,
                     // color: Colors.black,
@@ -224,22 +279,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               },
             ),
           ]
-        ),
-        _ToggleButton(
-          title: "Link Audio",
-          value: mode.getParam(paramName).linkAudio ?? false,
-          onChanged: (value) {
-            var param = mode.getParam(paramName);
-            param.linkAudio = value;
-              audioLinks ??= {};
-            if (value == true)
-              audioLinks[paramName] = {
-                'type': 'incremental',
-              };
-            else audioLinks.remove(paramName);
-            reloadAudioLinks();
-            setState(() {});
-          },
         ),
         AnimatedBuilder(
           animation: animators[paramName],
@@ -281,7 +320,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Button(
+          ActionButton(
             text: 'Defaults',
             color: Color(0xFFAA3333),
             onTap: () {
@@ -289,7 +328,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               setState((){});
             }
           ),
-          _Button(
+          ActionButton(
             text: 'Randomize!',
             color: Color(0xFF33AA33),
             onTap: () {
@@ -630,10 +669,11 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     return (params.length * xPosition / containerWidth).floor();
   }
 
+  double dx = 0;
   Widget SliderListener({child, onStart, onUpdate}) {
-    double dx = 0;
     return Listener(
       onPointerDown: (PointerEvent details) {
+        dx = 0;
         var index = sliderIndexFromPosition(details.localPosition.dx);
         onStart(index);
         Timer(Duration(milliseconds: 800), () {
@@ -677,18 +717,19 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _Button(
-            text: 'Reset',
+          ActionButton(
+            text: 'Defaults',
             color: Color(0xFFAA3333),
             onTap: () {
               mode.modeParams.keys.forEach((paramName) {
                 mode.resetParam(paramName);
               });
               widget.onTouchUp();
+              widget.updateMode();
               setState((){});
             }
           ),
-          _Button(
+          ActionButton(
             text: 'Randomize!',
             color: Color(0xFF33AA33),
             onTap: () {
@@ -697,37 +738,40 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
                   mode.getParam(key).setValue(Random().nextDouble());
               });
               widget.onTouchUp();
+              widget.updateMode();
               setState(() {});
             }
           ),
-          _Button(
-            text: 'Save to list',
+          ActionButton(
+            text: 'Save As',
             color: Colors.blue,
-            onTap: widget.onSaveAs,
+            onTap: () {
+              Navigator.pushNamed(context, '/lists/new', arguments: {
+                'selectedModes': [mode],
+              });
+            }
           ),
         ].where((button) => button != null).toList()
       ),
     );
   }
 
-  Widget _Button({text, color, onTap}) {
-    if (onTap == null)
-      return null;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-          // margin: EdgeInsets.symmetric(horizontal: 10),
-        padding: EdgeInsets.only(left: 14, right: 14, bottom: 10, top: 8),
-        decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(4),
-          color: color,
-        ),
-        child: Text(text),
-      )
-    );
-  }
-
-
 }
 
 
+Widget ActionButton({text, color, onTap}) {
+  if (onTap == null)
+    return null;
+
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: EdgeInsets.only(left: 14, right: 14, bottom: 10, top: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(4),
+        color: color,
+      ),
+      child: Text(text),
+    )
+  );
+}

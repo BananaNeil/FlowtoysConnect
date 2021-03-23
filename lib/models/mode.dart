@@ -78,6 +78,11 @@ class Mode {
     return global.getParamValues();
   }
 
+  bool get paramsAreDefaults => 
+    modeParams.keys.every((param) {
+      return initialValue(param) == getValue(param);
+    }) && booleanParams.values.every((value) => value == false);
+
   static Map<String, dynamic> get globalParamRatios {
     var params = globalParamValues;
     params.keys.forEach((name) {

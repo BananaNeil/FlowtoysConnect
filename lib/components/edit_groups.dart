@@ -20,7 +20,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
 
   @override initState() {
     super.initState();
-    _expandedGroupIds = Group.currentGroups.map((group) => group.id).toList();
+    _expandedGroupIds = Group.currentGroups.map((group) => group.groupId).toList();
   }
 
   @override
@@ -45,7 +45,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
           },
           child: Container(
             decoration: BoxDecoration(
-              border: Group.currentQuickGroup.id != group.id ? Border(bottom: BorderSide(color: Colors.transparent, width: 4)) : 
+              border: Group.currentQuickGroup.groupId != group.groupId ? Border(bottom: BorderSide(color: Colors.transparent, width: 4)) : 
                 Border(bottom: BorderSide(color: Colors.white, width: 4))
             ),
             padding: EdgeInsets.symmetric(vertical: 8, horizontal: 15),
@@ -62,7 +62,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
   }
 
   Widget _groupWidget(group) {
-    var isExpanded = _expandedGroupIds.contains(group.id);
+    var isExpanded = _expandedGroupIds.contains(group.groupId);
     return Card(
       elevation: 8.0,
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
@@ -85,8 +85,8 @@ class _EditGroupsWidgetState extends State<EditGroups> {
       onTap: () {
         setState(() {
           if (isExpanded)
-            _expandedGroupIds.remove(group.id);
-          else _expandedGroupIds.add(group.id);
+            _expandedGroupIds.remove(group.groupId);
+          else _expandedGroupIds.add(group.groupId);
         });
       },
       child: Row(
