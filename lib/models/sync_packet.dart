@@ -4,6 +4,11 @@ import 'package:app/models/mode.dart';
 import 'package:app/preloader.dart';
 // import 'dart:async';
 
+
+
+import 'package:app/models/prop.dart';
+import 'package:app/client.dart';
+
 class SyncPacket {
   String command;
   String groupId;
@@ -26,12 +31,14 @@ class SyncPacket {
         command = 'sleep';
       else if (data[20] & 2 == 2)
         command = 'wakeup';
-      else if (data[20] & 1 == 0)
-        command = 'stop_adjust';
+      // else if (data[19] == 255)
+      //   command = 'start_cycle';
       else if (data[20] & 1 == 1)
         command = 'start_adjust';
       else if (data[20] & 8 == 8)
         command = 'next_mode';
+      else if (data[20] & 1 == 0)
+        command = 'stop_adjust';
       else print("COMMAND UNKNOWN ${data[20]}");
 
 
@@ -57,10 +64,15 @@ class SyncPacket {
     else if (group.isOn == false && command == 'wakeup' && page != 255)
       group.isOn = true;
 
+    if (modeNumber == 255)
+      group.isCyclingPage = true;
+    else group.isCyclingPage = false;
+
     if (page == 255) {
       group.isCheckingBattery = true;
       return;
     }
+
 
     group.internalMode = null;
     if (group.isOn == false && command != 'sleep')
@@ -91,6 +103,7 @@ class SyncPacket {
     if (command == 'start_adjust')
       group.internalMode.isAdjusting = true;
 
+    print("COMMAND: ${command}");
     if (command == 'start_adjust' || command == 'next_mode')
       Group.setCurrentProps(group.internalMode);
   }

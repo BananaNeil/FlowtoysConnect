@@ -240,12 +240,15 @@ class BLEManager {
 
     if (Authentication.isAuthenticated && !isConnected)
       bridges.forEach((bridge) {
-        if (Authentication.currentAccount.bridgeBleIds.contains(bridge.id.toString()))
-          connect(bridge);
+        if (userOwns(bridge))
+          connect(bridge); //autoConnect
       });
   }
 
-  
+  bool userOwns(BluetoothDevice bridge) {
+    return Authentication.currentAccount.bridgeBleIds.contains(bridge.id.toString());
+  }
+
   void connect(newBridge) async {
     if (newBridge == null) return;
 
@@ -262,6 +265,8 @@ class BLEManager {
       if(state == BluetoothDeviceState.disconnected || state == BluetoothDeviceState.disconnecting) {
         await scanAndConnect();
       } else {
+        if (userOwns(newBridge))
+          Bridge.isClaimed = true;
         Bridge.bleId = newBridge.id.toString();
         Bridge.name = newBridge.name;
         bridge = newBridge;

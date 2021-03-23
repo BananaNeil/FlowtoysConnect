@@ -11,18 +11,21 @@ class Prop {
   String propType;
   String groupId;
   int groupIndex;
+  String userId;
   bool virtual;
   String id;
   int index;
 
-
-  String setName;
-  String type;
-
-
   String get uid => id;
 
   String get currentModeId => currentMode?.id;
+
+  bool _isCyclingPage;
+  bool get isCyclingPage => _isCyclingPage;
+  void set isCyclingPage(value) {
+    _isCyclingPage = value;
+    Prop.propUpdateController.sink.add(this);
+  }
 
   bool _isCheckingBattery;
   bool get isCheckingBattery => _isCheckingBattery;
@@ -40,7 +43,7 @@ class Prop {
     Prop.propUpdateController.sink.add(this);
   }
 
-  Group get group => Group.connectedGroups.firstWhere((group) => group.groupId == groupId);
+  Group get group => Group.possibleGroups.firstWhere((group) => group.groupId == groupId);
   static List<String> get connectedModeIds => Group.connectedProps.map((prop) => prop.currentModeId).toList();
   static List<Mode> get connectedModes => (Group.connectedProps.map((prop) => prop.currentMode).toSet()..removeWhere((mode) => mode == null)).toList();
   static List<Mode> get currentModes => (Group.currentProps.map((prop) => prop.currentMode).toSet()..removeWhere((mode) => mode == null)).toList();
@@ -148,13 +151,19 @@ class Prop {
   }
 
   void setAttributes(data) {
-    type = data['type'];
-    setName = data['set_name'];
+    userId = data['user_id'];
+    propType = data['prop_type'];
+    group.name = data['group_name'];
+    if (group.props.length < data['group_count'])
+      List.generate((data['group_count'] - group.props.length), (i) {
+        group.addVirtualProp();
+      });
   }
 
   Prop({
     this.id,
     this.index,
+    this.userId,
     this.virtual,
     this.groupId,
     this.propType,

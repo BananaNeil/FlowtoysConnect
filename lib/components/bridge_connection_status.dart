@@ -177,7 +177,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
         )
       ),
       onTapTrailing: () => Navigator.pushNamed(context, '/props'),
-      trailingButtonText: "Claim Now",
+      trailingButtonText: "Connect Now",
       trailingVisible: unconnectedGroupCount > 0,
       showBadge: unconnectedGroupCount > 0,
       // onTapTrailing: () {
@@ -343,6 +343,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
           'onPressed': () {
             Bridge.name = renameController.newName;
             Bridge.setNetworkName();
+            Bridge.isClaimed = true;
             Bridge.save();
           }
         }

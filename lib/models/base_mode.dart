@@ -42,7 +42,7 @@ class BaseMode {
   String get thumbnail => Client.url((images['club'] ?? {})['thumb'] ?? defaultImage);
   String get image => Client.url((images['club'] ?? {})['medium'] ?? defaultImage);
   // ..... change this later?
-  String get defaultImage => "https://s3-us-west-1.amazonaws.com/storage.flowtoys.com/doowplovojvzrswvadqxy16o6g7a";
+  String get defaultImage => "";
 
   String get trailImage => Client.url((images['trail'] ?? {})['medium']);
 

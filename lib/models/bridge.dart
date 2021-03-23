@@ -16,6 +16,7 @@ class Bridge {
   static String ownerName;
   static String unclaimedId;
 
+  static bool isClaimed = false;
   static bool _isSyncing = false;
 
   static bool _isRestarting = false;
@@ -52,7 +53,7 @@ class Bridge {
   }
 
   static Future save() {
-    if (!Authentication.isAuthenticated)
+    if (!Authentication.isAuthenticated || !isClaimed)
       return Future.value(null); 
 
     print("SAVING BRIDGE NAME.... ${name}");
@@ -70,7 +71,7 @@ class Bridge {
   static Map<String, dynamic> toMap() {
     return {
       'name': name,
-      'bleId': bleId,
+      'ble_id': bleId,
     };
   }
 

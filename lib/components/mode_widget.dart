@@ -79,6 +79,9 @@ class PropImage extends StatelessWidget {
     if (prop.isOn == false)
       text = 'OFF';
 
+    if (prop.group.isCyclingPage == true)
+      icon = Icon(Icons.double_arrow);
+
     if (prop.isCheckingBattery == true)
       icon = Icon(Icons.battery_charging_full);
 

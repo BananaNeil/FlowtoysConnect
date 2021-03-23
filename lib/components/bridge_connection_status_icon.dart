@@ -35,8 +35,15 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
     stateSubscription = Bridge.stateStream.listen(_updateUnseenItems);
   }
 
+  @override
+  dispose() {
+    propStateSubscription?.cancel();
+    stateSubscription?.cancel();
+    super.dispose();
+  }
+
   void _updateUnseenItems(_) {
-    print("icon Checking connectionState: ${seenState.toString()} == ${connectionState.toString()} ${seenState.toString() == connectionState.toString()}");
+    // print("icon Checking connectionState: ${seenState.toString()} == ${connectionState.toString()} ${seenState.toString() == connectionState.toString()}");
     if (seenState == null) seenState = connectionState;
     setState(() {});
     if (seenState.toString() == connectionState.toString()) return;
@@ -62,23 +69,16 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
     if (isConnected && Bridge.isUnclaimed)
       unseenItemCount += 1;
 
-    if (isConnected && Group.unclaimedGroups.length > 0)
+    if (isConnected && Group.unconnected.length > 0)
       unseenItemCount += 1;
 
     setState(() {});
   }
 
-  @override
-  dispose() {
-    propStateSubscription?.cancel();
-    stateSubscription?.cancel();
-    super.dispose();
-  }
-
   List<dynamic> get connectionState => [
     Bridge.bleManager.bridges.length,
     isConnected && Bridge.isUnclaimed,
-    isConnected ? Group.unclaimedGroups.length : 0,
+    isConnected ? Group.unconnectedGroups.length : 0,
     //
     // isConnected,
     // bleConnected,

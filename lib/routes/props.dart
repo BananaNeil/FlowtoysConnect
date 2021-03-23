@@ -63,8 +63,6 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    // print("current account prop IDS: ${Authentication.currentAccount.propIds}");
-    // print("current account prop IDS: ${group.props.map((prop) => proph}");
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -90,54 +88,58 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             )
           ),
           child: Center(
-            child: Container(
-              constraints: BoxConstraints(minWidth: 0, maxWidth: 540),
-              margin: EdgeInsets.all(AppController.scaleViaWidth(20)),
-              child: Column(
-                children: [
-                  Text("Put your props into Page 5 to claim:",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: AppController.scaleViaWidth(22, minValue: 15, maxValue: 28),
-                    )
-                  ),
-                  Container(
-                    margin: EdgeInsets.only(top: 2, bottom: 20, left: 20, right: 20,),
-                    child: Text("Get to page 5 by quickly pressing a prop button 5 times. When successful, you'll see 5 flashes.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: AppController.scaleViaWidth(16, minValue: 13, maxValue: 19),
-                      )
-                    ),
-                  ),
-                  Text("Connected Props:",
-                    style: TextStyle(
-                      fontSize: AppController.scaleViaWidth(16, minValue: 15, maxValue: 18),
-                    )
-                  ),
-                  ..._ConnectedGroups(),
+            child: Container(height: double.infinity,
+              child: SingleChildScrollView(
+                child: Container(
+                  constraints: BoxConstraints(minWidth: 0, maxWidth: 540),
+                  margin: EdgeInsets.all(AppController.scaleViaWidth(20)),
+                  child: Column(
+                    children: [
+                      Text("Put your props into Page 5 to claim:",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: AppController.scaleViaWidth(22, minValue: 15, maxValue: 28),
+                        )
+                      ),
+                      Container(
+                        margin: EdgeInsets.only(top: 2, bottom: 20, left: 20, right: 20,),
+                        child: Text("Get to page 5 by quickly pressing a prop button 5 times. When successful, you'll see 5 flashes.",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: AppController.scaleViaWidth(16, minValue: 13, maxValue: 19),
+                          )
+                        ),
+                      ),
+                      Text("Connected Props:",
+                        style: TextStyle(
+                          fontSize: AppController.scaleViaWidth(16, minValue: 15, maxValue: 18),
+                        )
+                      ),
+                      ..._ConnectedGroups(),
 
-                  Container(
-                    margin: EdgeInsets.only(top: 30),
-                    child: Text("Waiting to connnect:",
-                      style: TextStyle(
-                        fontSize: AppController.scaleViaWidth(16, minValue: 15, maxValue: 18),
-                      )
-                    )
-                  ),
-                  ..._UnconnectedGroups(),
-                  // _CommunicationTypeButtons,
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.center,
-                  //   children: [
-                  //     Center(child: Text("Syncing:")),
-                  //     _SyncingSwitch,
-                  //   ]
-                  // ),
-                ]
+                      Container(
+                        margin: EdgeInsets.only(top: 30),
+                        child: Text("Waiting to connnect:",
+                          style: TextStyle(
+                            fontSize: AppController.scaleViaWidth(16, minValue: 15, maxValue: 18),
+                          )
+                        )
+                      ),
+                      ..._UnconnectedGroups(),
+                      // _CommunicationTypeButtons,
+                      // Row(
+                      //   mainAxisAlignment: MainAxisAlignment.center,
+                      //   children: [
+                      //     Center(child: Text("Syncing:")),
+                      //     _SyncingSwitch,
+                      //   ]
+                      // ),
+                    ]
+                  )
+                ),
               )
-            ),
+            )
           )
         )
       )
@@ -189,7 +191,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
           child: Column(
             children: [
               _groupTitle(group, isExpanded: isExpanded),
-              ...(isExpanded ? _propsForGroup(group) : []),
+              // ...(isExpanded ? _propsForGroup(group) : []),
             ]
           )
         )
@@ -208,9 +210,6 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             'showCloseButton': true
           }).then((_) {
             if (Authentication.isAuthenticated) {
-              setState(() {
-                Authentication.currentAccount.propIds.addAll(group.props.map<String>((prop) => prop.id.toString()).toList());
-              });
               _openClaimDialog(group: group);
             }
           });
@@ -278,14 +277,14 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
             ),
           ),
           Expanded(
-            child: Text(group.name,
+            child: Text(group.nameWithCount,
               style: TextStyle(
                 fontSize: AppController.scaleViaWidth(15, maxValue: 19, minValue: 13)
               )
             )
           ),
-          !canExpand ? Container() :
-              (isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right)), 
+          // !canExpand ? Container() :
+          //     (isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right)), 
         ]
       ),
     );
@@ -443,18 +442,21 @@ class _ClaimGroup extends State<ClaimGroup> {
             color: Colors.blue,
           ),
         ),
-        onPressed: () {
+        onPressed: () async {
           widget.group.name = widget.renameController.newName;
           widget.group.props.forEach((prop) {
             prop.propType = propType;
-            Authentication.currentAccount.propIds.add(prop.id);
+            prop.userId = Authentication.currentAccount.id;
+            // Authentication.currentAccount.propIds.add(prop.id);
           });
-          Client.updateProps(
+          await Client.updateProps(
             propIds: widget.group.props.map((prop) => prop.id).toList(),
             groupName: widget.group.name,
+            groupCount: propCount,
             propType: propType,
-          );
-          Authentication.currentAccount.save();
+          ).then((_) {
+            Authentication.currentAccount.save();
+          });
           Navigator.pop(context, null);
           setState(() {});
         }
@@ -491,91 +493,102 @@ class _ClaimGroup extends State<ClaimGroup> {
 
 	GlobalKey _toolTipKey = GlobalKey();
   Widget _DetectedProps() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children:[
-            Container(
-              margin: EdgeInsets.only(right:5),
-              child: Text("${propCount} ${pluralizedPropType} ${widget.group.hasVirtualProps ? 'selected' : 'detected'}",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.green,
-                )
-              )
-            ),
-            GestureDetector(
-              onTap: () {
-                final dynamic _toolTip = _toolTipKey.currentState;
-                _toolTip.ensureTooltipVisible();
-              },
-              child: Tooltip(
-                key: _toolTipKey,
-                padding: EdgeInsets.all(15),
-                margin: EdgeInsets.symmetric(horizontal: 40),
-                textStyle: TextStyle(fontSize: 15, color: Colors.black),
-                message: "If this number is incorrect, your props may be using an old firmware. "+
-                  "Please update your firmware so this app can see each prop individually.",
-                child: Container(
-                  child: Text("?"),
-                  padding: EdgeInsets.only(top: 5, right: 5, left: 6, bottom: 6),
-                  margin: EdgeInsets.only(bottom: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
-                    shape: BoxShape.circle,
-                  ),
-                )
-              ),
-            ),
-          ]
-        ),
-        Container(
-          margin: EdgeInsets.only(bottom: 10),
-          child: Row(
+    return Container(
+      margin: EdgeInsets.only(top: 2),
+      child: Column(
+        children: [
+          Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children:[
-              ActionButton(
-                color: widget.group.hasVirtualProps ? Colors.green : Colors.grey,
-                text: "-",
+              Container(
+                margin: EdgeInsets.only(right:5),
+                child: Text("${propCount} ${pluralizedPropType} ${widget.group.hasVirtualProps ? 'selected' : 'detected'}",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.green,
+                  )
+                )
+              ),
+              GestureDetector(
                 onTap: () {
-                  if (widget.group.hasVirtualProps) {
-                    widget.group.removeVirtualProp();
+                  final dynamic _toolTip = _toolTipKey.currentState;
+                  _toolTip.ensureTooltipVisible();
+                },
+                child: Tooltip(
+                  key: _toolTipKey,
+                  padding: EdgeInsets.all(15),
+                  margin: EdgeInsets.symmetric(horizontal: 40),
+                  textStyle: TextStyle(fontSize: 15, color: Colors.black),
+                  message: "If this number is incorrect, your props may be using an old firmware. "+
+                    "Please update your firmware so this app can see each prop individually.",
+                  child: Container(
+                    child: Text("?"),
+                    padding: EdgeInsets.only(top: 5, right: 5, left: 6, bottom: 6),
+                    margin: EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      shape: BoxShape.circle,
+                    ),
+                  )
+                ),
+              ),
+            ]
+          ),
+          Container(
+            margin: EdgeInsets.only(bottom: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children:[
+                _PropCountButton(
+                  color: widget.group.hasVirtualProps ? Color(0xff40a253) : Colors.grey,
+                  padding: EdgeInsets.only(left: 8, right: 7, bottom: 2, top: 0),
+                  text: "-",
+                  onTap: () {
+                    if (widget.group.hasVirtualProps) {
+                      widget.group.removeVirtualProp();
+                      widget.renameController.suffix = pluralizedPropType;
+                      setState(() {});
+                    }
+                  }
+                ),
+                Container(width: 10),
+                _PropCountButton(
+                  color: Color(0xff40a253),
+                  text: "+",
+                  onTap: () {
+                    widget.group.addVirtualProp();
                     widget.renameController.suffix = pluralizedPropType;
                     setState(() {});
                   }
-                }
-              ),
-              Container(width: 10),
-              ActionButton(
-                color: Colors.green,
-                text: "+",
-                onTap: () {
-                  widget.group.addVirtualProp();
-                  widget.renameController.suffix = pluralizedPropType;
-                  setState(() {});
-                }
-              ),
-            ]
+                ),
+              ]
+            )
           )
-        )
-      ]
+        ]
+      )
     );
   }
 
-	Widget ActionButton({text, color, onTap}) {
+	Widget _PropCountButton({text, color, onTap, padding}) {
 		if (onTap == null)
 			return null;
 
 		return GestureDetector(
 			onTap: onTap,
 			child: Container(
-				padding: EdgeInsets.only(left: 7, right: 7, bottom: 3, top: 1),
+				padding: padding ?? EdgeInsets.only(left: 7, right: 7, bottom: 2, top: 0),
 				decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x44000000),
+              offset: Offset(0.9, 0.9),
+              spreadRadius: 1,
+            )
+          ],
 					borderRadius: BorderRadius.circular(4),
 					color: color,
 				),
-				child: Text(text),
+				child: Text(text, style: TextStyle(fontSize: 18)),
 			)
 		);
 	}
@@ -588,23 +601,26 @@ class _ClaimGroup extends State<ClaimGroup> {
             margin: EdgeInsets.only(right: 20),
             child: Text("Choose your prop type:"),
         ),
-        DropdownButton(
-          // isExpanded: true,
-          value: propType,
-          items: propOptions.keys.map((option) {
-            return DropdownMenuItem<String>(
-              value: option,
-              child: Container(
-                margin: EdgeInsets.only(bottom: 5),
-                child: Text(option)
-              )
-            );
-          }).toList(),
-          onChanged: (value) {
-            propType = value;
-            widget.renameController.suffix = pluralizedPropType;
-            setState(() {});
-          },
+        Container(
+          margin: EdgeInsets.only(top: 5),
+          child: DropdownButton(
+            // isExpanded: true,
+            value: propType,
+            items: propOptions.keys.map((option) {
+              return DropdownMenuItem<String>(
+                value: option,
+                child: Container(
+                  margin: EdgeInsets.only(bottom: 5,left: 10, right: 5),
+                  child: Text(option)
+                )
+              );
+            }).toList(),
+            onChanged: (value) {
+              propType = value;
+              widget.renameController.suffix = pluralizedPropType;
+              setState(() {});
+            },
+          ),
         ),
       ]
     );

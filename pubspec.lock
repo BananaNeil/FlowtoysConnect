@@ -235,9 +235,11 @@ packages:
   flutter_blue:
     dependency: "direct main"
     description:
-      path: "/Users/neil/Projects/flowtoys/flutter_blue"
-      relative: false
-    source: path
+      path: "."
+      ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
+      resolved-ref: a00f706608690c2b0eeb44dd5ba059fba3ba38e4
+      url: "git@github.com:BananaNeil/flutter_blue.git"
+    source: git
     version: "0.7.3"
   flutter_downloader:
     dependency: "direct main"

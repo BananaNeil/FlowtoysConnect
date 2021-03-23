@@ -32,10 +32,13 @@ class Group {
 
   String get name {
     if (_name != null) return _name;
+    return unclaimedName;
+  }
 
+  String get nameWithCount {
     if (props.length > 1)
-      return Group.unclaimedName + " (${props.length})";
-    else return Group.unclaimedName;
+      return name + " (${props.length})";
+    else return name;
   }
 
   void set name(name) => _name = name;
@@ -105,6 +108,13 @@ class Group {
     }
   }
 
+  bool _isCyclingPage;
+  bool get isCyclingPage => _isCyclingPage;
+  void set isCyclingPage (value) {
+    props.forEach((prop) => prop.isCyclingPage = value);
+    _isCyclingPage = value;
+  }
+
   bool _isCheckingBattery;
   bool get isCheckingBattery => _isCheckingBattery;
   void set isCheckingBattery(value) {
@@ -133,7 +143,7 @@ class Group {
 
   static List<Group> get unclaimedGroups {
     return connectedGroups.where((group) {
-      return group.props.any((prop) => !Authentication.currentAccount.propIds.contains(prop.id));
+      return group.props.any((prop) => prop.userId == null);
     }).toList();
   }
 
@@ -183,9 +193,9 @@ class Group {
 
       Client.fetchProps(newGroup.props).then((response) {
         if (response['success'])
-          response['body']['props'].forEach((data) {
-            Prop prop = newGroup.props.firstWhere((prop) => prop.uid == data['uid'], orElse: () {});
-            prop.setAttributes(data);
+          response['body']['data'].forEach((data) {
+            Prop prop = newGroup.props.firstWhere((prop) => prop.id == data['id'], orElse: () {});
+            prop.setAttributes(data['attributes']);
           });
       });
 
@@ -206,7 +216,8 @@ class Group {
   List<Prop> get virtualProps => props.where((prop) => prop.virtual == true).toList();
 
   void addVirtualProp() {
-    var prop = Prop(id: "${groupId}-${props.length + 1}", groupId: groupId, virtual: true);
+    String userId = props.length > 0 ? props.first.userId : null;
+    var prop = Prop(id: "${groupId}-${props.length + 1}", groupId: groupId, virtual: true, userId: userId);
     props.add(prop);
   }
 

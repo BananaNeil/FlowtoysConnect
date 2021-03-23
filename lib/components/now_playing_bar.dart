@@ -79,7 +79,6 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
             mainAxisSize: MainAxisSize.min,
             children: [
               _NowPlayingProgressBar,
-              _ModeTitleAndList(),
               Container(
                 margin: EdgeInsets.only(bottom: 10),
                 padding: EdgeInsets.only(bottom: AppController.bottomPadding * 0.75),
@@ -88,20 +87,26 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
                   children: [
                     Expanded(
                       child: Prop.current.length == 0 ?  Container() :
-                        Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Color(0x66FFFFFF),
-                                  offset: Offset(0, 0),
-                                  spreadRadius: 1.0,
-                                  blurRadius: 1.0,
-                                )
-                              ]
-                            ),
-                            child: PropImage(prop: Prop.current.first, size: 25)
-                        ),
+                        Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              child: PropImage(prop: Prop.current.first, size: 25),
+                              margin: EdgeInsets.only(left: 20),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Color(0x66FFFFFF),
+                                    offset: Offset(0, 0),
+                                    spreadRadius: 1.0,
+                                    blurRadius: 1.0,
+                                  )
+                                ]
+                              ),
+                            )
+                          ]
+                      ),
                     ),
                     _PlayControlers,
                     Expanded(
@@ -135,66 +140,71 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
 
   Timer animationTimer;
   Widget get _PlayControlers {
-    return Container(
-      margin: EdgeInsets.all(3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GestureDetector(
-            onTap: () => showModalBottomSheet(
-              builder: (context) => StatefulBuilder(
-                builder: (BuildContext context, setState) => _CycleDurationSliderModal(setState),
-              ),
-              context: context,
-            ).then((_) => setState((){})),
-            child: Container(
-              margin: EdgeInsets.only(top: 3, right: 15),
-              child: Column(
-                children: [
-                  Icon(Icons.av_timer, size: 20),
-                  Text("${cycleDuration.inSeconds} sec",style: TextStyle(fontSize: 11)),
-                ]
-              ),
-            )
-          ),
-          GestureDetector(
-            onTap: () => onPrevious(),
-            child: Icon(Icons.skip_previous, size: 38),
-          ),
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                isPlaying = !isPlaying;
-                if (isPlaying) {
-                  startAnimationTimer();
-                } else {
-                  animationTimer?.cancel();
-                  isPlayingAnimation.stop();
-                }
-              });
-            },
-            child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 38),
-          ),
-          GestureDetector(
-            onTap: () => onNext(),
-            child: Icon(Icons.skip_next, size: 38),
-          ),
-          Container(
-            width: 25,
-            margin: EdgeInsets.only(left: 15, top: 2),
-            child: GestureDetector(
-              onTap: () => widget.toggleShuffle(),
-              child: ColorFiltered(
-                colorFilter: ColorFilter.mode(widget.shuffle ? Colors.green : Colors.white, BlendMode.srcATop),
-                child: Image(
-                  image: AssetImage('assets/images/shuffle.png'),
+    return Column(
+      children: [
+        _ModeTitleAndList(),
+        Container(
+          margin: EdgeInsets.all(3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: () => showModalBottomSheet(
+                  builder: (context) => StatefulBuilder(
+                    builder: (BuildContext context, setState) => _CycleDurationSliderModal(setState),
+                  ),
+                  context: context,
+                ).then((_) => setState((){})),
+                child: Container(
+                  margin: EdgeInsets.only(top: 3, right: 15),
+                  child: Column(
+                    children: [
+                      Icon(Icons.av_timer, size: 20),
+                      Text("${cycleDuration.inSeconds} sec",style: TextStyle(fontSize: 11)),
+                    ]
+                  ),
                 )
-              )
-            )
-          ),
-        ]
-      )
+              ),
+              GestureDetector(
+                onTap: () => onPrevious(),
+                child: Icon(Icons.skip_previous, size: 38),
+              ),
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    isPlaying = !isPlaying;
+                    if (isPlaying) {
+                      startAnimationTimer();
+                    } else {
+                      animationTimer?.cancel();
+                      isPlayingAnimation.stop();
+                    }
+                  });
+                },
+                child: Icon(isPlaying ? Icons.pause : Icons.play_arrow, size: 38),
+              ),
+              GestureDetector(
+                onTap: () => onNext(),
+                child: Icon(Icons.skip_next, size: 38),
+              ),
+              Container(
+                width: 25,
+                margin: EdgeInsets.only(left: 15, top: 2),
+                child: GestureDetector(
+                  onTap: () => widget.toggleShuffle(),
+                  child: ColorFiltered(
+                    colorFilter: ColorFilter.mode(widget.shuffle ? Colors.green : Colors.white, BlendMode.srcATop),
+                    child: Image(
+                      image: AssetImage('assets/images/shuffle.png'),
+                    )
+                  )
+                )
+              ),
+            ]
+          )
+        )
+      ]
     );
   }
 
@@ -302,13 +312,18 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
       return Container();
 
     var mode = Prop.currentModes.first;
+    print("NAME: ${mode.name}");
     return Container(
       margin: EdgeInsets.only(top: 5),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          mode.name == null ? Text(mode.name ?? "") : null,
-          Text("Page: ${mode.page} Mode:${mode.number}",
+          mode != null ? Text(mode.name ?? "") : null,
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 3),
+            child: mode?.name == null ? null : Text(" - "),
+          ),
+          Text("Page: ${mode.page}  Mode: ${mode.number}",
             style: TextStyle(fontWeight: FontWeight.bold),
           )
         ].where((widget) => widget != null).toList()
