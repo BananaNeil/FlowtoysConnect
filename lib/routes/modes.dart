@@ -133,6 +133,8 @@ class _ModesPageState extends State<ModesPage> {
                   children: _ModeLists,
                 )
               ),
+              !showNowPlaying ?
+              _BottomBarExpandedActionButtons() :
               NowPlayingBar(
                 shuffle: shuffle,
                 toggleShuffle: () {
@@ -157,6 +159,60 @@ class _ModesPageState extends State<ModesPage> {
           ),
         ]
       ),
+    );
+  }
+
+  bool get showNowPlaying => !showExpandedActionButtons && !isSelecting;
+
+  Widget _BottomBarExpandedActionButtons() {
+    if (isEditing) return Container();
+    if (isSelecting) return Container();
+
+    return Badge(
+      toAnimate: false,
+      position: BadgePosition.topEnd(top: -12, end: 7),
+      badgeContent: GestureDetector(
+          child: Container(
+              padding: EdgeInsets.only(bottom: 1),
+              child: Text('X', style: TextStyle(fontSize: 12)),
+          ),
+          onTap: () {
+            showExpandedActionButtons = false;
+            setState((){});
+          }
+      ),
+      child: Row(
+        children: [
+          Visibility(
+            visible: !isShowingMultipleLists,
+            child: Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() { isEditing = true; });
+                },
+                child: Container(
+                  padding: EdgeInsets.only(top: 15, bottom: 20),
+                  decoration: BoxDecoration(color: Color(0xFF222222)),
+                  child: Text('Edit Modes', textAlign: TextAlign.center),
+                )
+              )
+            )
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                showExpandedActionButtons = false;
+                setState(() { isSelecting = true; });
+              },
+              child: Container(
+                padding: EdgeInsets.only(top: 15, bottom: 20),
+                decoration: BoxDecoration(color: Color(0xFF222222)),
+                child: Text('Select Modes', textAlign: TextAlign.center),
+              )
+            )
+          ),
+        ]
+      )
     );
   }
 
@@ -336,6 +392,7 @@ class _ModesPageState extends State<ModesPage> {
 
 
   Widget get _FloatingActionButton {
+    if (showNowPlaying) return null;
     if (isSelecting)
       return _SelectionButtons();
     else if (isEditing)
@@ -352,35 +409,19 @@ class _ModesPageState extends State<ModesPage> {
         },
       );
     else if (showExpandedActionButtons)
-      return Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          ActionButton(
-            visible: !isShowingMultipleLists,
-            text: "Edit Modes",
-            onPressed: () {
-              setState(() { isEditing = true; });
-            },
-          ),
-          ActionButton(
-            text: "Select Modes",
-            onPressed: () {
-              setState(() { isSelecting = true; });
-            },
-          ),
-          ActionButton(
-            // visible: !isShowingMultipleLists,
-            child: Icon(
-              Icons.expand_more,
-              color: Colors.white,
-            ),
-            onPressed: () {
-              setState(() { showExpandedActionButtons = false; });
-            },
-          ),
-        ]
-      );
+      return null;
+    else return GestureDetector(
+      onTap: () {
+        setState(() { showExpandedActionButtons = true; });
+      },
+      child: Container(
+        padding: EdgeInsets.only(right: AppController.isSmallScreen ? 10 : 25, top: 10),
+        child: Icon(
+          Icons.more_horiz,
+          color: Colors.white,
+        ),
+      ),
+    );
   }
 
   Widget _SelectionButtons() {
@@ -481,25 +522,30 @@ class _ModesPageState extends State<ModesPage> {
                     });
                 },
               ),
-              Container(
-                height: 20,
-                width: 20,
-                child: FloatingActionButton.extended(
-                  backgroundColor: AppController.red,
-                  label: Text("X"),
-                  heroTag: "cancel",
-                  onPressed: () {
-                    setState(() {
-                      isSelecting = false;
-                      selectedModes = [];
-                    });
-                  },
-                )
-              )
+              _CloseExpandedButtons(),
             ]
           )
         )
       ]
+    );
+  }
+
+  Widget _CloseExpandedButtons() {
+    return Container(
+      height: 20,
+      width: 20,
+      child: FloatingActionButton.extended(
+        backgroundColor: AppController.red,
+        label: Text("X"),
+        heroTag: "cancel",
+        onPressed: () {
+          setState(() {
+            showExpandedActionButtons = true;
+            isSelecting = false;
+            selectedModes = [];
+          });
+        },
+      )
     );
   }
 
