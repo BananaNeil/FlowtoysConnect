@@ -92,6 +92,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
                     Dials(),
                     AnimationSwitches(),
                     _Buttons(),
+                    _AdvancedLink()
                   ]
                 );
               }
@@ -242,27 +243,11 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ToggleButton(
-              title: "Link Audio",
-              value: mode.getParam(paramName).linkAudio ?? false,
-              onChanged: (value) {
-                var param = mode.getParam(paramName);
-                param.linkAudio = value;
-                  audioLinks ??= {};
-                if (value == true)
-                  audioLinks[paramName] = {
-                    'type': 'incremental',
-                  };
-                else audioLinks.remove(paramName);
-                reloadAudioLinks();
-                setState(() {});
-              },
-            ),
             GestureDetector(
               child: Container(
-                padding: EdgeInsets.all(10),
+                padding: EdgeInsets.only(right: 10, bottom: 10),
                 decoration: BoxDecoration(
                     // shape: BoxShape.circle,
                     // color: Colors.black,
@@ -320,11 +305,29 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
+            _ToggleButton(
+              title: "Link Audio",
+              padding: EdgeInsets.all(2),
+              value: mode.getParam(paramName).linkAudio ?? false,
+              onChanged: (value) {
+                var param = mode.getParam(paramName);
+                param.linkAudio = value;
+                  audioLinks ??= {};
+                if (value == true)
+                  audioLinks[paramName] = {
+                    'type': 'incremental',
+                  };
+                else audioLinks.remove(paramName);
+                reloadAudioLinks();
+                setState(() {});
+              },
+            ),
           ActionButton(
             text: 'Defaults',
             color: Color(0xFFAA3333),
             onTap: () {
               mode.resetParam(paramName);
+              ensureAnimationControllerFor(paramName);
               setState((){});
             }
           ),
@@ -348,35 +351,138 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
     var speed = mode.getAnimationSpeed(paramName);
     var sliderValue = mode.getValue(paramName).clamp(0.0, isShowingHueParam ? 2.0 : 1.0);
+    bool audioLinked = false; 
+    var value;
+
+    if (sliderType == 'param') {
+      value = sliderValue;
+      audioLinked = mode.getParam(paramName).linkAudio;
+    } else value = speed.abs(); 
+    print("VALUE::::::::::::::: ${value}");
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(child: Text(label), padding: EdgeInsets.only(top: 8, bottom: 4)),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(child: Text(label), padding: EdgeInsets.only(top: 8, bottom: 4)),
+            _IncrementButtons(
+              disableDecrement: value <= 0.0 || audioLinked,
+              disableIncrement: value >= 1.0 || audioLinked,
+              onChange: (direction) {
+                setSliderValue(
+                  type: sliderType,
+                  param: paramName,
+                  dx: direction / 255.0,
+                );
+                setState(() {});
+              }
+            ),
+          ]
+        ),
         SliderPicker(
           min: 0,
           max: isShowingHueParam ? 2.0 : 1.0,
           height: 30,
           thumbColor: sliderType != 'speed' ? null : (speed == 0 ? Color(0xAAAAAAAA) : Colors.green.withOpacity(0.75)),
 
-          value: sliderType == 'param' ? sliderValue : speed.abs(),
+          value: value,
           colorRows: sliderType == 'speed' ? null : [gradients[paramName]],
-          onChanged: (value){
-            if (sliderType == 'param')
-              mode.getParam(paramName).setValue(value.clamp(0.0, 1.1 + (isShowingHueParam ? 1 : 0)));
-            else if (sliderType == 'speed') {
-              mode.setAnimationSpeed(paramName, value);
-              ensureAnimationControllerFor(paramName);
-            }
-            mode.save();
-
-            widget.updateMode();
-            setState((){});
+          onChanged: (value) {
+            setSliderValue(
+              type: sliderType,
+              param: paramName,
+              value: value,
+            );
           },
-          child: sliderType == 'param' && paramName == 'adjust' ? adjustLines : speedLines
+          child: sliderType == 'param' && paramName == 'adjust' ?
+              adjustLines : speedLines
         )
       ]
     );
+  }
+
+  Widget _IncrementButtons({onChange, disableIncrement, disableDecrement}) {
+    onChange ??= (direction) {};
+    disableDecrement ??= false;
+    disableIncrement ??= false;
+
+
+    return Container(
+      margin: EdgeInsets.only(bottom: 0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children:[
+          _IncrementalButton(
+            color: disableDecrement ? Colors.grey : Color(0xff40a253),
+            padding: EdgeInsets.only(left: 8, right: 7, bottom: 2, top: 0),
+            text: "-",
+            onTap: () {
+              if (!disableDecrement) {
+                onChange(-1);
+              }
+            }
+          ),
+          Container(width: 10),
+          _IncrementalButton(
+            color: disableIncrement ? Colors.grey : Color(0xff40a253),
+            text: "+",
+            onTap: () {
+              if (!disableIncrement) {
+                onChange(1);
+              }
+            }
+          ),
+        ]
+      )
+    );
+  }
+
+  Widget _IncrementalButton({text, color, onTap, padding}) {
+    if (onTap == null)
+     return null;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: padding ?? EdgeInsets.only(left: 7, right: 7, bottom: 2, top: 0),
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x44000000),
+              offset: Offset(0.9, 0.9),
+              spreadRadius: 1,
+            )
+          ],
+          borderRadius: BorderRadius.circular(4),
+          color: color,
+        ),
+        child: Text(text, style: TextStyle(fontSize: 18)),
+      )
+    );
+  }
+
+  void setSliderValue({param, type, value, dx}) {
+    bool isShowingHueParam = param == 'hue' && type == 'param';
+
+    if (type == 'speed')
+      value ??= mode.getAnimationSpeed(param);
+    else value ??= mode.getValue(param);
+
+    if (dx != null)
+        value += dx;
+
+    if (type == 'param')
+      mode.getParam(param).setValue(value.clamp(0.0, 1.1 + (isShowingHueParam ? 1 : 0)));
+    else if (type == 'speed') {
+      mode.setAnimationSpeed(param, value);
+      ensureAnimationControllerFor(param);
+    }
+    mode.save();
+
+    widget.updateMode();
+    setState((){});
   }
 
   Widget _Toggles() {
@@ -411,13 +517,13 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     );
   }
 
-  Widget _ToggleButton({onChanged, title, value}) {
+  Widget _ToggleButton({onChanged, title, value, padding}) {
     return GestureDetector(
       onTap: () {
         onChanged(!value);
       },
       child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 2),
+        padding: padding ?? EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10.0),
           color: Color(0xFF333333),
@@ -711,6 +817,33 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     );
   }
 
+  Widget _AdvancedLink() {
+    if (mode == Mode.global)
+      return Container();
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          margin: EdgeInsets.only(top: 10, right: 10),
+          child: GestureDetector(
+            child: Text('MORE...', style: TextStyle(color: Colors.grey)),
+            onTap: () {
+              var replacement = mode.dup();
+              Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
+                'mode': replacement,
+              }).then((saved) {
+                if (saved == true)
+                  mode.updateFromCopy(replacement).then((_) {
+                  });
+              });
+            },
+          )
+        )
+      ]
+    );
+  }
+
   Widget _Buttons() {
     return Container(
       margin: EdgeInsets.only(top: 20),
@@ -723,6 +856,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             onTap: () {
               mode.modeParams.keys.forEach((paramName) {
                 mode.resetParam(paramName);
+                ensureAnimationControllerFor(paramName);
               });
               widget.onTouchUp();
               widget.updateMode();

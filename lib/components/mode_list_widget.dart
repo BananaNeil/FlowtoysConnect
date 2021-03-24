@@ -255,9 +255,13 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
     return Container(
       color: Theme.of(context).canvasColor,
       padding: EdgeInsets.all(8.0),
-      child: Text(
-        list.name,
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          Text(
+            list.name,
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          )
+        ]
       ),
     );
   }

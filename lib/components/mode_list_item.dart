@@ -309,27 +309,6 @@ class _ModeListItem extends State<ModeListItem> {
         },
         child: Icon(Icons.delete_forever, color: AppController.red),
       );
-    else if (widget.isSelecting)
-      return null;
-    else return GestureDetector(
-      onTap: () {
-        var replacement = mode.dup();
-        Navigator.pushNamed(context, '/modes/${replacement.id}', arguments: {
-          'mode': replacement,
-        }).then((saved) {
-          if (saved == true)
-            mode.updateFromCopy(replacement).then((_) {
-              widget.fetchModes();
-            });
-        });
-      },
-      child: Column(
-        children: [
-          // Icon(Icons.edit),
-          Text("EDIT", style: TextStyle(fontSize: 13)),
-        ]
-      )
-    );
   }
 
 }
