@@ -171,8 +171,9 @@ class _GlobalParams extends State<GlobalParams> {
         children: [
           GestureDetector(
             onTap: () {
-              // Mode.globalParamsEnabled = !Mode.globalParamsEnabled;
               paramsExpanded = !paramsExpanded;
+              if (Mode.global.paramsAreDefaults && paramsExpanded)
+                Mode.globalParamsEnabled = true;
               setState(() {});
             },
             child: Container(
