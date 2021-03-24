@@ -116,7 +116,7 @@ class BLEManager {
     _statusMessage = message;
   }
 
-  bool isOff = false;
+  bool isOff = true;
 
   void factoryReset() {
     bridges.remove(bridge);

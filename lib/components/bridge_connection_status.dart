@@ -192,7 +192,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
 
   List<Widget> get actions {
     return <Widget>[
-      FlatButton(
+      !Bridge.bleManager.isOff && Bridge.bleManager.bridges.length == 0 ? FlatButton(
         child: Container(
           child: Text('Bluetooth Not Working?'),
           decoration: BoxDecoration(
@@ -202,10 +202,16 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
         textColor: AppController.blue,
         onPressed: () {
           AppController.dialogIsOpen = false;
-          Navigator.pop(context, true);
+          Navigator.pop(context, () {
+            AppController.openDialog("No BLE??",
+              "\n- Make sure no other devices are connected to your bridge.\n" +
+              "\n- Try restarting your device and your bridge.\n",
+              alignSubtitle: TextAlign.left,
+            );
+          });
           print("Open bluetooth help dialoag");
         },
-      ),
+      ) : Container(),
       FlatButton(
         child: Text('close'),
         onPressed: () {

@@ -207,7 +207,7 @@ class AppController extends StatefulWidget {
     });
   }
 
-  static Future<dynamic> openDialog(title, body, {child, path, buttonText, buttons, reverseButtons, floatingButton}) async {
+  static Future<dynamic> openDialog(title, body, {child, path, buttonText, buttons, reverseButtons, floatingButton, alignSubtitle}) async {
     if (dialogIsOpen) return Future.value(false);
     dialogIsOpen = true;
 
@@ -265,7 +265,7 @@ class AppController extends StatefulWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   child ?? Container(),
-                  Container(width: 500, child: Text(body, textAlign: TextAlign.center, )),
+                  Container(width: 500, child: Text(body, textAlign: alignSubtitle ?? TextAlign.center, )),
                 ]
               )
             ),
