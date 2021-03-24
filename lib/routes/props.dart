@@ -1,6 +1,5 @@
 import 'package:app/components/bridge_connection_status_icon.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
-import 'package:flash_animation/flash_animation.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/components/edit_groups.dart';
 import 'package:app/components/navigation.dart';

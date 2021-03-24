@@ -307,7 +307,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         children: [
             _ToggleButton(
               title: "Link Audio",
-              padding: EdgeInsets.all(2),
+              padding: EdgeInsets.all(0),
               value: mode.getParam(paramName).linkAudio ?? false,
               onChanged: (value) {
                 var param = mode.getParam(paramName);

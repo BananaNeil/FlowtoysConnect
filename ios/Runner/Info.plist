@@ -39,6 +39,8 @@
 	<string>This app will communicate with LED lights via bluetooth</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
 	<string>This app will communicate with LED lights via bluetooth</string>
+	<key>NSCameraUsageDescription</key>
+	<string>This app does not use your camera, and we should be able to remove this permission</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>We only use this permission to determine your Wifi network's name, and to help connect the bridge to the same network</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
