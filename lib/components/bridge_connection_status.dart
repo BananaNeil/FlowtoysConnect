@@ -1,3 +1,4 @@
+import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:app/components/connection_icon.dart';
 import 'package:app/components/rename_form.dart';
 import 'package:open_settings/open_settings.dart';
@@ -469,6 +470,21 @@ class _BridgeSettings extends State<BridgeSettings> {
               ),
               titleText: 'WIFI Enabled',
               context: context,
+            ),
+          ),
+          Container(
+            child: Text("BLE animation delay ${Bridge.bleAnimationDelay.inMilliseconds / 1000}s"),
+            margin: EdgeInsets.only(left: 10, right: 10, top: 15, bottom: 5),
+          ),
+          Container(
+            margin: EdgeInsets.symmetric(horizontal: 10),
+            child: SliderPicker(
+              value: Bridge.bleAnimationDelay.inMilliseconds / 1000.0,
+              height: 20,
+              onChanged: (value) {
+                Bridge.bleAnimationDelay = Duration(milliseconds: (1000 * value).toInt());
+                setState((){});
+              }
             ),
           ),
           //   child: Container(

@@ -75,7 +75,9 @@ class Bridge {
     };
   }
 
-  static Duration get animationDelay => isWifi ? Duration(milliseconds: 60) : Duration(milliseconds: 600);
+  static Duration get animationDelay => isWifi ? Duration(milliseconds: 60) : bleAnimationDelay;
+
+  static Duration bleAnimationDelay = Duration(milliseconds: 500);
 
   static void setGroup({groupId, page, number, params}) {
     var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
