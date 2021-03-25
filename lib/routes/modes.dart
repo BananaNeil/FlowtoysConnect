@@ -172,14 +172,16 @@ class _ModesPageState extends State<ModesPage> {
       toAnimate: false,
       position: BadgePosition.topEnd(top: -12, end: 7),
       badgeContent: GestureDetector(
-          child: Container(
-              padding: EdgeInsets.only(bottom: 1),
-              child: Text('X', style: TextStyle(fontSize: 12)),
-          ),
-          onTap: () {
-            showExpandedActionButtons = false;
-            setState((){});
-          }
+        behavior: HitTestBehavior.translucent,
+        child: Container(
+            margin: EdgeInsets.all(5),
+            padding: EdgeInsets.only(bottom: 1),
+            child: Text('X', style: TextStyle(fontSize: 12)),
+        ),
+        onTap: () {
+          showExpandedActionButtons = false;
+          setState((){});
+        }
       ),
       child: Row(
         children: [

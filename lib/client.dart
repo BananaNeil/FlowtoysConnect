@@ -22,11 +22,12 @@ class Client {
     else return '';
   }
 
-  static Future<Map<dynamic, dynamic>> updateProps({propIds, propType, groupName, groupCount}) async {
+  static Future<Map<dynamic, dynamic>> updateProps({propIds, propType, groupName, groupCount, groupId}) async {
     Future<Map<dynamic, dynamic>> response = makeRequest('post',
       path: '/props',
       body: {
         'ids': propIds,
+        'group_id': groupId,
         'prop_type': propType,
         'group_name': groupName,
         'group_count': groupCount,
@@ -34,12 +35,10 @@ class Client {
     );
   }
 
-  static Future<Map<dynamic, dynamic>> fetchProps(props) async {
+  static Future<Map<dynamic, dynamic>> fetchProps(propIds) async {
     Future<Map<dynamic, dynamic>> response = makeRequest('get',
       path: '/props',
-      body: {
-        'prop_ids': props.map((prop) => prop.uid).toList(),
-      }
+      body: { 'prop_ids': propIds.toList() }
     );
 
 

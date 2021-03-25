@@ -182,25 +182,37 @@ class Group {
     return Bridge.isConnected && group.props.any((prop) => userPropIds.contains(prop.id));
   }).toList();
 
+  static Group findOrInitializeById(String groupId) {
+    return possibleGroups.firstWhere((group) => group.groupId == groupId, orElse: () {
+      return Group(
+        groupId: groupId,
+        props: [],
+      );
+    });
+  }
+
   static Group findOrCreateById(String groupId) {
-    print("FIND OR CREATE group BY ID");
+    print("FIND OR CREATE group BY ID ${groupId}");
     return possibleGroups.firstWhere((group) => group.groupId == groupId, orElse: () {
       Group newGroup = Group(
         groupId: groupId,
         props: [],
       );
+      possibleGroups.add(newGroup);
       newGroup.addVirtualProp();
 
-      Client.fetchProps(newGroup.props).then((response) {
+			var propIds = newGroup.props.map((prop) => prop.uid).toList();
+      Client.fetchProps(propIds).then((response) {
         if (response['success'])
           response['body']['data'].forEach((data) {
-            Prop prop = newGroup.props.firstWhere((prop) => prop.id == data['id'], orElse: () {});
+            Prop prop = newGroup.props.firstWhere((prop) => prop.id == data['id'], orElse: () {
+              return Prop.fromMap(data);
+            });
             prop.setAttributes(data['attributes']);
           });
       });
 
 
-      possibleGroups.add(newGroup);
       print("ADDED NEW POSSIBLE GROUP: ${Authentication.currentAccount.propIds} CONTAINS????? ${newGroup.props.first.id}");
       if (Authentication.currentAccount.propIds.contains(newGroup.props.first.id)) {
         currentQuickGroup.props.add(newGroup.props.first); 

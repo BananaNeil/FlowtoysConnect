@@ -1,7 +1,10 @@
 import 'package:app/push_notifications.dart';
 import 'package:app/models/account.dart';
 import 'package:app/app_controller.dart';
+import 'package:app/models/bridge.dart';
 import 'package:flutter/material.dart';
+import 'package:app/models/group.dart';
+import 'package:app/models/prop.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:convert';
@@ -37,6 +40,7 @@ class Authentication {
       ...accountData,
       ...(data ?? {}),
     });
+    newAccount.connectedPropIds = currentAccount.connectedPropIds;
     if (submit ?? true)
       return await Client.updateAccount(newAccount.toMap()).then((response) {
         print("BACK FORM UPDATE WITH RESPONSE: ${response['success']}");
@@ -55,7 +59,27 @@ class Authentication {
   static void setCurrentAccount(newAccount) {
     currentAccount = newAccount;
     ensureNotifications();
+    restoreSavedProps();
     saveAccountToDisk();
+  }
+
+  static restoreSavedProps() {
+    Set<String> accountPropIds = currentAccount.propIds ?? Set<String>();
+    Set<String> uknownPropIds = accountPropIds.difference(Prop.possibleIds);
+    if (uknownPropIds.length > 0)
+      Client.fetchProps(uknownPropIds).then((response) {
+        if (response['success']) {
+          Map<String, Group> newGroupsById = {};
+          response['body']['data'].forEach((data) {
+            Group group = newGroupsById[data['attributes']['group_id']] ??=
+                Group.findOrCreateById(data['attributes']['group_id']);
+            Prop prop = Prop.fromMap(data['attributes']);
+            Group.currentQuickGroup.props.add(prop);
+            group.props.add(prop);
+          });
+          Bridge.changeStream.add(null);
+        }
+      });
   }
 
   static void ensureNotifications() {

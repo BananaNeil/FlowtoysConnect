@@ -86,6 +86,8 @@ class Prop {
   static List<Prop> get possible => Group.possibleProps;
   static List<Prop> get connected => Group.connectedProps;
 
+  static Set<String> get possibleIds => Set<String>.from(possible.map((prop) => prop.id));
+
   static void refreshByMode(mode) {
     (propsByModeId[mode.id] ?? []).forEach((prop) => prop.currentMode = mode );
   }
@@ -150,8 +152,16 @@ class Prop {
     }
   }
 
+  factory Prop.fromMap(Map<String, dynamic> body) {
+    Prop prop = Prop();
+    prop.setAttributes(body);
+    return prop;
+  }
+
   void setAttributes(data) {
+    id = data['id'] ?? id;
     userId = data['user_id'];
+    groupId = data['group_id'];
     propType = data['prop_type'];
     group.name = data['group_name'];
     if (group.props.length < data['group_count'])

@@ -7,7 +7,7 @@ import 'package:app/router.dart';
 
 void main({String env}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  env = 'prod';
+  // env = 'prod';
 
   AppController.setEnv(env).then((_) async {
     await Preloader.ready();

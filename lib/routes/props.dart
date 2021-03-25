@@ -62,6 +62,8 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // print("current account prop IDS: ${Authentication.currentAccount.propIds}");
+    // print("current account prop IDS: ${group.props.map((prop) => proph}");
     return GestureDetector(
       onTap: AppController.closeKeyboard,
       child: Scaffold(
@@ -174,6 +176,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
   }
 
   Widget _groupWidget(group) {
+    bool isUnconnected = Group.unconnectedGroups.contains(group);
     var isExpanded = _expandedGroupIds.contains(group.groupId);
     bool canClaim = Group.unclaimedGroups.contains(group);
     return  Card(
@@ -184,7 +187,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
         leading: PropImage(
           prop: group.props.first,
         ),
-        trailing: canClaim ? _ClaimNowButton(group) : null,
+        trailing: canClaim ? _ClaimNowButton(group) : (isUnconnected ? _NeedsConnectionIndicator() : null),
         title: Container(
           padding: EdgeInsets.symmetric(vertical: 6.0),
           child: Column(
@@ -195,6 +198,22 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
           )
         )
       )
+    );
+  }
+
+  Widget _NeedsConnectionIndicator() {
+    return Container(
+      // margin: EdgeInsets.only(right: showBadge == true ? 27 : 0),
+      padding: EdgeInsets.symmetric(vertical: 7, horizontal: AppController.isSmallScreen ? 8 : 12),
+      decoration: BoxDecoration(
+        color: Color(0xFF222222),
+      ),
+      child: Text("Press Button\n5 Times",
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: AppController.isSmallScreen ? 13 : 14
+        )
+      ),
     );
   }
 
@@ -240,7 +259,9 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
 
     AppController.openCustomDialog(
       ClaimGroup(group: group, renameController: renameController)
-    );
+    ).then((_) {
+      setState(() {});
+    });
   }
 
   Widget _groupTitle(group, {isExpanded}) {
@@ -446,10 +467,11 @@ class _ClaimGroup extends State<ClaimGroup> {
           widget.group.props.forEach((prop) {
             prop.propType = propType;
             prop.userId = Authentication.currentAccount.id;
-            // Authentication.currentAccount.propIds.add(prop.id);
+            Authentication.currentAccount.propIds.add(prop.id);
           });
           await Client.updateProps(
             propIds: widget.group.props.map((prop) => prop.id).toList(),
+            groupId: widget.group.groupId,
             groupName: widget.group.name,
             groupCount: propCount,
             propType: propType,

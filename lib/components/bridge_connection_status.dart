@@ -165,29 +165,33 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
       }
     }
 
-    return BridgeDetailsCard(
-      leading: ConnectionIcon(
-        isConnected: connectedGroupCount > 0,
-        disconnectedIcon: Container(
-          width: 23,
-          child: Image(image: AssetImage('assets/images/cube.png'))
+    return GestureDetector(
+      onTap: () {
+        Navigator.pop(context, () {
+          Navigator.pushNamed(context, '/props');
+        });
+      },
+      child: BridgeDetailsCard(
+        leading: ConnectionIcon(
+          isConnected: connectedGroupCount > 0,
+          disconnectedIcon: Container(
+            width: 23,
+            child: Image(image: AssetImage('assets/images/cube.png'))
+          ),
+          connectedIcon: Container(
+            width: 23,
+            child: Image(image: AssetImage('assets/images/cube.png'))
+          )
         ),
-        connectedIcon: Container(
-          width: 23,
-          child: Image(image: AssetImage('assets/images/cube.png'))
-        )
-      ),
-      onTapTrailing: () => Navigator.pushNamed(context, '/props'),
-      trailingButtonText: "Connect Now",
-      trailingVisible: unconnectedGroupCount > 0,
-      showBadge: unconnectedGroupCount > 0,
-      // onTapTrailing: () {
-      // //   OpenSettings.openBluetoothSetting();
-      //   return Future.value(null);
-      // },
-      titleText: title,
-      subtitle: subtitle,
-      context: context,
+        onTapTrailing: () => Navigator.pushNamed(context, '/props'),
+        trailingButtonText: "Connect Now",
+        trailingVisible: unconnectedGroupCount > 0,
+        showBadge: unconnectedGroupCount > 0,
+        subtitleVisible: subtitle != null,
+        titleText: title,
+        subtitle: Text(subtitle),
+        context: context,
+      )
     );
   }
 
