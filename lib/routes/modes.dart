@@ -34,7 +34,7 @@ class Modes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Bridge.oscManager.discoverServices();
-    print(Authentication.currentAccount.toMap());
+    print("VERSION: ${AppController.version} ${AppController.buildNumber} ${AppController.operatingSystem}");
     return ModesPage(
       canShowDefaultLists: canShowDefaultLists,
       hideNavigation: hideNavigation,
@@ -251,12 +251,12 @@ class _ModesPageState extends State<ModesPage> {
 
   Future<Map<dynamic, dynamic>> _makeRequest() {
     if (showDefaultLists)
-      return Client.getModeLists(creationType: 'auto');
+      return Client.getModeLists(creationType: 'system');
     else return Client.getModeList(id);
   }
 
   Future<void> requestFromCache() async {
-    var query = showDefaultLists ? {'creation_type': 'auto'} : {'id': id};
+    var query = showDefaultLists ? {'creation_type': 'system'} : {'id': id};
     return Preloader.getModeLists(query).then((lists) {
       setState(() => modeLists = lists);
     });
@@ -311,19 +311,23 @@ class _ModesPageState extends State<ModesPage> {
   }
 
   void switchCurrentPropsToComputedMode(computeMode) {
-    Prop.quickGroupPropsByGroupId.forEach((groupId, props) {
-      Group group = props.first.group;
-      bool isEntireGroup = group.props.length == props.length;
-      bool allPropsHaveSameMode;
-      if (isEntireGroup)
-        allPropsHaveSameMode = props.every((prop) => prop.currentModeId == props.first.currentModeId);
-
-      if (isEntireGroup && allPropsHaveSameMode)
-        group.currentMode = computeMode(props.first.currentMode);
-      else
-        props.forEach((prop) {
-          prop.currentMode = computeMode(prop.currentMode);
-        });
+    Group.current.forEach((group) {
+      // This commented out code was writen to handle multiple props within a group that have
+      // different modes, and need to go to the next mode. Maybe just scrap all of it?
+      //
+      // String groupId = group.id;
+      // Group group = props.first.group;
+      // bool isEntireGroup = group.props.length == props.length;
+      // bool allPropsHaveSameMode;
+      // if (isEntireGroup)
+      //   allPropsHaveSameMode = props.every((prop) => prop.currentModeId == props.first.currentModeId);
+      //
+      // if (isEntireGroup && allPropsHaveSameMode)
+        group.currentMode = computeMode(group.props.first.currentMode);
+      // else
+      //   props.forEach((prop) {
+      //     prop.currentMode = computeMode(prop.currentMode);
+      //   });
     });
 
     setState(() {});

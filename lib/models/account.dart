@@ -23,6 +23,11 @@ class Account {
 
   Set<String> _connectedPropIds = Set<String>();
   Set<String> get connectedPropIds => propIds.union(_connectedPropIds);
+  void removePropId(id) {
+    _connectedPropIds.remove(id);
+    propIds.remove(id);
+    save();
+  }
   void addConnectedPropId(id) {
     _connectedPropIds.add(id);
   }

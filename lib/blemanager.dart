@@ -141,6 +141,7 @@ class BLEManager {
 
         if (device.name.contains("FlowConnect")) {
           bridges.add(device);
+          changeStream?.add(null);
         }
       }
     }).catchError((error) {
@@ -193,6 +194,7 @@ class BLEManager {
           print("**BRIDGE ID::::: ${result.device.id.toString()}");
           if (result.device.name.contains("FlowConnect")) {
             bridges.add(result.device);
+            changeStream?.add(null);
             return;
           }
         }
@@ -359,7 +361,7 @@ class BLEManager {
   }
 
   void reconnectToBridge() async {
-    print("Reconnecting to bridge (brige is null? ${bridge == null }, isConnected: ${isConnected})");
+    // print("Reconnecting to bridge (brige is null? ${bridge == null }, isConnected: ${isConnected})");
     if (!isConnected)
       await scanAndConnect();
     // else if ()
@@ -368,10 +370,10 @@ class BLEManager {
 
   void sendString(String message) async {
 
-    print("Sending via BLE : " + message);
+    // print("Sending via BLE : " + message);
 
     await reconnectToBridge();
-    print("Connected to bridge: ${isConnected}");
+    // print("Connected to bridge: ${isConnected}");
 
     if (txChar == null || !isReadyToSend) {
       print("Bridge is broken (tx characteristic not found), not sending (isReady: ${isReadyToSend})");
@@ -381,7 +383,7 @@ class BLEManager {
    
     //for(int i=0;i<10 && isSending;i++) sleep(Duration(milliseconds: 100));
 
-    print("IS SENDING BLE");
+    // print("IS SENDING BLE");
     try {
       isSending = true;
        await txChar.write(
@@ -397,7 +399,7 @@ class BLEManager {
       print("Error sending Bluetooth command :\n${error.toString()}");
     }
 
-        print("DONE SENDING BLE");
+        // print("DONE SENDING BLE");
     isSending = false;
   }
 

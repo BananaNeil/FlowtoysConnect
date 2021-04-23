@@ -64,7 +64,7 @@ class _GlobalParams extends State<GlobalParams> {
             children: [
               _Header(),
               HorizontalLineShadow(),
-              _Filters(),
+              // _Filters(),
               _Params(),
             ]
           ),
@@ -167,7 +167,7 @@ class _GlobalParams extends State<GlobalParams> {
     return Container(
       margin: EdgeInsets.only(bottom: 7),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        // mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           GestureDetector(
             onTap: () {
@@ -196,46 +196,50 @@ class _GlobalParams extends State<GlobalParams> {
                     }
                   ),
                   Text("Global Params", style: TextStyle(fontSize: 16)),
-                  // Container(
-                  //   child: paramsExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                  // )
+                  Container(
+                    child: paramsExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+                  )
                 ]
               ),
             ),
           ),
-          Container(
-            margin: EdgeInsets.only(left: 10),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => filtersExpanded = !filtersExpanded);
-              },
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: widget.filterController.isOn,
-                    activeColor: Colors.blue,
-                    onChanged: (value) {
-                      if (value == true && widget.filterController.filtersAreBlank)
-                        return setState(() => filtersExpanded = !filtersExpanded);
-
-                      if (value) widget.filterController.on();
-                      else widget.filterController.off();
-                      setState(() {});
-                    }
-                  ),
-                  Text("Filters",
-                    textAlign: TextAlign.left,
-                    style: TextStyle(fontSize: 16)
-                  ),
-                  // Container(
-                  //   child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
-                  // )
-                ]
-              )
-            ),
-          ),
+          // _FiltersHeader()
         ]
       )
+    );
+  }
+
+  Widget _FiltersHeader() {
+    return Container(
+      margin: EdgeInsets.only(left: 10),
+      child: GestureDetector(
+        onTap: () {
+          setState(() => filtersExpanded = !filtersExpanded);
+        },
+        child: Row(
+          children: [
+            Checkbox(
+              value: widget.filterController.isOn,
+              activeColor: Colors.blue,
+              onChanged: (value) {
+                if (value == true && widget.filterController.filtersAreBlank)
+                  return setState(() => filtersExpanded = !filtersExpanded);
+
+                if (value) widget.filterController.on();
+                else widget.filterController.off();
+                setState(() {});
+              }
+            ),
+            Text("Filters",
+              textAlign: TextAlign.left,
+              style: TextStyle(fontSize: 16)
+            ),
+            // Container(
+            //   child: filtersExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right),
+            // )
+          ]
+        )
+      ),
     );
   }
 

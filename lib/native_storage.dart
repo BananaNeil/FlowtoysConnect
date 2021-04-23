@@ -1,4 +1,5 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:localstorage/localstorage.dart';
 import 'dart:io' show Platform;
 
@@ -10,8 +11,15 @@ class Storage {
   static LocalStorage _macStorage;
   static LocalStorage get macStorage => _macStorage ??= new LocalStorage('flowtoys');
 
-  static Future<bool> ready() {
+  static Future<bool> ready() async {
     if (Platform.isMacOS) return macStorage.ready;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (prefs.getBool('first_run') ?? true) {
+      FlutterSecureStorage storage = FlutterSecureStorage();
+      await storage.deleteAll();
+      prefs.setBool('first_run', false);
+    }
     return Future.value(true);
   }
 

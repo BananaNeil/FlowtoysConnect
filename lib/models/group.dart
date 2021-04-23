@@ -60,7 +60,7 @@ class Group {
     currentGroups.forEach((group) => group.currentMode = mode );
   }
 
-  Timer animationUpdater;
+  static Map<String, Timer> animationUpdaters = {};
   Mode _currentMode;
   Mode get currentMode {
     // if (props.any((prop) => prop.currentModeId != props.first.currentModeId))
@@ -77,7 +77,7 @@ class Group {
   void set currentMode(mode) {
     if (props.length == 0) return;
     _currentMode = mode;
-    animationUpdater?.cancel();
+    animationUpdaters[groupId]?.cancel();
 
     // at the moment, props can only enter adjustRandomized if currently adjusting.
     //
@@ -90,11 +90,11 @@ class Group {
       props.forEach((prop) => prop.internalMode = mode);
 
     if (mode.isAnimating)
-      animationUpdater = Timer.periodic(Bridge.animationDelay * 1.02, (_) {
+      animationUpdaters[groupId] = Timer(Bridge.animationDelay * 1.02, () {
         this.currentMode = _currentMode;
       });
 
-    print("AD.USTED params: ${props.first.adjustedModeParamValues}");
+    // print("AD.USTED params: ${props.first.adjustedModeParamValues}");
     if (_currentModeSetAt == null || DateTime.now().difference(_currentModeSetAt) > Bridge.animationDelay) {
       _currentModeSetAt = DateTime.now();
       currentGroups.forEach((group) {
@@ -128,7 +128,7 @@ class Group {
 
 
   bool possiblyOn = false;
-  bool _isOn;
+  bool _isOn = true;
   bool get isOn => _isOn;
   void set isOn(value) {
     _isOn = value;
@@ -254,12 +254,12 @@ class Group {
       // Group(
       //     id: "1",
       //     name: "Neil's Clubs",
-      //     props: List.generate(3, (index) => Prop(id: index.toString(), groupId: '1', index: index, groupIndex: 0)),
+      //     props: List.generate(1, (index) => Prop(id: index.toString(), groupId: '1', index: index, groupIndex: 0)),
       // ),
       // Group(
       //     id: "2",
       //     name: "Ben's Clubs",
-      //     props: List.generate(2, (index) => Prop(id: (200 + index).toString(), groupId: '2', index: index, groupIndex: 1)),
+      //     props: List.generate(1, (index) => Prop(id: (200 + index).toString(), groupId: '2', index: index, groupIndex: 1)),
       // ),
       // Group(
       //     id: "3",

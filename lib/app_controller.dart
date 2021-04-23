@@ -29,6 +29,8 @@ class AppController extends StatefulWidget {
   static String openedPath;
   static String appEnv;
 
+  static String get operatingSystem => Platform.operatingSystem;
+  static String get operatingSystemVersion => Platform.operatingSystemVersion;
   static String buildNumber;
   static String version;
 
@@ -325,6 +327,11 @@ class AppControllerState extends State<AppController> {
 int sumList(list) {
   if (list.isEmpty) return 0;
   return list.reduce((num a, num b) => a + b);
+}
+
+
+E firstOrNull<E>(List<E> list) {
+    return list == null || list.isEmpty ? null : list.first;
 }
 
 

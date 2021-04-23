@@ -46,6 +46,94 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
 
   Show show;
   String editMode;
+
+  Widget _dropDownOptions = Container();
+  bool _hasShownMessage = false;
+  // Map arguments;
+
+  @override
+  Widget build(BuildContext context) {
+    editMode = show.trackType;
+    // Test this:::::::::
+    if (!_hasShownMessage && _initialBuildMessage != null)
+      _showNoticeMessage(_initialBuildMessage, color: _initialBuildMessageColor);
+
+    // show.ensureFilledEndSpace();
+    // show.ensureStartOffsets();
+    // reloadModes();
+    // print("SHOW ${trackHeight}");
+    // print("SHOW: ${show.modeTracks[0][2].object.modeTracks[0][1].hashCode}");
+    // print("SHOWw: ${modeTimelineControllers.first.elementAtTime(playOffsetDuration)}");
+    loadPlayers();
+    loadModes();
+
+    return Center(
+      child: Container(
+        padding: EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Colors.black,
+          )
+        ),
+        child: LayoutBuilder(
+          builder: (BuildContext context, BoxConstraints box) {
+            setContainerHeight(box.maxHeight);
+            setContainerWidth(box.maxWidth);
+
+
+            // if (audioPlayers.length == 0)
+            //   return Container();
+
+    
+            containerGlobalKey ??= RectGetter.createGlobalKey();
+            container = RectGetter(
+              key: containerGlobalKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _Controls(),
+                  // Timeline:
+                  AnimatedBuilder(
+                    animation: startOffset,
+                    builder: (ctx, w) {
+                      return Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _Timestamps(),
+                          _TimelineContainer(),
+                          _ScrollBar(),
+                        ],
+                      );
+                    }
+                  ),
+                  Container(
+                    margin: EdgeInsets.only(right: 10, left: 10, top: 10, bottom: AppController.bottomPadding),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      _ScaleSlider(),
+                      _EditModeButtons(),
+                      _GroupingIconButtons(),
+                      _IconButtonSettings(),
+                    ].where((el) => el != null).toList()),
+                  )
+                ]
+              ),
+            ); 
+
+            return Stack(
+              children: [
+                container,
+                _dropDownOptions,
+              ]
+            );
+          }
+        )
+      )
+    );
+  }
+
+
+
   Timer computeDataTimer;
   String _initialBuildMessage;
   Color _initialBuildMessageColor;
@@ -211,6 +299,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     show.fetchHistory().then((_) => setState((){}));
     super.initState();
   }
+
+  List<TimelineElement> get currentModeElements => modeTimelineControllers.map((controller) {
+    return controller.elementAtTime(playOffsetDuration);
+  }).toList();
 
   List<TimelineElement> get currentElements => timelineControllers.map((controller) {
     return controller.elementAtTime(playOffsetDuration);
@@ -385,7 +477,35 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       playOffset.stop();
     }
 
+    setCurrentAndNextGroups();
+
     setState((){});
+  }
+
+  Duration get nextInflectionPoint => inflectionPoints.firstWhere((inflectionPoint) {
+    return inflectionPoint > playOffsetDuration;
+  }, orElse: () => show.duration);
+
+  Timer setGroupTimer;
+  void setCurrentGroups() {
+    eachWithIndex(Group.current, (index, group) {
+      group.currentMode = currentModes[min(index, currentModes.length-1)];
+    });
+  }
+
+  void setCurrentAndNextGroups() {
+    setCurrentGroups();
+    setGroupTimer?.cancel();
+    if (isPlaying && nextInflectionPoint > playOffsetDuration)
+      setGroupTimer = Timer(nextInflectionPoint - playOffsetDuration, () {
+        setCurrentAndNextGroups();
+      });
+  }
+
+  List<Mode> get currentModes {
+    return currentModeElements.map<List<Mode>>((element) {
+      return element.modesAtTime(playOffsetDuration);
+    }).expand((mode) => mode).toList();
   }
 
   void removeSelected({growFrom, replaceWithBlack}) {
@@ -428,91 +548,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     reloadModes();
   }
 
-  Widget _dropDownOptions = Container();
-  bool _hasShownMessage = false;
-  // Map arguments;
-
-  @override
-  Widget build(BuildContext context) {
-    editMode = show.trackType;
-    // Test this:::::::::
-    if (!_hasShownMessage && _initialBuildMessage != null)
-      _showNoticeMessage(_initialBuildMessage, color: _initialBuildMessageColor);
-
-    // show.ensureFilledEndSpace();
-    // show.ensureStartOffsets();
-    // reloadModes();
-    // print("SHOW ${trackHeight}");
-    // print("SHOW: ${show.modeTracks[0][2].object.modeTracks[0][1].hashCode}");
-    // print("SHOWw: ${modeTimelineControllers.first.elementAtTime(playOffsetDuration)}");
-    loadPlayers();
-    loadModes();
-
-    return Center(
-      child: Container(
-        padding: EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.black,
-          )
-        ),
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints box) {
-            setContainerHeight(box.maxHeight);
-            setContainerWidth(box.maxWidth);
-
-
-            // if (audioPlayers.length == 0)
-            //   return Container();
-
-    
-            containerGlobalKey ??= RectGetter.createGlobalKey();
-            container = RectGetter(
-              key: containerGlobalKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _Controls(),
-                  // Timeline:
-                  AnimatedBuilder(
-                    animation: startOffset,
-                    builder: (ctx, w) {
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          _Timestamps(),
-                          _TimelineContainer(),
-                          _ScrollBar(),
-                        ],
-                      );
-                    }
-                  ),
-                  Container(
-                    margin: EdgeInsets.only(right: 10, left: 10, top: 10),
-                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                      _ScaleSlider(),
-                      _EditModeButtons(),
-                      _GroupingIconButtons(),
-                      _IconButtonSettings(),
-                    ].where((el) => el != null).toList()),
-                  )
-                ]
-              ),
-            ); 
-
-            return Stack(
-              children: [
-                container,
-                _dropDownOptions,
-              ]
-            );
-          }
-        )
-      )
-    );
-  }
-
   double _playOffsetValue;
   _PlayHead() {
     return AnimatedBuilder(
@@ -538,6 +573,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                     return snapping && (1.0 - (_playOffsetValue / offset.inMicroseconds)).abs() < (0.05 / scale);
                   }, orElse: () => null)?.inMicroseconds?.toDouble() ?? _playOffsetValue;
 
+                  setGroupTimer?.cancel();
+                  setCurrentGroups();
                   setState((){});
                 },
                 onPanEnd: (details) {
@@ -608,6 +645,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
           return snapping && (1.0 - (_playOffsetValue / offset.inMicroseconds)).abs() < (0.05 / scale);
         }, orElse: () => null)?.inMicroseconds?.toDouble() ?? _playOffsetValue;
 
+        setGroupTimer?.cancel();
+        setCurrentGroups();
         setState((){});
       },
       onPanEnd: (details) {
@@ -686,7 +725,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
     );
   }
 
-  double get trackHeight => (containerHeight / 600) * (editMode == 'global' ? 160 : (editMode == 'groups' ? 80 : 40));
+  // double get trackHeight => (containerHeight / 600) * (editMode == 'global' ? 160 : (editMode == 'groups' ? 80 : 40)) * (1 / max(1, modeTimelineControllers.length - 3));
+  double get trackHeight => (containerHeight / 600) * 160 / max(1, modeTimelineControllers.length);
 
   Widget _ModeContainer() {
     return Column(
@@ -720,9 +760,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 if (selectedElementsAreIdenticalModes)
                   _editModeParams();
                 else if (oneElementSelected && selectedElements.first.objectType == 'Show') {
-                  show.setEditMode('props');
-                  reloadModes();
-                  _showNoticeMessage("Editing Props");
+                  _showNoticeMessage("Editing individual props is disabled in this version", color: Colors.red);
+                  // show.setEditMode('props');
+                  // reloadModes();
+                  // _showNoticeMessage("Editing Props");
                 } else _replaceSelectedModes();
               },
               snapping: snapping,
@@ -918,7 +959,6 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
         }
       } else {
         List.from(track.reversed).forEach((element) {
-          print(" ${element.startOffset > newElement.startOffset} | ${element.endOffset > newElement.startOffset}");
           if (element.startOffset > newElement.startOffset) {
             if (element.endOffset <= newElement.endOffset)
               // elementsToRemove.add(element);
@@ -926,19 +966,15 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
             else if (element.startOffset < newElement.endOffset)
               element.duration -= newElement.endOffset - element.startOffset;
           } else if (element.endOffset > newElement.startOffset) {
-            print(" || ${element.endOffset <= newElement.endOffset}");
             if (element.endOffset <= newElement.endOffset)
               element.duration -= element.endOffset - newElement.startOffset;
             else {
-              print("EEEEEEE: ${element.endOffset}");
-              print("Creating new elementi to add at the end: ${element.endOffset - newElement.endOffset}");
               insertAfterNewElement = TimelineElement(
                 contentOffset: element.contentOffset + (newElement.endOffset - element.startOffset),
                 duration: element.endOffset - newElement.endOffset,
                 startOffset: newElement.endOffset,
                 object: element.object,
               );
-              print("element.duration (${element.duration}) -= ${element.endOffset} - ${newElement.startOffset} (${element.endOffset - newElement.startOffset})");
               element.duration -= element.endOffset - newElement.startOffset;
             }
           }
@@ -1340,6 +1376,8 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
   }
 
   Widget _GroupingIconButtons() {
+    if (show.propCounts == [1])
+      return Container();
     return Container(
       child: Row(
         children: [
@@ -1369,19 +1407,19 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
               image: AssetImage('assets/images/group-timeline.png'),
             )
           ),
-          _ToggleButton(
-            message: "Prop Edit Mode",
-            active: editMode == 'props',
-            onTap: () {
-              show.setEditMode('props');
-              reloadModes();
-              _showNoticeMessage("Editing Props");
-            },
-            padding: EdgeInsets.all(3),
-            child: Image(
-              image: AssetImage('assets/images/prop-timeline.png'),
-            )
-          ),
+          // _ToggleButton(
+          //   message: "Prop Edit Mode",
+          //   active: editMode == 'props',
+          //   onTap: () {
+          //     show.setEditMode('props');
+          //     reloadModes();
+          //     _showNoticeMessage("Editing Props");
+          //   },
+          //   padding: EdgeInsets.all(3),
+          //   child: Image(
+          //     image: AssetImage('assets/images/prop-timeline.png'),
+          //   )
+          // ),
         ]
       )
     );
@@ -1508,6 +1546,53 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                     ]
                   )
                 ),
+                Container(
+                  margin: EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    // mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text("Group Count ${show.propCounts.length}"),
+                      Container(width: 10),
+                      _GroupCountButton(
+                        color: show.propCounts.length > 1 ? Color(0xff40a253) : Colors.grey,
+                        padding: EdgeInsets.only(left: 8, right: 7, bottom: 2, top: 0),
+                        text: "-",
+                        onTap: () {
+                          show.setEditMode('global');
+                          show.propCounts.removeLast();
+                          show.setEditMode('props');
+                          show.setEditMode(editMode);
+                          reloadModes();
+                          setState(() {});
+                        }
+                      ),
+                      Container(width: 10),
+                      _GroupCountButton(
+                        color: Color(0xff40a253),
+                        text: "+",
+                        onTap: () {
+                          show.setEditMode('global');
+                          show.propCounts.add(1);
+                          show.setEditMode('props');
+                          show.setEditMode(editMode);
+                          reloadModes();
+                          setState(() {});
+                        }
+                      ),
+                    ]
+                  )
+                ),
+                Container(
+                  margin: EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    // mainAxisSize: MainAxisSize.min,
+                    children: Group.currentProps.map((prop) {
+                      return PropImage(prop: prop, size: 25);
+                    }).toList(),
+                  )
+                ),
               ]
             ),
           ),
@@ -1558,6 +1643,30 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
       )
     );
   }
+
+	Widget _GroupCountButton({text, color, onTap, padding}) {
+		if (onTap == null)
+			return null;
+
+		return GestureDetector(
+			onTap: onTap,
+			child: Container(
+				padding: padding ?? EdgeInsets.only(left: 7, right: 7, bottom: 2, top: 0),
+				decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x44000000),
+              offset: Offset(0.9, 0.9),
+              spreadRadius: 1,
+            )
+          ],
+					borderRadius: BorderRadius.circular(4),
+					color: color,
+				),
+				child: Text(text, style: TextStyle(fontSize: 18)),
+			)
+		);
+	}
 
   void _showNoticeMessage(message, {color}) {
     _hasShownMessage = true;

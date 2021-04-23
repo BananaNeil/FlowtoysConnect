@@ -247,6 +247,7 @@ class ModeParam {
 
   num getValue({indexes}) {
     indexes = (indexes ?? [])..removeWhere((index) => index == null);
+    // print("RETURNA ANIMATED VALUE? (val ${animatedValue}) ${Group.currentProps.length == 0} || ${!multiValueEnabled}");
     if (Group.currentProps.length == 0) return animatedValue;
     if (!multiValueEnabled) return animatedValue;
 
@@ -310,8 +311,20 @@ class ModeParam {
     );
   }
 
-  Map<String, dynamic> toMap() {
+  static Map<String, dynamic> get defaults {
     return {
+      "value": 0.0,
+      "childValues": [],
+      "linkAudio": false,
+      "animationSpeed": 0.0,
+      "hasChildValues": false,
+      "animationStartedAt": 0,
+      "multiValueEnabled": false,
+    };
+  }
+
+  Map<String, dynamic> toMap() {
+    Map<String, dynamic> map = {
       'value': value,
       'linkAudio': linkAudio,
       'childType': childType,
@@ -323,5 +336,10 @@ class ModeParam {
       'animationStartedAt': animationStartedAt?.microsecondsSinceEpoch,
       'childValues': childParams.map((param) => param.toMap()).toList(),
     };
+    ModeParam.defaults.forEach((key, value) {
+      if (map[key] == value || value == null)
+        map.remove(key);
+    });
+    return map;
   }
 }

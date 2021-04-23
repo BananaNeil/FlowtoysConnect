@@ -88,10 +88,10 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
                     Expanded(
                       child: Prop.current.length == 0 ?  Container() :
                         Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             Container(
-                              child: PropImage(prop: Prop.current.first, size: 25),
+                              child: PropImage(prop: firstOrNull(Prop.currentAndOn) ?? Prop.current.first, size: 25),
                               margin: EdgeInsets.only(left: 20),
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
@@ -264,7 +264,6 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
               cycleDuration = Duration(milliseconds: 500 + (Duration(minutes: 1).inMilliseconds * pow(value, 1.2)).toInt());
               cycleDurationChangeTimer?.cancel();
               cycleDurationChangeTimer = Timer(Duration(milliseconds: 200), () {
-                print("SET THE ISPLAYING ANIMATION!");
                 isPlayingAnimation.duration = cycleDuration;
               });
               setState((){});
@@ -323,7 +322,7 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
             margin: EdgeInsets.symmetric(horizontal: 3),
             child: mode?.name == null ? null : Text(" - "),
           ),
-          Text("Page: ${mode.page}  Mode: ${mode.number}",
+          Text("P${mode.page}M${mode.number}",
             style: TextStyle(fontWeight: FontWeight.bold),
           )
         ].where((widget) => widget != null).toList()

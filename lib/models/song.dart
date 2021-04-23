@@ -73,7 +73,7 @@ class Song {
   Future<dynamic> downloadFile() async {
     if (fileUrl == null)
       return Future.error("NO FILE URL");
-    print('Downloading ${fileUrl} into: '+ Preloader.songDir.path);
+    print('Downloading ${fileUrl} into: '+ Preloader.songDir.path +" pending: ${fileDownloadPending}, done: ${isDownloaded}");
 
     if (fileDownloadPending)
       return downloadTask.future;

@@ -212,7 +212,7 @@ class Mode {
     return {
       'isAdjusting': isAdjusting,
       'adjustRandomized': adjustRandomized,
-      'adjustCycles': 4,//adjustCycles.toDouble(),
+      'adjustCycles': adjustCycles.toDouble(),
       'adjust': getValue('adjust', groupIndex: groupIndex, propIndex: propIndex),
       'saturation': getValue('saturation', groupIndex: groupIndex, propIndex: propIndex),
       'brightness': getValue('brightness', groupIndex: groupIndex, propIndex: propIndex),

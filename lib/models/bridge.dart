@@ -77,7 +77,7 @@ class Bridge {
 
   static Duration get animationDelay => isWifi ? Duration(milliseconds: 60) : bleAnimationDelay;
 
-  static Duration bleAnimationDelay = Duration(milliseconds: 500);
+  static Duration bleAnimationDelay = Duration(milliseconds: 120);
 
   static void setGroup({groupId, page, number, params}) {
     var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
@@ -87,6 +87,7 @@ class Bridge {
     List<double> adjustValues = List.generate(4, (i) {
       return min(max(0, totalLFO - i), 1);
     });
+    print("TOTAL LFO: ${totalLFO}");
 
     List<double> paramRatios = paramNames.map<double>((name) => params[name]).toList();
     paramRatios.addAll(adjustValues);

@@ -289,6 +289,13 @@ packages:
       url: "https://github.com/BananaNeil/flutter_siri_suggestions.git"
     source: git
     version: "1.0.2+hotfix1"
+  flutter_slidable:
+    dependency: "direct main"
+    description:
+      name: flutter_slidable
+      url: "https://pub.dartlang.org"
+    source: hosted
+    version: "0.5.7"
   flutter_speed_dial:
     dependency: "direct main"
     description:

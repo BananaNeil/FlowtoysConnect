@@ -198,12 +198,12 @@ class _ModeListItem extends State<ModeListItem> {
   
   Widget _ActiveModesIndicator() {
     // This should show this:
-    _activePropCount = activePropCount;
+    // _activePropCount = activePropCount;
     //
     // But until props can be addressed individually, we must show "groups"
-    // var groupCount = Group.connectedGroups.where((group) => group.currentMode.id == mode.id).length;
+    var groupCount = Group.connectedGroups.where((group) => group.currentMode?.id == mode?.id).length;
     return Container(
-      child: _activePropCount == 0 ? null : Text(
+      child: groupCount == 0 ? null : Text(
         "${_activePropCount} ${Intl.plural(_activePropCount, one: 'group', other: 'groups')} activated",
         style: TextStyle(
             fontSize: 14,

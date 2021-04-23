@@ -61,7 +61,7 @@ class SyncPacket {
   }) {
     if (command == 'sleep')
       group.isOn = false;
-    else if (group.isOn == false && command == 'wakeup' && page != 255)
+    else //if (group.isOn == false && command == 'wakeup' && page != 255)
       group.isOn = true;
 
     if (modeNumber == 255)
@@ -82,14 +82,12 @@ class SyncPacket {
 
     // print("prop ON: ${group.props.first.isOn} ... isON: ${group.isOn} possiblyON: ${group.possiblyOn}");
 
-    // THIS SHOULD BE SYSTEM CREATION TYPE.....
-    //   (if we change the home page to show system modes instead of auto created modes)
-    Preloader.getModeLists({'creation_type': 'auto'}).then((lists) {
+    Preloader.getModeLists({'creation_type': 'system'}).then((lists) {
       print("(page: ${page}, mode: ${modeNumber}) GET MODE LISTS: ${lists}");
       lists.forEach((list) {
         list.modes.forEach((mode) {
           if (mode.page == page + 1 && mode.number == modeNumber + 1){
-            print("Set teh mode:");
+            print("Set teh mode: ${mode.images}");
             group.internalMode = mode;
           }
         });

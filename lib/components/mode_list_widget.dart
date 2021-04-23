@@ -157,7 +157,7 @@ class _ModeListWidget extends State<ModeListWidget> with TickerProviderStateMixi
             child: Container(height: 35,
               child: DropdownButton(
                 isExpanded: true,
-                value: modeLists.firstWhere((list) => list.id != null)?.id,
+                value: modeLists.firstWhere((list) => list.id != null, orElse: () => null)?.id,
                 items: allLists.map((ModeList list) {
                   return DropdownMenuItem<String>(
                     value: list.id,

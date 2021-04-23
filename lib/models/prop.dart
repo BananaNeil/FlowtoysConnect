@@ -35,9 +35,9 @@ class Prop {
     Prop.propUpdateController.sink.add(this);
   }
 
-
-  bool _isOn;
+  bool _isOn = true;
   bool get isOn => _isOn;
+  bool get isOff => !isOn;
   void set isOn(value) {
     _isOn = value;
     Prop.propUpdateController.sink.add(this);
@@ -80,6 +80,10 @@ class Prop {
     });
 
     return map;
+  }
+
+  static List<Prop> get currentAndOn {
+    return current.where((prop) => prop.isOn == true).toList();
   }
 
   static List<Prop> get current => Group.currentProps;
@@ -126,13 +130,15 @@ class Prop {
   Mode get currentMode => _currentMode;
   void set internalMode(mode) {
     // propUpdateController.add(mode);
+    bool modeIsChanging = mode?.baseModeId != _currentMode?.baseModeId;
     _currentMode = mode;
-    Prop.propUpdateController.sink.add(this);
+    if (modeIsChanging)
+      Prop.propUpdateController.sink.add(this);
   }
   DateTime _currentModeSetAt;
   void set currentMode(mode) {
     if (mode.adjustRandomized)
-      mode.setValue('adjust', Random().nextDouble());
+      mode.adjust.setValue(Random().nextDouble());
 
     internalMode = mode;
     animationUpdater?.cancel();

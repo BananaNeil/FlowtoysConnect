@@ -90,7 +90,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
                       height: 15,
                     ),
                     Dials(),
-                    AnimationSwitches(),
+                    // AnimationSwitches(),
                     _Buttons(),
                     _AdvancedLink()
                   ]
@@ -247,12 +247,22 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           children: [
             GestureDetector(
               child: Container(
-                padding: EdgeInsets.only(right: 10, bottom: 10),
+                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                margin: EdgeInsets.only(bottom: 5),
                 decoration: BoxDecoration(
                     // shape: BoxShape.circle,
-                    // color: Colors.black,
+                    borderRadius: BorderRadius.circular(3.0),
+
+                    color: Colors.grey.withOpacity(0.5),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Color(0x44000000),
+                          offset: Offset(0.9, 0.9),
+                          spreadRadius: 2,
+                      )
+                    ],
                 ),
-                child: Text("close", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text("close", style: TextStyle()),
               ),
               onTap: () {
                 showControlsForParam = null;
@@ -290,7 +300,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
     Bridge.audioManager.startStream();
     intensityStream = Bridge.audioIntensityStream.listen((intensity) {
-      print("AUDIO INTENSITY: ${intensity}");
       audioLinks.keys.forEach((paramName) {
         mode.getParam(paramName).setValue(intensity);
         // animators[paramName].value = intensity;
@@ -358,7 +367,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       value = sliderValue;
       audioLinked = mode.getParam(paramName).linkAudio;
     } else value = speed.abs(); 
-    print("VALUE::::::::::::::: ${value}");
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -502,6 +510,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           value: mode.isAdjusting,
           onChanged: (value) {
             mode.isAdjusting = value;
+            widget.updateMode();
             setState(() {});
           },
         ),
@@ -510,6 +519,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           title: "Randomize Adjust",
           onChanged: (value) {
             mode.adjustRandomized = value;
+            widget.updateMode();
             setState(() {});
           },
         ),
@@ -652,7 +662,15 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     if (paramName == 'hue')
       paramValue *= 0.5;
 
-    return Stack(
+    ModeParam param = mode.getParam(paramName)
+    bool isAnimating = param.isAnimating || param.linkAudio;
+
+    return Container(
+        // decoration: BoxDecoration(
+        //     boxShadow: [
+        //     ]
+        // )
+        child: Stack(
       alignment: Alignment.center,
       children: [
         Transform(
@@ -665,8 +683,8 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Color(0xFF1A1A1A),
-                  spreadRadius: 2.0,
+                  color: isAnimating ? Color(0x99FF99).withOpacity(0.8) : Color(0xFF1A1A1A),
+                  spreadRadius: 4.0,
                   blurRadius: 2.0,
                 ),
               ],
@@ -693,16 +711,21 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             color: Colors.black,
           ),
           child: ColorFiltered(
-            colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcATop),
+            colorFilter: ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcATop
+            ),
             child: icons[paramName],
           )
         )
       ]
+      )
     );
   }
 
   void ensureAnimationControllerFor(paramName) {
     var param = mode.getParam(paramName);
+    // print("GETTING VALUE FOR: ${paramName} val: ${mode.getValue(paramName)}");
     var paramValue = mode.getValue(paramName);
     // THIS IS THE SAME AS: inline_mode_params.dart
     // THIS IS THE SAME AS: edit_mode_widget.dart
@@ -725,7 +748,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
         }
       });
     }
-    animators[paramName].value = paramValue;
+    animators[paramName].value = paramValue ?? 0.0;
 
     if (!param.isAnimating)
       animators[paramName].stop();
@@ -792,7 +815,6 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       },
       onPointerUp: (PointerEvent details) {
         showSlider = null;
-        print("DX: ${dx} ${!sliderVisible}");
         if (dx.abs() < 0.85 && !sliderVisible) {
           var index = sliderIndexFromPosition(details.localPosition.dx);
           showControlsForParam = params[index];

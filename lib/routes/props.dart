@@ -1,4 +1,5 @@
 import 'package:app/components/bridge_connection_status_icon.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/components/mode_widget.dart';
 import 'package:app/components/edit_groups.dart';
@@ -48,6 +49,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
         Authentication.currentAccount?.addConnectedPropId(prop.id);
         Group.currentQuickGroup.props.add(prop); 
       }
+      print("CHANGING TO MMODE: ${mode}");
       setState(() {});
     });
   }
@@ -179,22 +181,53 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
     bool isUnconnected = Group.unconnectedGroups.contains(group);
     var isExpanded = _expandedGroupIds.contains(group.groupId);
     bool canClaim = Group.unclaimedGroups.contains(group);
-    return  Card(
+    return Container(
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
-      elevation: 8.0,
-      child: ListTile(
-        minLeadingWidth: 0,
-        leading: PropImage(
-          prop: group.props.first,
-        ),
-        trailing: canClaim ? _ClaimNowButton(group) : (isUnconnected ? _NeedsConnectionIndicator() : null),
-        title: Container(
-          padding: EdgeInsets.symmetric(vertical: 6.0),
-          child: Column(
-            children: [
-              _groupTitle(group, isExpanded: isExpanded),
-              // ...(isExpanded ? _propsForGroup(group) : []),
-            ]
+      child: Slidable(
+        actionPane: SlidableBehindActionPane(),
+        actionExtentRatio: 0.25,
+        secondaryActions: <Widget>[
+          IconSlideAction(
+            caption: 'Disconnect',
+            color: Colors.blue,
+            icon: Icons.signal_wifi_off,
+            onTap: () {
+              group.props.forEach((prop) {
+                Authentication.currentAccount?.removePropId(prop.id); 
+              });
+              setState(() {});
+            }
+          ),
+          IconSlideAction(
+            caption: 'Delete',
+            color: Colors.red,
+            icon: Icons.delete,
+            onTap: () {
+              group.props.forEach((prop) {
+                Authentication.currentAccount?.removePropId(prop.id); 
+              });
+              Group.possible.remove(group);
+              setState(() {});
+            }
+          ),
+        ],
+        child: Card(
+          elevation: 8.0,
+          child: ListTile(
+            minLeadingWidth: 0,
+            leading: PropImage(
+              prop: group.props.first,
+            ),
+            trailing: canClaim ? _ClaimNowButton(group) : (isUnconnected ? _NeedsConnectionIndicator() : null),
+            title: Container(
+              padding: EdgeInsets.symmetric(vertical: 6.0),
+              child: Column(
+                children: [
+                  _groupTitle(group, isExpanded: isExpanded),
+                  // ...(isExpanded ? _propsForGroup(group) : []),
+                ]
+              )
+            )
           )
         )
       )
@@ -252,6 +285,7 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
   _openClaimDialog({group}) {
     RenameController renameController = RenameController();
     renameController.possessivePrefix = Authentication.currentAccount.firstName;
+    renameController.overrideType = 'full';
 
     if (group.props.length == 1)
       renameController.suffix = "Prop";
@@ -422,7 +456,7 @@ class _ClaimGroup extends State<ClaimGroup> {
     'Double Staff': 'Double Staves',
   };
 
-  String get pluralizedPropType => propCount > 1 ? propOptions[propType] : propType;
+  String get pluralizedPropType => multiProp ? propOptions[propType] : propType;
   int get propCount => widget.group.props.length;
   String propType = "Prop";
 
@@ -501,12 +535,42 @@ class _ClaimGroup extends State<ClaimGroup> {
       child: Column(
         children: [
           _ChoosePropType(),
-          _DetectedProps(),
+           _IsPluralCheckbox(),
+          // _DetectedProps(),
           RenameForm(
             key: Key(widget.renameController.newName),
             controller: widget.renameController
           ),
 
+        ]
+      )
+    );
+  }
+
+  bool multiProp = false;
+  Widget _IsPluralCheckbox() {
+    return Container(
+      margin: EdgeInsets.only(top: 2),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children:[
+              Checkbox(value: multiProp, onChanged: (value) {
+                multiProp = value;
+                setState(() {});
+              }),
+              Container(
+                margin: EdgeInsets.only(right:5),
+                child: Text("More than one?",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.green,
+                  )
+                )
+              ),
+            ]
+          ),
         ]
       )
     );

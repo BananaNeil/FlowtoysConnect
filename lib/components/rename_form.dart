@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class RenameController {
+  String overrideType = 'prefix';
   String newName;
-
 
   void set possessivePrefix(value) {
     prefix = "${value}'";
@@ -13,20 +13,27 @@ class RenameController {
       prefix += "s";
   }
 
+  bool get nameIsDefaultOrEmpty {
+    return newName == null || newName == '' ||
+      newName == "${prefix} ${suffix}";
+  }
+
   String _prefix;
   String get prefix => _prefix;
   void set prefix(value) {
+    bool canChangeName = nameIsDefaultOrEmpty;
     _prefix = value;
-    newName = "${prefix} ${suffix}";
+    if (canChangeName)
+      newName = "${prefix} ${suffix}";
   }
-
-
 
   String _suffix = "";
   String get suffix => _suffix;
   void set suffix(value) {
+    bool canChangeName = nameIsDefaultOrEmpty;
     _suffix = value;
-    newName = "${prefix} ${suffix}";
+    if (canChangeName)
+      newName = "${prefix} ${suffix}";
   }
 
 }
@@ -92,8 +99,11 @@ class _RenameForm extends State<RenameForm> {
               onChanged: (text) {
                 setState(() {
                   if (text == '') {
+                    widget.controller.newName = '';
                     widget.controller.possessivePrefix = Authentication.currentAccount.firstName;
-                  } else widget.controller.prefix = text;
+                  } else if (widget.controller.overrideType == 'prefix')
+                   widget.controller.prefix = text;
+                  else widget.controller.newName = text;
                 });
               }
             )

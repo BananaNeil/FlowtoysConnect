@@ -126,7 +126,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
               isConnected: true,
             ),
           ),
-           _WifiDetailsCard(),
+           // _WifiDetailsCard(),
            ..._BLEDetailsCards(),
           _PropDetailsCard(),
 
@@ -147,7 +147,7 @@ class _BridgeConnectionStatus extends State<BridgeConnectionStatus> {
 
     var connectedGroupText = "Controlling ${currentGroupCount}/${connectedGroupCount} connected ${Intl.plural(currentGroupCount, one: 'group', other: 'groups')}.";
     var unconnectedGroupText = "${unconnectedGroupCount} unconnected ${Intl.plural(unconnectedGroupCount, one: 'group', other: 'groups')} detected!";
-    var detectGroupText = "If a group is on and near, try pushing it's button to detect it.";
+    var detectGroupText = "If any props are not responding, try pushing their button.";
 
     var title = "";
     var subtitle = "";
@@ -464,18 +464,18 @@ class _BridgeSettings extends State<BridgeSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => setState(() => Bridge.oscManager.isEnabled = !Bridge.oscManager.isEnabled),
-            child: BridgeDetailsCard(
-              leading: Checkbox(
-                value: Bridge.oscManager.isEnabled,
-                activeColor: Colors.blue,
-                onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
-              ),
-              titleText: 'WIFI Enabled',
-              context: context,
-            ),
-          ),
+          // GestureDetector(
+          //   onTap: () => setState(() => Bridge.oscManager.isEnabled = !Bridge.oscManager.isEnabled),
+          //   child: BridgeDetailsCard(
+          //     leading: Checkbox(
+          //       value: Bridge.oscManager.isEnabled,
+          //       activeColor: Colors.blue,
+          //       onChanged: (value) => setState(() => Bridge.oscManager.isEnabled = value),
+          //     ),
+          //     titleText: 'WIFI Enabled',
+          //     context: context,
+          //   ),
+          // ),
           Container(
             child: Text("BLE animation delay ${Bridge.bleAnimationDelay.inMilliseconds / 1000}s"),
             margin: EdgeInsets.only(left: 10, right: 10, top: 15, bottom: 5),

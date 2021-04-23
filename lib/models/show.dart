@@ -4,9 +4,10 @@ import "package:collection/collection.dart";
 import 'package:app/app_controller.dart';
 import 'package:app/authentication.dart';
 import 'package:json_api/document.dart';
+import 'package:app/models/group.dart';
+import 'package:app/models/prop.dart';
 import 'package:app/models/mode.dart';
 import 'package:app/models/song.dart';
-import 'package:app/models/group.dart';
 import 'package:app/preloader.dart';
 import 'package:app/client.dart';
 import 'dart:convert';
@@ -98,7 +99,7 @@ class Show {
 
   int localPropIndexFromGlobalPropIndex(index) {
     int groupIndex = groupIndexFromGlobalPropIndex(index);
-    return index - sumList(propCounts.sublist(0, groupIndex));
+    return index - sumList(List<num>.from(propCounts).sublist(0, groupIndex));
   }
 
   bool get audioDownloadedPending {
@@ -489,7 +490,8 @@ class Show {
       modeTimeline: [],
       audioTimeline: [],
       trackType: 'global',
-      propCounts: Group.currentGroups.map((group) => group.props.length).toList(),
+      propCounts: Prop.current.length == 0 ? [1] :
+        Group.currentGroups.map((group) => group.props.length).toList(),
     );
   }
 
@@ -545,7 +547,14 @@ class Show {
       modeTracks.first.forEach((element) {
         if (element.objectType == 'Show') {
           element.object.setEditMode('props');
-          element.localNestedModeTracks[timelineIndex].forEach((nestedElement) {
+          var nestedModeTracks = element.localNestedModeTracks;
+
+          // After adding new tracks, nested shows will have the wrong number of
+          // tracks. This line causes it to select from the last nested track if
+          // it goes over the limit:
+          var trackIndex = min(timelineIndex, nestedModeTracks.length - 1);
+
+          nestedModeTracks[trackIndex].forEach((nestedElement) {
             tracks[timelineIndex].add(nestedElement.dup());
           });
           // element.object.modeTracks[timelineIndex].forEach((nestedElement) {
@@ -639,6 +648,7 @@ class Show {
 
   Show dup() {
     var attributes = toMap();
+    print("Duplicating show: ${attributes}");
     return Show(
       duration: Duration(microseconds: attributes['duration'] ?? 0),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(attributes['updated_at']),

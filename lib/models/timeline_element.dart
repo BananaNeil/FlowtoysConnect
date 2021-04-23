@@ -62,6 +62,18 @@ class TimelineElement {
     return groupBy(elements, (element) => element.timelineKey);
   }
 
+  List<Mode> modesAtTime(time) {
+    if (objectType == 'Show') {
+      Duration localTime = time - startOffset;
+      return localNestedModeTracks.map<Mode>((List<TimelineElement> nestedTrack) {
+          return nestedTrack.firstWhere((element) {
+             return element.startOffset <= localTime &&
+                 element.endOffset > localTime;
+          }, orElse: () => null)?.object;
+      }).toList();
+    } else return [object];
+  }
+
   void stretchBy(ratio) {
     this.duration *= ratio;
     if (this.objectType == 'Show')

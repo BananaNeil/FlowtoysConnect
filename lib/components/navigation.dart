@@ -2,6 +2,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:app/authentication.dart';
 import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
+import 'dart:io' show Platform;
 
 class Navigation extends StatefulWidget {
   Navigation({
@@ -90,6 +91,18 @@ class _NavigationState extends State<Navigation> {
               ),
               onTap: () {
                 launch("https://flowtoys.com/");
+              },
+            ),
+            ListTile(
+              title: Text('Support',
+                style: TextStyle(
+                  fontSize: 18,
+                )
+              ),
+              onTap: () {
+                var buildInfo = "${AppController.operatingSystem} (${AppController.operatingSystemVersion}) APP v${AppController.version}#${AppController.buildNumber}";
+                var mailto = "mailto:support@flowtoys.com?subject=App Support request&body=${buildInfo}\n";
+                launch(Uri.encodeFull(mailto));
               },
             ),
             ListTile(
