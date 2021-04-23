@@ -192,6 +192,7 @@ class _GlobalParams extends State<GlobalParams> {
                         return setState(() => paramsExpanded = !paramsExpanded);
 
                       Mode.globalParamsEnabled = value;
+                      Group.setCurrentProps();
                       setState(() {});
                     }
                   ),

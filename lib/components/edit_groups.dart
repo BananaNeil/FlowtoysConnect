@@ -39,6 +39,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: Group.quickGroups.map((group) {
+        Set<String> groupIds = group.props.map((prop) => prop.groupId).toSet();
         return GestureDetector(
           onTap: () {
             setState(() => Group.currentQuickGroup = group);
@@ -49,7 +50,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
                 Border(bottom: BorderSide(color: Colors.white, width: 4))
             ),
             padding: EdgeInsets.symmetric(vertical: 8, horizontal: 15),
-            child: Text("${group.props.length}",
+            child: Text("${groupIds.length}",
               style: TextStyle(
                 color: group.props.length == 0 ? Color(0xFF555555) : Colors.white,
                 fontSize: 26,
@@ -71,7 +72,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
         child: Column(
           children: [
             _groupTitle(group, isExpanded: isExpanded),
-            ...(isExpanded ? _propsForGroup(group) : []),
+            // ...(isExpanded ? _propsForGroup(group) : []),
           ]
         )
       )
@@ -84,9 +85,17 @@ class _EditGroupsWidgetState extends State<EditGroups> {
     return GestureDetector(
       onTap: () {
         setState(() {
-          if (isExpanded)
-            _expandedGroupIds.remove(group.groupId);
-          else _expandedGroupIds.add(group.groupId);
+          // if (isExpanded)
+          //   _expandedGroupIds.remove(group.groupId);
+          // else _expandedGroupIds.add(group.groupId);
+          setState(() {
+            group.props.forEach((prop) {
+              if (allPropsSelected)
+                Group.currentQuickGroup.props.removeWhere((p) => p.id == prop.id);
+              else if (!Group.currentQuickGroup.propIds.contains(prop.id))
+                Group.currentQuickGroup.props.add(prop);
+            });
+          });
         });
       },
       child: Row(
@@ -94,14 +103,6 @@ class _EditGroupsWidgetState extends State<EditGroups> {
           GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () {
-              setState(() {
-                group.props.forEach((prop) {
-                  if (allPropsSelected)
-                    Group.currentQuickGroup.props.removeWhere((p) => p.id == prop.id);
-                  else if (!Group.currentQuickGroup.propIds.contains(prop.id))
-                    Group.currentQuickGroup.props.add(prop);
-                });
-              });
             },
             child: Container(
               width: 30,
@@ -110,7 +111,7 @@ class _EditGroupsWidgetState extends State<EditGroups> {
             ),
           ),
           Text(group.name),
-          isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right), 
+          // isExpanded ? Icon(Icons.expand_more) : Icon(Icons.chevron_right), 
         ]
       ),
     );

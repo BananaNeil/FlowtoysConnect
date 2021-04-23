@@ -63,7 +63,7 @@ class _BridgeConnectionStatusIcon extends State<BridgeConnectionStatusIcon> {
     if (Bridge.oscManager.isEnabled && !oscConnected && bleConnected)
       unseenItemCount += 1;
 
-    if (!isConnected && Bridge.bleManager.bridges.length > 0)
+    if (!isConnected && !Bridge.bleManager.isConnecting && Bridge.bleManager.bridges.length > 0)
       unseenItemCount += 1;
 
     if (isConnected && Bridge.isUnclaimed)

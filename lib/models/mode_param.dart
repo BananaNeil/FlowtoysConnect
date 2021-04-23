@@ -144,6 +144,8 @@ class ModeParam {
 
   ModeParam newChildParam(index) {
     return ModeParam.fromMap({
+      // ADD 'audioLinkIntensity'
+      // ADD 'audioMinThreshold'
         'animationSpeed': animationSpeed,
         'parentIndex': childIndex,
         'linkAudio': linkAudio,

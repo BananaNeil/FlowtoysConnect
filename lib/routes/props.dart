@@ -178,9 +178,9 @@ class _PropsPageState extends State<PropsPage> with TickerProviderStateMixin {
   }
 
   Widget _groupWidget(group) {
-    bool isUnconnected = Group.unconnectedGroups.contains(group);
     var isExpanded = _expandedGroupIds.contains(group.groupId);
-    bool canClaim = Group.unclaimedGroups.contains(group);
+    bool isUnconnected = Group.unconnectedGroups.contains(group);
+    bool canClaim = !isUnconnected && !Group.claimedGroups.contains(group);
     return Container(
       margin: EdgeInsets.symmetric(horizontal: 10.0, vertical: 6.0),
       child: Slidable(
@@ -558,6 +558,7 @@ class _ClaimGroup extends State<ClaimGroup> {
             children:[
               Checkbox(value: multiProp, onChanged: (value) {
                 multiProp = value;
+                widget.renameController.suffix = pluralizedPropType;
                 setState(() {});
               }),
               Container(

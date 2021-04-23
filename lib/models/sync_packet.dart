@@ -73,6 +73,7 @@ class SyncPacket {
       return;
     }
 
+    print("???????? ${group.isOn} ${group.possiblyOn} ${group.hashCode}");
 
     group.internalMode = null;
     if (group.isOn == false && command != 'sleep')
@@ -102,7 +103,7 @@ class SyncPacket {
       group.internalMode.isAdjusting = true;
 
     print("COMMAND: ${command}");
-    if (command == 'start_adjust' || command == 'next_mode')
+    if (Group.connectedIds.contains(group.groupId) && (command == 'start_adjust' || command == 'next_mode'))
       Group.setCurrentProps(group.internalMode);
   }
 }

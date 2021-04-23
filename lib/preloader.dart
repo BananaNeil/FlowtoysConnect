@@ -107,13 +107,13 @@ class Preloader {
   static Future<List<BaseMode>> getCachedBaseModes() async {
     if (baseModes.length > 0) return Future.value(baseModes);
     return Storage.read('baseModes').then((listJson) {
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("From cache: ${listJson?.length}");
-      print("${listJson?.substring(30000)}");
-      print("From cache: ${listJson?.length}");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("From cache: ${listJson?.length}");
+      // print("${listJson?.substring(30000)}");
+      // print("From cache: ${listJson?.length}");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
       if (listJson == null) return [];
       var listData = json.decode(listJson) as Map;
       baseModes = BaseMode.fromList(listData);
@@ -124,13 +124,13 @@ class Preloader {
   static Future<List<ModeList>> getCachedLists() async {
     if (modeLists.length > 0) return Future.value(modeLists);
     return Storage.read('modeLists').then((listJson) {
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("From cache: ${listJson?.length}");
-      print("${listJson?.substring(30000)}");
-      print("From cache: ${listJson?.length}");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
-      print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("From cache: ${listJson?.length}");
+      // print("${listJson}");
+      // print("From cache: ${listJson?.length}");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
+      // print("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5");
       if (listJson == null) return [];
       var listData = json.decode(listJson) as Map;
       modeLists = ModeList.fromList(listData);
@@ -172,7 +172,7 @@ class Preloader {
         if (response['success']) {
           baseModes = response['baseModes'];
           baseModes.forEach((mode) {
-            // if (downloadStarted) return;
+            if (downloadStarted) return;
 
             var context = AppController.getCurrentContext();
 

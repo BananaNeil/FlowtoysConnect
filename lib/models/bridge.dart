@@ -78,6 +78,8 @@ class Bridge {
   static Duration get animationDelay => isWifi ? Duration(milliseconds: 60) : bleAnimationDelay;
 
   static Duration bleAnimationDelay = Duration(milliseconds: 120);
+  static int lastModeNumber;
+  static int lastModePage;
 
   static void setGroup({groupId, page, number, params}) {
     var paramNames = ["hue", "saturation", "brightness", "speed", "density"];
@@ -87,7 +89,6 @@ class Bridge {
     List<double> adjustValues = List.generate(4, (i) {
       return min(max(0, totalLFO - i), 1);
     });
-    print("TOTAL LFO: ${totalLFO}");
 
     List<double> paramRatios = paramNames.map<double>((name) => params[name]).toList();
     paramRatios.addAll(adjustValues);
@@ -99,37 +100,61 @@ class Bridge {
 
 
 
-    // WITH THE OLD FIRMWARE, YOU CAN't jump from one adjusting mode to another adjusting mode.
-    // so we use this hackey work around, where we send two packets.
-    //
-    // The new firmware will fix this, so we shoould detect which firm ware is running
-    // (probalby via absent propID), and fix this for that case.
+    if (number == lastModeNumber && page == lastModePage) {
+      sendPattern(
+        adjustingValue: adjustingValue,
+        paramValues: paramValues,
+        paramNames: paramNames,
+        groupId: groupId,
+        number: number,
+        page: page
+      ); 
+    } else {
+
+      // WITH THE OLD FIRMWARE, YOU CAN't jump from one adjusting mode to another adjusting mode.
+      // so we use this hackey work around, where we send two packets.
+      //
+      // The new firmware will fix this, so we shoould detect which firm ware is running
+      // (probalby via absent propID), and fix this for that case.
+
+      sendPattern(
+        paramValues: paramValues,
+        paramNames: paramNames,
+        adjustingValue: 0,
+        groupId: groupId,
+        number: number,
+        page: page
+      ); 
+
+      // if (params['adjustRandomized'])
+      // Then start adjust, and randomize, and possibly stop adjust
+      //
+      // OR Choose a random adjust for the first signal, and let it be cool.
+
+      if (params['isAdjusting'] || params['adjustRandomized'])
+        Timer(Duration(milliseconds: 100), () {
+          sendPattern(
+            adjustingValue: adjustingValue,
+            paramValues: paramValues,
+            paramNames: paramNames,
+            groupId: groupId,
+            number: number,
+            page: page
+          ); 
+        });
+    }
+    lastModeNumber = number;
+    lastModePage = page;
+  }
+
+  static void sendPattern({paramNames, paramValues, adjustingValue, groupId, number, page}) {
     channel.sendPattern(
       actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
-      paramValues: [...paramValues, 0], // 0 => Forcing adjust to be false
+      paramValues: List<int>.from([...paramValues, adjustingValue]),
       groupId: groupId,
       mode: number,
       page: page,
     );
-
-    // if (params['adjustRandomized'])
-    // Then start adjust, and randomize, and possibly stop adjust
-    //
-    // OR Choose a random adjust for the first signal, and let it be cool.
-
-
-
-    if (params['isAdjusting'] || params['adjustRandomized'])
-      Timer(Duration(milliseconds: 100), () {
-        paramValues.add(adjustingValue);
-        channel.sendPattern(
-          actives: sumList(mapWithIndex(paramNames, (index, name) => pow(2, index+1)))+1,
-          paramValues: paramValues,
-          groupId: groupId,
-          mode: number,
-          page: page,
-        );
-      });
   }
 
   static void factoryReset() {

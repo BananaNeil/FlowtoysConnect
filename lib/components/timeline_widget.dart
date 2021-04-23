@@ -760,10 +760,10 @@ class _TimelineState extends State<TimelineWidget> with TickerProviderStateMixin
                 if (selectedElementsAreIdenticalModes)
                   _editModeParams();
                 else if (oneElementSelected && selectedElements.first.objectType == 'Show') {
-                  _showNoticeMessage("Editing individual props is disabled in this version", color: Colors.red);
-                  // show.setEditMode('props');
-                  // reloadModes();
-                  // _showNoticeMessage("Editing Props");
+                  // _showNoticeMessage("Editing individual props is disabled in this version", color: Colors.red);
+                  show.setEditMode('groups');
+                  reloadModes();
+                  _showNoticeMessage("Editing Groups");
                 } else _replaceSelectedModes();
               },
               snapping: snapping,

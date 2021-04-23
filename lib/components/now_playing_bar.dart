@@ -1,4 +1,5 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/helpers/animated_clip_rect.dart';
 import 'package:app/helpers/duration_helper.dart';
 import 'package:app/components/mode_widget.dart';
@@ -6,6 +7,8 @@ import 'package:app/app_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:app/models/group.dart';
 import 'package:app/models/prop.dart';
+import 'package:app/models/mode.dart';
+import 'package:app/client.dart';
 import 'dart:async';
 import 'dart:math';
 
@@ -14,7 +17,7 @@ class NowPlayingBar extends StatefulWidget {
     Key key,
     this.onNext,
     this.shuffle,
-    this.onMenuTap,
+    // this.onMenuTap,
     this.onPrevious,
     this.toggleShuffle,
   }) : super(key: key);
@@ -23,7 +26,7 @@ class NowPlayingBar extends StatefulWidget {
   Function onNext;
   Function onPrevious;
   Function toggleShuffle;
-  Function onMenuTap;
+  // Function onMenuTap;
 
   bool shuffle;
 
@@ -48,11 +51,15 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
 
   @override
   dispose() {
+    cycleDurationChangeTimer?.cancel();
     currentModeSubscription.cancel();
+    animationTimer?.cancel();
     super.dispose(); 
   }
 
   StreamSubscription currentModeSubscription;
+
+  bool waitingForFavorite = false;
 
   @override
   Widget build(BuildContext context) {
@@ -114,15 +121,32 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
                       child: Align(
                         alignment: Alignment.centerRight,
                         // visible: !isShowingMultipleLists,
-                        child: GestureDetector(
-                          onTap: () {
-                            widget.onMenuTap();
-                          },
-                          child: Container(
-                            padding: EdgeInsets.only(right: AppController.isSmallScreen ? 10 : 25, top: 10),
-                            child: Icon(
-                              Icons.more_horiz,
-                              color: Colors.white,
+                        child: Visibility(
+                          visible: mode != null,
+                          child: GestureDetector(
+                            onTap: () {
+                              // widget.onMenuTap();
+                              Mode newMode = mode.dup();
+                              newMode.mergeGlobalParams();
+                              waitingForFavorite = true;
+                              setState(() {});
+                              newMode.save().then((response) {
+                                if (response['success'])
+                                  Client.updateList('liked-modes', {'append': [response['mode'].id]}).then((response) {
+                                    waitingForFavorite = false;
+                                    if (response['success'])
+                                      mode.wasFavorited = true;
+                                    setState(() {});
+                                  });
+                                else setState(() => waitingForFavorite = false);
+                              });
+                            },
+                            child: Container(
+                              padding: EdgeInsets.only(right: AppController.isSmallScreen ? 10 : 25, top: 10),
+                              child: waitingForFavorite ? SpinKitCircle(size: 25, color: Colors.white) : Icon(
+                                mode?.wasFavorited == true ? Icons.favorite : Icons.favorite_border,
+                                color: mode?.wasFavorited == true ? Colors.red : Colors.white,
+                              ),
                             ),
                           ),
                         )
@@ -142,7 +166,7 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
   Widget get _PlayControlers {
     return Column(
       children: [
-        _ModeTitleAndList(),
+        Text("Autoplay"),//, style: TextStyle(fontWeight: FontWeight.bold)),
         Container(
           margin: EdgeInsets.all(3),
           child: Row(
@@ -203,7 +227,8 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
               ),
             ]
           )
-        )
+        ),
+        _ModeTitleAndList(),
       ]
     );
   }
@@ -306,25 +331,26 @@ class _NowPlayingBar extends State<NowPlayingBar> with TickerProviderStateMixin 
     }
   }
 
+  Mode get mode => Prop.currentModes.length == 0 ? null : Prop.currentModes.first;
+
   Widget _ModeTitleAndList() {
     if (Prop.currentModes.length == 0)
       return Container();
 
-    var mode = Prop.currentModes.first;
     print("NAME: ${mode.name}");
     return Container(
       margin: EdgeInsets.only(top: 5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           mode != null ? Text(mode.name ?? "") : null,
-          Container(
-            margin: EdgeInsets.symmetric(horizontal: 3),
-            child: mode?.name == null ? null : Text(" - "),
-          ),
-          Text("P${mode.page}M${mode.number}",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          )
+          // Container(
+          //   margin: EdgeInsets.symmetric(horizontal: 3),
+          //   child: mode?.name == null ? null : Text(" - "),
+          // ),
+          // Text("P${mode.page}M${mode.number}",
+          //   style: TextStyle(fontWeight: FontWeight.bold),
+          // )
         ].where((widget) => widget != null).toList()
       )
     );

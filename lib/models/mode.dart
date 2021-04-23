@@ -128,12 +128,14 @@ class Mode {
   }
 
   void resetParam(name) {
+    modeParams[name].linkAudio = false;
     modeParams[name].animationSpeed = 0.0;
     modeParams[name].multiValueEnabled = false;
     modeParams[name].value = initialValue(name);
   }
 
   void resetToBaseMode() {
+    wasFavorited = false;
     modeParams.keys.forEach((key) {
       resetParam(key);
     });
@@ -175,8 +177,11 @@ class Mode {
     return !brightness.multiValueEnabled && brightness.value == 0.0;
   }
 
+  bool wasFavorited = false;
+  bool isSaving = false;
   Future<Map<dynamic, dynamic>> save() {
     saveTimer?.cancel();
+    isSaving = true; 
     var completer = Completer<Map<dynamic, dynamic>>();
     saveTimer = Timer(Duration(seconds: 1), () {
       var method = (id == null) ? Client.createMode : Client.updateMode;
@@ -190,6 +195,7 @@ class Mode {
         } else {
           print("FAIL SAVE MODE: ${response['message']}");
         }
+        isSaving = false; 
         // else Fail some how?
         completer.complete(response);
         return response;
@@ -205,6 +211,17 @@ class Mode {
     attributes['parent_type'] = null;
     attributes['parent_id'] = null;
     return Mode.fromMap(attributes);
+  }
+
+  void mergeGlobalParams() {
+    var globalValues = Mode.globalParamRatios;
+    var values = getParamValues();
+    globalValues.keys.forEach((paramName) {
+      if (booleanParams.keys.contains(paramName))
+        setParam(paramName, values[paramName] || globalValues[paramName]);
+      else values[paramName] *= globalValues[paramName];
+        setParam(paramName, values[paramName] * globalValues[paramName]);
+    });
   }
 
   int get adjustCycles => baseMode.adjustCycles;
@@ -305,6 +322,8 @@ class Mode {
   }
 
   void setParam(paramName, newParam, {groupIndex, propIndex}) {
+    wasFavorited = false;
+
     var param = getParam(paramName);
     if (groupIndex == null)
       modeParams[paramName] = newParam;

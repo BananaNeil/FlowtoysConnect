@@ -140,9 +140,9 @@ class _ModesPageState extends State<ModesPage> {
                 toggleShuffle: () {
                   setState(() => shuffle = !shuffle);
                 },
-                onMenuTap: () {
-                  setState(() { showExpandedActionButtons = true; });
-                },
+                // onMenuTap: () {
+                //   setState(() { showExpandedActionButtons = true; });
+                // },
                 onNext: () {
                   switchCurrentPropsToComputedMode(modeAfterMode);
                 },

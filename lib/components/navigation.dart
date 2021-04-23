@@ -94,7 +94,7 @@ class _NavigationState extends State<Navigation> {
               },
             ),
             ListTile(
-              title: Text('Support',
+              title: Text('Contact Us',
                 style: TextStyle(
                   fontSize: 18,
                 )

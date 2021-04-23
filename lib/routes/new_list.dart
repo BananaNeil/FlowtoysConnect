@@ -79,7 +79,13 @@ class _NewListPageState extends State<NewListPage> {
   }
 
   Future<void> _updateList(list) {
-    return Client.updateList(list.id, {'append': selectedModesIds});
+    return Client.updateList(list.id, {'append': selectedModesIds}).then((response) {
+      if (!response['success'])
+        setState(() => listErrorMessage = response['message'] );
+      else Navigator.pushReplacementNamed(context, "/lists/${list.id}", arguments: {
+          'modeList': list,
+        });
+    });
   }
 
   @override
@@ -175,13 +181,7 @@ class _NewListPageState extends State<NewListPage> {
       return GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: () {
-          Client.updateList(modeList.id, {'append': selectedModesIds}).then((response) {
-            if (!response['success'])
-              setState(() => listErrorMessage = response['message'] );
-            else Navigator.pushReplacementNamed(context, "/lists/${modeList.id}", arguments: {
-                'modeList': modeList,
-              });
-          });
+          _updateList(modeList);
         },
         child: Container(
           padding: EdgeInsets.all(20.0),

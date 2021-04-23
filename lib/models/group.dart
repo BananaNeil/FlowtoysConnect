@@ -56,8 +56,8 @@ class Group {
     return _quickGroups;
   }
 
-  static void setCurrentProps(mode) {
-    currentGroups.forEach((group) => group.currentMode = mode );
+  static void setCurrentProps([mode]) {
+    currentGroups.forEach((group) => group.currentMode = (mode ?? group.props.first.currentMode) );
   }
 
   static Map<String, Timer> animationUpdaters = {};
@@ -76,6 +76,8 @@ class Group {
   }
   void set currentMode(mode) {
     if (props.length == 0) return;
+    if (mode == null) return;
+
     _currentMode = mode;
     animationUpdaters[groupId]?.cancel();
 
@@ -89,7 +91,7 @@ class Group {
     else
       props.forEach((prop) => prop.internalMode = mode);
 
-    if (mode.isAnimating)
+    if (mode.isAnimating || Mode.global.isAnimating)
       animationUpdaters[groupId] = Timer(Bridge.animationDelay * 1.02, () {
         this.currentMode = _currentMode;
       });
@@ -139,6 +141,13 @@ class Group {
 
   static List<Prop> get possibleProps {
     return possibleGroups.map((group) => group.props).expand((g) => g).toList();
+  }
+
+  static List<Group> get claimedGroups {
+    var propIds = Authentication.currentAccount.propIds;
+    return connectedGroups.where((group) {
+      return propIds.contains(group.props.first.id);
+    }).toList();
   }
 
   static List<Group> get unclaimedGroups {
@@ -244,6 +253,7 @@ class Group {
   static List<Group> get unconnectedGroups => unconnected;
 
   static List<Group> get unconnected => possibleGroups.where((group) => !Group.connectedGroups.contains(group)).toList();
+  static List<String> get connectedIds => connectedGroups.map((group) => group.groupId).toList();
   static List<Group> get connected => connectedGroups;
   static List<Group> get possible => possibleGroups;
   static List<Group> get current => currentGroups;

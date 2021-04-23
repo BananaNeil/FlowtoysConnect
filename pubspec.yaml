@@ -35,6 +35,7 @@ dependencies:
   # cached_network_image: ^2.5.0
   #   path: /Users/neil/Projects/flowtoys/flutter_cached_network_image
 
+
   open_settings: #^1.0.3
     # path: /Users/neil/Projects/flowtoys/open_settings
     # Forked to fix a bug, needed to switch:

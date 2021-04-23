@@ -1,5 +1,6 @@
 import 'package:flutter_hsvcolor_picker/flutter_hsvcolor_picker.dart';
 import 'package:app/components/horizontal_line_shadow.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:app/models/mode_param.dart';
 import 'package:app/app_controller.dart';
 import 'package:app/models/bridge.dart';
@@ -245,34 +246,9 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            GestureDetector(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                margin: EdgeInsets.only(bottom: 5),
-                decoration: BoxDecoration(
-                    // shape: BoxShape.circle,
-                    borderRadius: BorderRadius.circular(3.0),
-
-                    color: Colors.grey.withOpacity(0.5),
-                    boxShadow: [
-                      BoxShadow(
-                          color: Color(0x44000000),
-                          offset: Offset(0.9, 0.9),
-                          spreadRadius: 2,
-                      )
-                    ],
-                ),
-                child: Text("close", style: TextStyle()),
-              ),
-              onTap: () {
-                showControlsForParam = null;
-                // showSlider = null;
-                if (this.mounted)
-                  setState(() {});
-                mode.save();
-                widget.onTouchUp();
-              },
-            ),
+            _CloseButton(),
+            waitingForAudio ?
+              SpinKitCircle(size: 25, color: Colors.white) : Container(),
           ]
         ),
         AnimatedBuilder(
@@ -282,13 +258,54 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           }
         ),
         _Slider(paramName: paramName, sliderType: 'speed'),
+        ..._AudioLinkSliders(paramName),
         _ParamButtons(paramName),
-      ]
+      ].where((w) => w != null).toList(),
     );
+  }
+
+  Widget _CloseButton() {
+    return GestureDetector(
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        margin: EdgeInsets.only(bottom: 5),
+        decoration: BoxDecoration(
+            // shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(3.0),
+
+            color: Colors.grey.withOpacity(0.5),
+            boxShadow: [
+              BoxShadow(
+                  color: Color(0x44000000),
+                  offset: Offset(0.9, 0.9),
+                  spreadRadius: 2,
+              )
+            ],
+        ),
+        child: Text("close", style: TextStyle()),
+      ),
+      onTap: () {
+        showControlsForParam = null;
+        // showSlider = null;
+        if (this.mounted)
+          setState(() {});
+        mode.save();
+        widget.onTouchUp();
+      },
+    );
+  }
+
+  List<Widget> _AudioLinkSliders(paramName) {
+    if (!mode.getParam(paramName).linkAudio) return [];
+    else return [
+      _Slider(paramName: paramName, sliderType: 'audioLinkIntensity'),
+      _Slider(paramName: paramName, sliderType: 'audioMinThreshold'),
+    ];
   }
 
   Map<String, Map<String, dynamic>> audioLinks = {};
   StreamSubscription intensityStream;
+  bool waitingForAudio = false;
   void reloadAudioLinks() {
     intensityStream?.cancel();
 
@@ -298,10 +315,19 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
       return;
     }
 
+    Bridge.audioManager.resetStream();
     Bridge.audioManager.startStream();
-    intensityStream = Bridge.audioIntensityStream.listen((intensity) {
+    setState(() {});
+
+    intensityStream = Bridge.audioIntensityStream.listen((ratio) {
+      waitingForAudio = false;
       audioLinks.keys.forEach((paramName) {
-        mode.getParam(paramName).setValue(intensity);
+        var initialValue = audioLinks[paramName]['initialValue'];
+        var intensity = audioLinks[paramName]['intensity'];
+        if (ratio < audioLinks[paramName]['minThreshold'])
+          ratio = 0;
+
+        mode.getParam(paramName).setValue(initialValue + ratio * intensity);
         // animators[paramName].value = intensity;
       });
       setState(() {});
@@ -324,9 +350,14 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
                   audioLinks ??= {};
                 if (value == true)
                   audioLinks[paramName] = {
+                    'initialValue': param.getValue(),
+                    'intensity': 1 - param.getValue(),
                     'type': 'incremental',
+                    'minThreshold': 0.0,
                   };
                 else audioLinks.remove(paramName);
+                waitingForAudio = value;
+                widget.updateMode();
                 reloadAudioLinks();
                 setState(() {});
               },
@@ -336,7 +367,11 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             color: Color(0xFFAA3333),
             onTap: () {
               mode.resetParam(paramName);
+              audioLinks.remove(paramName);
               ensureAnimationControllerFor(paramName);
+              waitingForAudio = false;
+              widget.updateMode();
+              reloadAudioLinks();
               setState((){});
             }
           ),
@@ -345,6 +380,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             color: Color(0xFF33AA33),
             onTap: () {
               mode.getParam(paramName).setValue(Random().nextDouble());
+              widget.updateMode();
               setState(() {});
             }
           )
@@ -357,6 +393,10 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     var label = toBeginningOfSentenceCase(paramName);
     if (sliderType == 'speed')
       label += " Animation Speed";
+    else if (sliderType == 'audioLinkIntensity')
+      label += " Audio Intensity";
+    else if (sliderType == 'audioMinThreshold')
+      label += " Audio Minimum Threshold";
 
     var speed = mode.getAnimationSpeed(paramName);
     var sliderValue = mode.getValue(paramName).clamp(0.0, isShowingHueParam ? 2.0 : 1.0);
@@ -366,7 +406,12 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     if (sliderType == 'param') {
       value = sliderValue;
       audioLinked = mode.getParam(paramName).linkAudio;
-    } else value = speed.abs(); 
+    } else if (sliderType == 'speed')
+      value = speed.abs(); 
+    else if (sliderType == 'audioLinkIntensity')
+      value = (audioLinks[paramName] ?? {})['intensity'] ?? 0;
+    else if (sliderType == 'audioMinThreshold')
+      value = (audioLinks[paramName] ?? {})['minThreshold'] ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -393,10 +438,10 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
           min: 0,
           max: isShowingHueParam ? 2.0 : 1.0,
           height: 30,
-          thumbColor: sliderType != 'speed' ? null : (speed == 0 ? Color(0xAAAAAAAA) : Colors.green.withOpacity(0.75)),
+          thumbColor: sliderType == 'speed' ? (speed == 0 ? Color(0xAAAAAAAA) : Colors.green.withOpacity(0.75)) : null,
 
-          value: value,
-          colorRows: sliderType == 'speed' ? null : [gradients[paramName]],
+          value: value.toDouble(),
+          colorRows: sliderType == 'param' ? [gradients[paramName]] : null,
           onChanged: (value) {
             setSliderValue(
               type: sliderType,
@@ -476,13 +521,23 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
 
     if (type == 'speed')
       value ??= mode.getAnimationSpeed(param);
+    else if (type == 'audioLinkIntensity')
+      value ??= (audioLinks[param] ?? {})['intensity'] ?? 0;
+    else if (type == 'audioMinThreshold')
+      value ??= (audioLinks[param] ?? {})['minThreshold'] ?? 0;
     else value ??= mode.getValue(param);
 
     if (dx != null)
         value += dx;
 
-    if (type == 'param')
+    if (type == 'param') {
       mode.getParam(param).setValue(value.clamp(0.0, 1.1 + (isShowingHueParam ? 1 : 0)));
+      if (audioLinks[param] != null)
+        audioLinks[param]['initialValue'] = mode.getValue(param);
+    } else if (type == 'audioLinkIntensity')
+      audioLinks[param]['intensity'] = value;
+    else if (type == 'audioMinThreshold')
+      audioLinks[param]['minThreshold'] = value;
     else if (type == 'speed') {
       mode.setAnimationSpeed(param, value);
       ensureAnimationControllerFor(param);
@@ -662,7 +717,7 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
     if (paramName == 'hue')
       paramValue *= 0.5;
 
-    ModeParam param = mode.getParam(paramName)
+    ModeParam param = mode.getParam(paramName);
     bool isAnimating = param.isAnimating || param.linkAudio;
 
     return Container(
@@ -878,8 +933,11 @@ class _InlineModeParamsState extends State<InlineModeParams> with TickerProvider
             onTap: () {
               mode.modeParams.keys.forEach((paramName) {
                 mode.resetParam(paramName);
+                audioLinks.remove(paramName);
                 ensureAnimationControllerFor(paramName);
               });
+              waitingForAudio = false;
+              reloadAudioLinks();
               widget.onTouchUp();
               widget.updateMode();
               setState((){});
